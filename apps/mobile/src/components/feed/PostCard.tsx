@@ -27,6 +27,10 @@ interface PostCardProps {
 export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShare }: PostCardProps) {
   const router = useRouter();
 
+  const navigateToPost = (postId: string) => {
+    router.push({ pathname: "/post/[id]" as any, params: { id: postId } });
+  };
+
   // For simple reposts, show the original post with a "reposted by" header
   if (post.type === "repost" && post.quoted_post) {
     const original = post.quoted_post;
@@ -43,142 +47,68 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
           </Text>
         </View>
 
-        {/* Original post header */}
-        <Pressable
-          onPress={() => {
-            if (originalAuthor?.username) {
-              router.push({ pathname: "/profile/[username]", params: { username: originalAuthor.username } });
-            }
-          }}
-          style={styles.header}
-        >
-          <Avatar
-            src={originalAuthor?.avatar_url}
-            name={originalAuthor?.display_name || ""}
-            size="md"
-          />
-          <View style={styles.headerText}>
-            <View style={styles.nameRow}>
-              <Text style={styles.displayName} numberOfLines={1}>
-                {originalAuthor?.display_name || "Unknown"}
-              </Text>
-              {originalAuthor?.is_verified && (
-                <IconVerified size={14} color={colors.lime} />
-              )}
+        {/* Tappable content area → navigates to original post */}
+        <Pressable onPress={() => navigateToPost(original.id)}>
+          {/* Original post header */}
+          <Pressable
+            onPress={() => {
+              if (originalAuthor?.username) {
+                router.push({ pathname: "/profile/[username]", params: { username: originalAuthor.username } });
+              }
+            }}
+            style={styles.header}
+          >
+            <Avatar
+              src={originalAuthor?.avatar_url}
+              name={originalAuthor?.display_name || ""}
+              size="md"
+            />
+            <View style={styles.headerText}>
+              <View style={styles.nameRow}>
+                <Text style={styles.displayName} numberOfLines={1}>
+                  {originalAuthor?.display_name || "Unknown"}
+                </Text>
+                {originalAuthor?.is_verified && (
+                  <IconVerified size={14} color={colors.lime} />
+                )}
+              </View>
+              <View style={styles.metaRow}>
+                <Text style={styles.handle}>@{originalAuthor?.username || "user"}</Text>
+                <Text style={styles.dot}>-</Text>
+                <Text style={styles.timestamp}>{timeAgo(original.created_at)}</Text>
+              </View>
             </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.handle}>@{originalAuthor?.username || "user"}</Text>
-              <Text style={styles.dot}>-</Text>
-              <Text style={styles.timestamp}>{timeAgo(original.created_at)}</Text>
-            </View>
-          </View>
+          </Pressable>
+
+          {/* Sentiment tag */}
+          {original.sentiment_tag && (
+            <Badge
+              variant={
+                original.sentiment_tag === "bullish"
+                  ? "green"
+                  : original.sentiment_tag === "bearish"
+                    ? "red"
+                    : "gray"
+              }
+              style={styles.sentimentBadge}
+            >
+              {original.sentiment_tag.toUpperCase()}
+            </Badge>
+          )}
+
+          {/* Original content */}
+          <Text style={styles.content}>{original.content}</Text>
         </Pressable>
 
-        {/* Sentiment tag */}
-        {original.sentiment_tag && (
-          <Badge
-            variant={
-              original.sentiment_tag === "bullish"
-                ? "green"
-                : original.sentiment_tag === "bearish"
-                  ? "red"
-                  : "gray"
-            }
-            style={styles.sentimentBadge}
-          >
-            {original.sentiment_tag.toUpperCase()}
-          </Badge>
-        )}
-
-        {/* Original content */}
-        <Text style={styles.content}>{original.content}</Text>
-
         {/* Action Bar — actions target the original post */}
-        <View style={styles.actionBar}>
-          <Pressable
-            style={styles.actionButton}
-            onPress={() => {
-              triggerHaptic("light");
-              onComment?.(original.id);
-            }}
-          >
-            <IconComment size={16} color={colors.g400} />
-            {original.comment_count > 0 && (
-              <Text style={styles.actionCount}>
-                {formatCompact(original.comment_count)}
-              </Text>
-            )}
-          </Pressable>
-
-          <Pressable
-            style={styles.actionButton}
-            onPress={() => {
-              triggerHaptic("light");
-              onRepost?.(original.id);
-            }}
-          >
-            <IconRepost
-              size={20}
-              color={original.is_reposted ? colors.green : colors.g400}
-            />
-            {original.repost_count > 0 && (
-              <Text style={[styles.actionCount, original.is_reposted && styles.actionCountRepost]}>
-                {formatCompact(original.repost_count)}
-              </Text>
-            )}
-          </Pressable>
-
-          <Pressable
-            style={styles.actionButton}
-            onPress={() => {
-              triggerHaptic("success");
-              onLike(original.id, original.is_liked ? "unlike" : "like");
-            }}
-          >
-            {original.is_liked ? (
-              <IconHeart size={17} color={colors.red} />
-            ) : (
-              <IconHeartOutline size={17} color={colors.g400} />
-            )}
-            {original.like_count > 0 && (
-              <Text style={[styles.actionCount, original.is_liked && styles.actionCountLike]}>
-                {formatCompact(original.like_count)}
-              </Text>
-            )}
-          </Pressable>
-
-          <View style={styles.actionButton}>
-            <IconEye size={18} color={colors.g400} />
-            {original.view_count > 0 && (
-              <Text style={styles.actionCount}>
-                {formatCompact(original.view_count)}
-              </Text>
-            )}
-          </View>
-
-          <Pressable
-            style={styles.actionButton}
-            onPress={() => {
-              triggerHaptic("success");
-              onBookmark(original.id, original.is_bookmarked ? "unbookmark" : "bookmark");
-            }}
-          >
-            <IconBookmark
-              size={17}
-              color={original.is_bookmarked ? colors.lime : colors.g400}
-            />
-          </Pressable>
-
-          <Pressable
-            style={styles.actionButton}
-            onPress={() => {
-              triggerHaptic("light");
-              onShare?.(original.id);
-            }}
-          >
-            <IconShare size={19} color={colors.g400} />
-          </Pressable>
-        </View>
+        <ActionBar
+          post={original}
+          onComment={onComment}
+          onRepost={onRepost}
+          onLike={onLike}
+          onBookmark={onBookmark}
+          onShare={onShare}
+        />
       </Card>
     );
   }
@@ -203,195 +133,223 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
   // Regular post (text, image, poll, quote)
   const author = post.author;
 
-  const handleProfilePress = () => {
-    if (author?.username) {
-      router.push({ pathname: "/profile/[username]", params: { username: author.username } });
-    }
-  };
-
   return (
     <Card>
-      {/* Header */}
-      <Pressable onPress={handleProfilePress} style={styles.header}>
-        <Avatar
-          src={author?.avatar_url}
-          name={author?.display_name || ""}
-          size="md"
-        />
-        <View style={styles.headerText}>
-          <View style={styles.nameRow}>
-            <Text style={styles.displayName} numberOfLines={1}>
-              {author?.display_name || "Unknown"}
-            </Text>
-            {author?.is_verified && (
-              <IconVerified size={14} color={colors.lime} />
-            )}
-          </View>
-          <View style={styles.metaRow}>
-            <Text style={styles.handle}>@{author?.username || "user"}</Text>
-            <Text style={styles.dot}>-</Text>
-            <Text style={styles.timestamp}>{timeAgo(post.created_at)}</Text>
-          </View>
-        </View>
-      </Pressable>
-
-      {/* Sentiment tag */}
-      {post.sentiment_tag && (
-        <Badge
-          variant={
-            post.sentiment_tag === "bullish"
-              ? "green"
-              : post.sentiment_tag === "bearish"
-                ? "red"
-                : "gray"
-          }
-          style={styles.sentimentBadge}
-        >
-          {post.sentiment_tag.toUpperCase()}
-        </Badge>
-      )}
-
-      {/* Content */}
-      {post.content ? (
-        <Text style={styles.content}>{post.content}</Text>
-      ) : null}
-
-      {/* Quoted post embed (for type='quote') — clickable */}
-      {post.type === "quote" && post.quoted_post && (
+      {/* Tappable content area → navigates to post detail */}
+      <Pressable onPress={() => navigateToPost(post.id)}>
+        {/* Header — avatar taps to profile */}
         <Pressable
-          style={({ pressed }) => [styles.quotedEmbed, pressed && styles.quotedEmbedPressed]}
           onPress={() => {
-            if (post.quoted_post?.author?.username) {
-              router.push({ pathname: "/post/[id]" as any, params: { id: post.quoted_post.id } });
+            if (author?.username) {
+              router.push({ pathname: "/profile/[username]", params: { username: author.username } });
             }
           }}
+          style={styles.header}
         >
-          <View style={styles.quotedEmbedHeader}>
-            <Avatar
-              src={post.quoted_post.author?.avatar_url}
-              name={post.quoted_post.author?.display_name || ""}
-              size="sm"
-            />
-            <View style={{ flex: 1 }}>
-              <View style={styles.nameRow}>
-                <Text style={styles.quotedEmbedName} numberOfLines={1}>
-                  {post.quoted_post.author?.display_name || "Unknown"}
-                </Text>
-                {post.quoted_post.author?.is_verified && (
-                  <IconVerified size={12} color={colors.lime} />
-                )}
-              </View>
-              <Text style={styles.quotedEmbedHandle}>
-                @{post.quoted_post.author?.username || "user"}
+          <Avatar
+            src={author?.avatar_url}
+            name={author?.display_name || ""}
+            size="md"
+          />
+          <View style={styles.headerText}>
+            <View style={styles.nameRow}>
+              <Text style={styles.displayName} numberOfLines={1}>
+                {author?.display_name || "Unknown"}
               </Text>
+              {author?.is_verified && (
+                <IconVerified size={14} color={colors.lime} />
+              )}
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={styles.handle}>@{author?.username || "user"}</Text>
+              <Text style={styles.dot}>-</Text>
+              <Text style={styles.timestamp}>{timeAgo(post.created_at)}</Text>
             </View>
           </View>
-          <Text style={styles.quotedEmbedContent} numberOfLines={3}>
-            {post.quoted_post.content}
-          </Text>
         </Pressable>
-      )}
 
-      {/* Deleted quoted post fallback */}
-      {post.type === "quote" && !post.quoted_post && (
-        <View style={styles.quotedEmbedDeleted}>
-          <Text style={styles.quotedEmbedDeletedText}>This post is unavailable</Text>
-        </View>
-      )}
+        {/* Sentiment tag */}
+        {post.sentiment_tag && (
+          <Badge
+            variant={
+              post.sentiment_tag === "bullish"
+                ? "green"
+                : post.sentiment_tag === "bearish"
+                  ? "red"
+                  : "gray"
+            }
+            style={styles.sentimentBadge}
+          >
+            {post.sentiment_tag.toUpperCase()}
+          </Badge>
+        )}
 
-      {/* Action Bar — X/Twitter order: Comment, Repost, Heart, Views, Bookmark, Share */}
-      <View style={styles.actionBar}>
-        {/* Comment */}
-        <Pressable
-          style={styles.actionButton}
-          onPress={() => {
-            triggerHaptic("light");
-            onComment?.(post.id);
-          }}
-        >
-          <IconComment size={16} color={colors.g400} />
-          {post.comment_count > 0 && (
-            <Text style={styles.actionCount}>
-              {formatCompact(post.comment_count)}
+        {/* Content */}
+        {post.content ? (
+          <Text style={styles.content}>{post.content}</Text>
+        ) : null}
+
+        {/* Quoted post embed (for type='quote') */}
+        {post.type === "quote" && post.quoted_post && (
+          <Pressable
+            style={({ pressed }) => [styles.quotedEmbed, pressed && styles.quotedEmbedPressed]}
+            onPress={() => navigateToPost(post.quoted_post!.id)}
+          >
+            <View style={styles.quotedEmbedHeader}>
+              <Avatar
+                src={post.quoted_post.author?.avatar_url}
+                name={post.quoted_post.author?.display_name || ""}
+                size="sm"
+              />
+              <View style={{ flex: 1 }}>
+                <View style={styles.nameRow}>
+                  <Text style={styles.quotedEmbedName} numberOfLines={1}>
+                    {post.quoted_post.author?.display_name || "Unknown"}
+                  </Text>
+                  {post.quoted_post.author?.is_verified && (
+                    <IconVerified size={12} color={colors.lime} />
+                  )}
+                </View>
+                <Text style={styles.quotedEmbedHandle}>
+                  @{post.quoted_post.author?.username || "user"}
+                </Text>
+              </View>
+            </View>
+            <Text style={styles.quotedEmbedContent} numberOfLines={3}>
+              {post.quoted_post.content}
             </Text>
-          )}
-        </Pressable>
+          </Pressable>
+        )}
 
-        {/* Repost */}
-        <Pressable
-          style={styles.actionButton}
-          onPress={() => {
-            triggerHaptic("light");
-            onRepost?.(post.id);
-          }}
-        >
-          <IconRepost
-            size={20}
-            color={post.is_reposted ? colors.green : colors.g400}
-          />
-          {post.repost_count > 0 && (
-            <Text style={[styles.actionCount, post.is_reposted && styles.actionCountRepost]}>
-              {formatCompact(post.repost_count)}
-            </Text>
-          )}
-        </Pressable>
+        {/* Deleted quoted post fallback */}
+        {post.type === "quote" && !post.quoted_post && (
+          <View style={styles.quotedEmbedDeleted}>
+            <Text style={styles.quotedEmbedDeletedText}>This post is unavailable</Text>
+          </View>
+        )}
+      </Pressable>
 
-        {/* Like */}
-        <Pressable
-          style={styles.actionButton}
-          onPress={() => {
-            triggerHaptic("success");
-            onLike(post.id, post.is_liked ? "unlike" : "like");
-          }}
-        >
-          {post.is_liked ? (
-            <IconHeart size={17} color={colors.red} />
-          ) : (
-            <IconHeartOutline size={17} color={colors.g400} />
-          )}
-          {post.like_count > 0 && (
-            <Text style={[styles.actionCount, post.is_liked && styles.actionCountLike]}>
-              {formatCompact(post.like_count)}
-            </Text>
-          )}
-        </Pressable>
-
-        {/* Views */}
-        <View style={styles.actionButton}>
-          <IconEye size={18} color={colors.g400} />
-          {post.view_count > 0 && (
-            <Text style={styles.actionCount}>
-              {formatCompact(post.view_count)}
-            </Text>
-          )}
-        </View>
-
-        {/* Bookmark */}
-        <Pressable
-          style={styles.actionButton}
-          onPress={() => {
-            triggerHaptic("success");
-            onBookmark(post.id, post.is_bookmarked ? "unbookmark" : "bookmark");
-          }}
-        >
-          <IconBookmark
-            size={17}
-            color={post.is_bookmarked ? colors.lime : colors.g400}
-          />
-        </Pressable>
-
-        {/* Share */}
-        <Pressable
-          style={styles.actionButton}
-          onPress={() => {
-            triggerHaptic("light");
-            onShare?.(post.id);
-          }}
-        >
-          <IconShare size={19} color={colors.g400} />
-        </Pressable>
-      </View>
+      {/* Action Bar */}
+      <ActionBar
+        post={post}
+        onComment={onComment}
+        onRepost={onRepost}
+        onLike={onLike}
+        onBookmark={onBookmark}
+        onShare={onShare}
+      />
     </Card>
+  );
+}
+
+/* ─── Action Bar (extracted to avoid duplication) ─── */
+function ActionBar({
+  post,
+  onComment,
+  onRepost,
+  onLike,
+  onBookmark,
+  onShare,
+}: {
+  post: Post;
+  onComment?: (postId: string) => void;
+  onRepost?: (postId: string) => void;
+  onLike: (postId: string, action: "like" | "unlike") => void;
+  onBookmark: (postId: string, action: "bookmark" | "unbookmark") => void;
+  onShare?: (postId: string) => void;
+}) {
+  return (
+    <View style={styles.actionBar}>
+      {/* Comment */}
+      <Pressable
+        style={styles.actionButton}
+        onPress={() => {
+          triggerHaptic("light");
+          onComment?.(post.id);
+        }}
+      >
+        <IconComment size={16} color={colors.g400} />
+        {post.comment_count > 0 && (
+          <Text style={styles.actionCount}>
+            {formatCompact(post.comment_count)}
+          </Text>
+        )}
+      </Pressable>
+
+      {/* Repost */}
+      <Pressable
+        style={styles.actionButton}
+        onPress={() => {
+          triggerHaptic("light");
+          onRepost?.(post.id);
+        }}
+      >
+        <IconRepost
+          size={20}
+          color={post.is_reposted ? colors.green : colors.g400}
+        />
+        {post.repost_count > 0 && (
+          <Text style={[styles.actionCount, post.is_reposted && styles.actionCountRepost]}>
+            {formatCompact(post.repost_count)}
+          </Text>
+        )}
+      </Pressable>
+
+      {/* Like */}
+      <Pressable
+        style={styles.actionButton}
+        onPress={() => {
+          triggerHaptic("success");
+          onLike(post.id, post.is_liked ? "unlike" : "like");
+        }}
+      >
+        {post.is_liked ? (
+          <IconHeart size={17} color={colors.red} />
+        ) : (
+          <IconHeartOutline size={17} color={colors.g400} />
+        )}
+        {post.like_count > 0 && (
+          <Text style={[styles.actionCount, post.is_liked && styles.actionCountLike]}>
+            {formatCompact(post.like_count)}
+          </Text>
+        )}
+      </Pressable>
+
+      {/* Views */}
+      <View style={styles.actionButton}>
+        <IconEye size={18} color={colors.g400} />
+        {post.view_count > 0 && (
+          <Text style={styles.actionCount}>
+            {formatCompact(post.view_count)}
+          </Text>
+        )}
+      </View>
+
+      {/* Bookmark */}
+      <Pressable
+        style={styles.actionButton}
+        onPress={() => {
+          triggerHaptic("success");
+          onBookmark(post.id, post.is_bookmarked ? "unbookmark" : "bookmark");
+        }}
+      >
+        <IconBookmark
+          size={17}
+          color={post.is_bookmarked ? colors.lime : colors.g400}
+        />
+      </Pressable>
+
+      {/* Share */}
+      <Pressable
+        style={styles.actionButton}
+        onPress={() => {
+          triggerHaptic("light");
+          onShare?.(post.id);
+        }}
+      >
+        <IconShare size={19} color={colors.g400} />
+      </Pressable>
+    </View>
   );
 }
 

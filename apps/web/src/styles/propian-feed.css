@@ -92,6 +92,19 @@
   transform: translateY(-2px);
 }
 
+/* Clickable post content link */
+.pt-post-link {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.pt-post-link:hover {
+  text-decoration: none;
+  color: inherit;
+}
+
 .pt-post-header {
   display: flex;
   align-items: center;

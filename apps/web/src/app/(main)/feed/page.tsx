@@ -194,29 +194,32 @@ function PostCard({
           <span>{reposter?.display_name ?? "Someone"} reposted</span>
         </div>
 
-        {/* Original post header */}
-        <div className="pt-post-header">
-          <Avatar
-            src={originalAuthor?.avatar_url}
-            name={originalAuthor?.display_name ?? "User"}
-            size="md"
-          />
-          <div className="pt-post-author">
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ fontWeight: 600 }}>{originalAuthor?.display_name ?? "User"}</span>
-              {originalAuthor?.is_verified && (
-                <IconVerified size={14} style={{ color: "var(--lime)" }} />
-              )}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span className="pt-post-handle">@{originalAuthor?.username ?? "user"}</span>
-              <span className="pt-post-time">{timeAgo(original.created_at)}</span>
+        {/* Clickable content area → post detail */}
+        <a href={`/post/${original.id}`} className="pt-post-link">
+          {/* Original post header */}
+          <div className="pt-post-header">
+            <Avatar
+              src={originalAuthor?.avatar_url}
+              name={originalAuthor?.display_name ?? "User"}
+              size="md"
+            />
+            <div className="pt-post-author">
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span style={{ fontWeight: 600 }}>{originalAuthor?.display_name ?? "User"}</span>
+                {originalAuthor?.is_verified && (
+                  <IconVerified size={14} style={{ color: "var(--lime)" }} />
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span className="pt-post-handle">@{originalAuthor?.username ?? "user"}</span>
+                <span className="pt-post-time">{timeAgo(original.created_at)}</span>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Original body */}
-        <div className="pt-post-body">{original.content}</div>
+          {/* Original body */}
+          <div className="pt-post-body">{original.content}</div>
+        </a>
 
         {/* Actions target the original post */}
         <ActionBar
@@ -257,70 +260,73 @@ function PostCard({
   // Regular post (text, image, poll, quote)
   return (
     <article className="pt-post">
-      {/* Header */}
-      <div className="pt-post-header">
-        <Avatar
-          src={post.author?.avatar_url}
-          name={post.author?.display_name ?? "User"}
-          size="md"
-        />
-        <div className="pt-post-author">
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <span style={{ fontWeight: 600 }}>{post.author?.display_name ?? "User"}</span>
-            {post.author?.is_verified && (
-              <IconVerified size={14} style={{ color: "var(--lime)" }} />
-            )}
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span className="pt-post-handle">@{post.author?.username ?? "user"}</span>
-            <span className="pt-post-time">{timeAgo(post.created_at)}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Body */}
-      {post.content && <div className="pt-post-body">{post.content}</div>}
-
-      {/* Quoted post embed */}
-      {post.type === "quote" && post.quoted_post && (
-        <a href={`/post/${post.quoted_post.id}`} className="pt-quoted-embed pt-quoted-embed--clickable">
-          <div className="pt-quoted-embed-header">
-            <Avatar
-              src={post.quoted_post.author?.avatar_url}
-              name={post.quoted_post.author?.display_name ?? "User"}
-              size="sm"
-            />
-            <span className="pt-quoted-embed-name">
-              {post.quoted_post.author?.display_name ?? "Unknown"}
-            </span>
-            {post.quoted_post.author?.is_verified && (
-              <IconVerified size={12} style={{ color: "var(--lime)" }} />
-            )}
-            <span className="pt-quoted-embed-handle">
-              @{post.quoted_post.author?.username ?? "user"}
-            </span>
-          </div>
-          <p className="pt-quoted-embed-body">{post.quoted_post.content}</p>
-        </a>
-      )}
-
-      {/* Deleted quoted post fallback */}
-      {post.type === "quote" && !post.quoted_post && (
-        <div className="pt-quoted-embed pt-quoted-embed--deleted">
-          <p>This post is unavailable</p>
-        </div>
-      )}
-
-      {/* Optional chart placeholder */}
-      {post.type === "image" && post.media_urls.length > 0 && (
-        <div className="pt-post-chart">
-          <img
-            src={post.media_urls[0]}
-            alt="Trade chart"
-            style={{ width: "100%", borderRadius: 8 }}
+      {/* Clickable content area → post detail */}
+      <a href={`/post/${post.id}`} className="pt-post-link">
+        {/* Header */}
+        <div className="pt-post-header">
+          <Avatar
+            src={post.author?.avatar_url}
+            name={post.author?.display_name ?? "User"}
+            size="md"
           />
+          <div className="pt-post-author">
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontWeight: 600 }}>{post.author?.display_name ?? "User"}</span>
+              {post.author?.is_verified && (
+                <IconVerified size={14} style={{ color: "var(--lime)" }} />
+              )}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span className="pt-post-handle">@{post.author?.username ?? "user"}</span>
+              <span className="pt-post-time">{timeAgo(post.created_at)}</span>
+            </div>
+          </div>
         </div>
-      )}
+
+        {/* Body */}
+        {post.content && <div className="pt-post-body">{post.content}</div>}
+
+        {/* Quoted post embed */}
+        {post.type === "quote" && post.quoted_post && (
+          <div className="pt-quoted-embed pt-quoted-embed--clickable">
+            <div className="pt-quoted-embed-header">
+              <Avatar
+                src={post.quoted_post.author?.avatar_url}
+                name={post.quoted_post.author?.display_name ?? "User"}
+                size="sm"
+              />
+              <span className="pt-quoted-embed-name">
+                {post.quoted_post.author?.display_name ?? "Unknown"}
+              </span>
+              {post.quoted_post.author?.is_verified && (
+                <IconVerified size={12} style={{ color: "var(--lime)" }} />
+              )}
+              <span className="pt-quoted-embed-handle">
+                @{post.quoted_post.author?.username ?? "user"}
+              </span>
+            </div>
+            <p className="pt-quoted-embed-body">{post.quoted_post.content}</p>
+          </div>
+        )}
+
+        {/* Deleted quoted post fallback */}
+        {post.type === "quote" && !post.quoted_post && (
+          <div className="pt-quoted-embed pt-quoted-embed--deleted">
+            <p>This post is unavailable</p>
+          </div>
+        )}
+
+        {/* Optional chart placeholder */}
+        {post.type === "image" && post.media_urls.length > 0 && (
+          <div className="pt-post-chart">
+            <img
+              src={post.media_urls[0]}
+              alt="Trade chart"
+              style={{ width: "100%", borderRadius: 8 }}
+            />
+          </div>
+        )}
+      </a>
 
       {/* Actions bar */}
       <ActionBar
