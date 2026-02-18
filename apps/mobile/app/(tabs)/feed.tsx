@@ -5,15 +5,12 @@ import {
   StyleSheet,
   RefreshControl,
   Pressable,
-  Modal,
   Text,
-  KeyboardAvoidingView,
-  Platform,
   Share,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { colors, fontFamily, radii, spacing, shadows } from "@/theme";
+import { colors, radii, spacing, shadows } from "@/theme";
 import { supabase } from "@/lib/supabase";
 import { triggerHaptic } from "@/hooks/useHaptics";
 import { useFeed, useLikePost, useBookmark, useRepost, useCreatePost, useCurrentProfile } from "@propian/shared/hooks";
@@ -22,10 +19,10 @@ import { PostCard } from "@/components/feed/PostCard";
 import { CommentSheet } from "@/components/feed/CommentSheet";
 import { RepostMenu } from "@/components/feed/RepostMenu";
 import { QuoteComposer } from "@/components/feed/QuoteComposer";
+import { PostComposer } from "@/components/feed/PostComposer";
 import { TrendingBar } from "@/components/feed/TrendingBar";
-import { Button, Textarea, EmptyState, Skeleton } from "@/components/ui";
+import { EmptyState, Skeleton } from "@/components/ui";
 import { IconPlus } from "@/components/icons/IconPlus";
-import { IconClose } from "@/components/icons/IconClose";
 import { IconHome } from "@/components/icons/IconHome";
 import { IconSearch } from "@/components/icons/IconSearch";
 import { IconBell } from "@/components/icons/IconBell";
@@ -52,7 +49,6 @@ export default function FeedScreen() {
   const createPostMutation = useCreatePost(supabase);
 
   const [composerVisible, setComposerVisible] = useState(false);
-  const [postContent, setPostContent] = useState("");
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [repostMenuPostId, setRepostMenuPostId] = useState<string | null>(null);
   const [quotePostId, setQuotePostId] = useState<string | null>(null);
@@ -117,18 +113,19 @@ export default function FeedScreen() {
     } catch (_) {}
   }, []);
 
-  const handleCreatePost = () => {
-    if (!postContent.trim()) return;
-    createPostMutation.mutate(
-      { content: postContent.trim() },
-      {
-        onSuccess: () => {
-          setPostContent("");
-          setComposerVisible(false);
-        },
-      }
-    );
-  };
+  const handleCreatePost = useCallback(
+    (data: { content: string; sentiment_tag?: "bullish" | "bearish" | "neutral" | null }) => {
+      createPostMutation.mutate(
+        { content: data.content, sentiment_tag: data.sentiment_tag },
+        {
+          onSuccess: () => {
+            setComposerVisible(false);
+          },
+        }
+      );
+    },
+    [createPostMutation]
+  );
 
   const handleEndReached = () => {
     if (hasNextPage && !isFetchingNextPage) {
@@ -268,43 +265,15 @@ export default function FeedScreen() {
         isPending={createPostMutation.isPending}
       />
 
-      {/* Composer Modal */}
-      <Modal
+      {/* Post Composer */}
+      <PostComposer
         visible={composerVisible}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setComposerVisible(false)}
-      >
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.modalContainer}
-        >
-          <View style={[styles.modalSafe, { paddingTop: insets.top }]}>
-            <View style={styles.modalHeader}>
-              <Pressable onPress={() => setComposerVisible(false)}>
-                <IconClose size={24} color={colors.black} />
-              </Pressable>
-              <Text style={styles.modalTitle}>New Post</Text>
-              <Button
-                variant="primary"
-                size="sm"
-                noIcon
-                onPress={handleCreatePost}
-                disabled={!postContent.trim() || createPostMutation.isPending}
-              >
-                {createPostMutation.isPending ? "Posting..." : "Post"}
-              </Button>
-            </View>
-            <Textarea
-              placeholder="What's on your mind, trader?"
-              value={postContent}
-              onChangeText={setPostContent}
-              style={styles.composerInput}
-              autoFocus
-            />
-          </View>
-        </KeyboardAvoidingView>
-      </Modal>
+        onClose={() => setComposerVisible(false)}
+        onSubmit={handleCreatePost}
+        isPending={createPostMutation.isPending}
+        avatar={profile?.avatar_url}
+        displayName={profile?.display_name}
+      />
     </View>
   );
 }
@@ -383,34 +352,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     ...shadows.md,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: colors.white,
-  },
-  modalSafe: {
-    flex: 1,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: spacing.base,
-    paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.black,
-  },
-  modalTitle: {
-    fontFamily: "Outfit_700Bold",
-    fontSize: 17,
-    color: colors.black,
-  },
-  composerInput: {
-    borderWidth: 0,
-    borderRadius: 0,
-    fontSize: 16,
-    minHeight: 200,
-    paddingHorizontal: spacing.base,
-    paddingTop: spacing.base,
   },
 });
