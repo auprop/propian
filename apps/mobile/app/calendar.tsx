@@ -676,9 +676,9 @@ export default function CalendarScreen() {
         refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={() => refetch()} />}
       >
         {/* View toggle + filters */}
-        <View style={{ paddingHorizontal: 16, gap: 10, marginBottom: 8 }}>
+        <View style={{ paddingHorizontal: 16, gap: 14, marginBottom: 16, marginTop: 8 }}>
           <ViewToggle view={calView} setView={(v) => { setCalView(v); setExpandedEvent(null); }} />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
             <ImpactFilter value={calImpact} onChange={setCalImpact} />
             <CountryFilter value={calCountry} onChange={setCalCountry} />
           </ScrollView>
@@ -705,7 +705,7 @@ export default function CalendarScreen() {
                 <Skeleton width="100%" height={80} radius={8} />
               </View>
             ) : (
-              <View style={{ paddingHorizontal: 16, marginBottom: 12 }}>
+              <View style={{ paddingHorizontal: 16, marginBottom: 16 }}>
                 <WeekStrip
                   weekDays={weekDays ?? []}
                   selectedDay={selectedDay}
@@ -894,7 +894,7 @@ const s = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 16,
-    paddingVertical: 10,
+    paddingVertical: 14,
   },
   navBtn: {
     width: 36,
