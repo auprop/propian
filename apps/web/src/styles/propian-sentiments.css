@@ -107,7 +107,7 @@
 
 .pt-sent-bar-long {
   height: 100%;
-  background: var(--lime);
+  background: #65a30d;
   border-radius: 4px 0 0 4px;
 }
 

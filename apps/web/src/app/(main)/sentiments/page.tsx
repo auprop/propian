@@ -67,11 +67,11 @@ function SentimentGauge({ longPct }: { longPct: number }) {
           strokeWidth="8"
           strokeLinecap="round"
         />
-        {/* Long portion (lime) — from left */}
+        {/* Long portion (green) — from left */}
         <path
           d="M 5 50 A 45 45 0 0 1 95 50"
           fill="none"
-          stroke="var(--lime)"
+          stroke="#65a30d"
           strokeWidth="8"
           strokeLinecap="round"
           strokeDasharray={`${longPct * 1.41} 200`}
@@ -144,8 +144,8 @@ function SentimentCard({ s }: { s: SentimentData }) {
 
 function getHeatBg(longPct: number): string {
   const intensity = Math.abs(longPct - 50) / 50;
-  if (longPct > 65) return `rgba(168,255,57,${0.15 + intensity * 0.4})`;
-  if (longPct > 55) return `rgba(168,255,57,${0.05 + intensity * 0.2})`;
+  if (longPct > 65) return `rgba(101,163,13,${0.15 + intensity * 0.4})`;
+  if (longPct > 55) return `rgba(101,163,13,${0.05 + intensity * 0.2})`;
   if (longPct > 45) return "var(--g50)";
   if (longPct > 35) return `rgba(255,68,68,${0.05 + intensity * 0.2})`;
   return `rgba(255,68,68,${0.15 + intensity * 0.4})`;
@@ -252,8 +252,8 @@ function HistoryChart({ data }: { data: SentimentHistory[] }) {
         style={{ width: "100%", height: "100%" }}
         preserveAspectRatio="none"
       >
-        <path d={longPath} fill="rgba(168,255,57,.12)" />
-        <path d={longLine} fill="none" stroke="var(--lime)" strokeWidth="2" />
+        <path d={longPath} fill="rgba(101,163,13,.12)" />
+        <path d={longLine} fill="none" stroke="#65a30d" strokeWidth="2" />
         <path d={shortPath} fill="rgba(255,68,68,.08)" />
       </svg>
 
@@ -385,7 +385,7 @@ export default function SentimentsPage() {
               {hero && (
                 <div className="pt-sent-hero">
                   <div className="pt-sent-hero-card">
-                    <div className="pt-sent-hero-val" style={{ color: "var(--lime)" }}>
+                    <div className="pt-sent-hero-val" style={{ color: "var(--lime-dim)" }}>
                       {hero.community_bullish_pct}%
                     </div>
                     <div className="pt-sent-hero-label">Community Bullish</div>
@@ -403,7 +403,7 @@ export default function SentimentsPage() {
                     </div>
                   </div>
                   <div className="pt-sent-hero-card">
-                    <div className="pt-sent-hero-val" style={{ color: "var(--lime)" }}>
+                    <div className="pt-sent-hero-val" style={{ color: "var(--lime-dim)" }}>
                       {hero.most_traded_symbol}
                     </div>
                     <div className="pt-sent-hero-label">Most Traded</div>
@@ -615,7 +615,7 @@ export default function SentimentsPage() {
                   <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
                     {extremes.map((e) => {
                       const isLong = e.side === "LONG";
-                      const color = isLong ? "var(--lime)" : "var(--red)";
+                      const color = isLong ? "#65a30d" : "var(--red)";
                       return (
                         <div
                           className="pt-sent-extreme"
@@ -665,7 +665,7 @@ export default function SentimentsPage() {
                     }}
                   >
                     {divergences.map((d) => {
-                      const signalColor = d.bullish ? "var(--lime)" : "var(--red)";
+                      const signalColor = d.bullish ? "#65a30d" : "var(--red)";
                       return (
                         <div
                           key={d.symbol}
@@ -776,8 +776,8 @@ export default function SentimentsPage() {
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 12, fontSize: 11 }}>
                   {[
-                    { label: "Strong Long", bg: "var(--lime)" },
-                    { label: "Mild Long", bg: "rgba(168,255,57,.3)" },
+                    { label: "Strong Long", bg: "#65a30d" },
+                    { label: "Mild Long", bg: "rgba(101,163,13,.3)" },
                     { label: "Neutral", bg: "var(--g200)" },
                     { label: "Mild Short", bg: "rgba(255,68,68,.3)" },
                     { label: "Strong Short", bg: "var(--red)" },
@@ -812,7 +812,7 @@ export default function SentimentsPage() {
                       gap: 6,
                     }}
                   >
-                    <span style={{ color: "var(--lime)" }}>●</span> Strongest Long Conviction
+                    <span style={{ color: "#65a30d" }}>●</span> Strongest Long Conviction
                   </div>
                   {strongLong.map((s, i) => (
                     <div
@@ -1112,7 +1112,7 @@ export default function SentimentsPage() {
                               style={{
                                 width: `${h.long_pct}%`,
                                 height: "100%",
-                                background: "var(--lime)",
+                                background: "#65a30d",
                                 borderRadius: "3px 0 0 3px",
                               }}
                             />
