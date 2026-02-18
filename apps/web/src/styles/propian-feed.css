@@ -368,3 +368,134 @@
 .pt-post-action.bookmarked {
   color: var(--lime);
 }
+
+/* ─── Repost Dropdown Menu ─── */
+
+.pt-repost-menu {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--white);
+  border: var(--brd);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-md);
+  padding: 4px;
+  z-index: 20;
+  min-width: 160px;
+  animation: pt-toast-in 0.15s ease-out;
+}
+
+.pt-repost-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--g700);
+  border-radius: var(--r-sm);
+  transition: background var(--tf);
+}
+
+.pt-repost-menu button:hover {
+  background: var(--g50);
+}
+
+/* ─── Quoted Post Embed ─── */
+
+.pt-quoted-embed {
+  margin: 0 20px 16px;
+  border: 1px solid var(--g200);
+  border-radius: var(--r-md);
+  padding: 12px 16px;
+  background: var(--g50);
+}
+
+.pt-quoted-embed-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.pt-quoted-embed-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.pt-quoted-embed-handle {
+  color: var(--g400);
+  font-size: 12px;
+}
+
+.pt-quoted-embed-body {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--g600);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pt-quoted-embed--deleted {
+  background: var(--g100);
+  text-align: center;
+}
+
+.pt-quoted-embed--deleted p {
+  color: var(--g400);
+  font-size: 13px;
+  margin: 0;
+}
+
+/* ─── Quote Composer Modal ─── */
+
+.pt-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: pt-overlay-in 0.2s ease-out;
+}
+
+@keyframes pt-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.pt-quote-composer {
+  background: var(--white);
+  border: var(--brd);
+  border-radius: var(--r-lg);
+  width: 100%;
+  max-width: 560px;
+  padding: 20px;
+  box-shadow: var(--sh-lg);
+  animation: pt-toast-in 0.2s ease-out;
+}
+
+.pt-quote-composer textarea {
+  border: none;
+  outline: none;
+  resize: none;
+  font-family: var(--font);
+  font-size: 15px;
+  flex: 1;
+  min-height: 80px;
+  width: 100%;
+}
+
+.pt-quote-composer textarea::placeholder {
+  color: var(--g400);
+}

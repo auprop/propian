@@ -1,6 +1,6 @@
 import { UserPreview } from "./user";
 
-export type PostType = "text" | "image" | "poll";
+export type PostType = "text" | "image" | "poll" | "quote";
 export type SentimentTag = "bullish" | "bearish" | "neutral";
 
 export interface Post {
@@ -21,6 +21,8 @@ export interface Post {
   is_liked?: boolean;
   is_bookmarked?: boolean;
   is_reposted?: boolean;
+  quoted_post_id?: string | null;
+  quoted_post?: Post | null;
 }
 
 export interface Comment {

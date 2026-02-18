@@ -48,7 +48,7 @@ export function useFeed(supabase: SupabaseClient) {
 export function useCreatePost(supabase: SupabaseClient) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (post: { content: string; type?: string; sentiment_tag?: string | null; media_urls?: string[] }) =>
+    mutationFn: (post: { content: string; type?: string; sentiment_tag?: string | null; media_urls?: string[]; quoted_post_id?: string | null }) =>
       postsApi.createPost(supabase, post),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["feed"] });

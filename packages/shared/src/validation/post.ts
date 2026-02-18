@@ -5,9 +5,10 @@ export const createPostSchema = z.object({
     .string()
     .min(1, "Post cannot be empty")
     .max(2000, "Post must be under 2000 characters"),
-  type: z.enum(["text", "image", "poll"]).default("text"),
+  type: z.enum(["text", "image", "poll", "quote"]).default("text"),
   sentiment_tag: z.enum(["bullish", "bearish", "neutral"]).nullable().default(null),
   media_urls: z.array(z.string().url()).default([]),
+  quoted_post_id: z.string().uuid().nullable().optional(),
 });
 
 export const commentSchema = z.object({

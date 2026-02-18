@@ -21,6 +21,7 @@ import {
   IconVerified,
   IconFire,
   IconTrendUp,
+  IconQuote,
 } from "@propian/shared/icons";
 import {
   useSession,
@@ -70,18 +71,24 @@ function PostCard({
   onLike,
   onBookmark,
   onRepost,
+  onQuote,
   onComment,
   onShare,
   isCommentsOpen,
+  isRepostMenuOpen,
+  onToggleRepostMenu,
   supabase,
 }: {
   post: Post;
   onLike: (postId: string, isLiked: boolean) => void;
   onBookmark: (postId: string, isBookmarked: boolean) => void;
   onRepost: (postId: string, isReposted: boolean) => void;
+  onQuote: (postId: string) => void;
   onComment: (postId: string) => void;
   onShare: (postId: string) => void;
   isCommentsOpen: boolean;
+  isRepostMenuOpen: boolean;
+  onToggleRepostMenu: (postId: string) => void;
   supabase: ReturnType<typeof createBrowserClient>;
 }) {
   return (
@@ -110,6 +117,36 @@ function PostCard({
       {/* Body */}
       <div className="pt-post-body">{post.content}</div>
 
+      {/* Quoted post embed */}
+      {post.type === "quote" && post.quoted_post && (
+        <div className="pt-quoted-embed">
+          <div className="pt-quoted-embed-header">
+            <Avatar
+              src={post.quoted_post.author?.avatar_url}
+              name={post.quoted_post.author?.display_name ?? "User"}
+              size="xs"
+            />
+            <span className="pt-quoted-embed-name">
+              {post.quoted_post.author?.display_name ?? "Unknown"}
+            </span>
+            {post.quoted_post.author?.is_verified && (
+              <IconVerified size={12} style={{ color: "var(--lime)" }} />
+            )}
+            <span className="pt-quoted-embed-handle">
+              @{post.quoted_post.author?.username ?? "user"}
+            </span>
+          </div>
+          <p className="pt-quoted-embed-body">{post.quoted_post.content}</p>
+        </div>
+      )}
+
+      {/* Deleted quoted post fallback */}
+      {post.type === "quote" && !post.quoted_post && (
+        <div className="pt-quoted-embed pt-quoted-embed--deleted">
+          <p>This post is unavailable</p>
+        </div>
+      )}
+
       {/* Optional chart placeholder */}
       {post.type === "image" && post.media_urls.length > 0 && (
         <div className="pt-post-chart">
@@ -121,21 +158,35 @@ function PostCard({
         </div>
       )}
 
-      {/* Actions bar — X/Twitter order: Comment, Repost, Heart, Views, Bookmark, Share */}
-      {/* Sizes are optically calibrated per viewBox: 32→16, 32→18, 24→17, 24→18, 24→17, 48→22 */}
+      {/* Actions bar */}
       <div className="pt-post-actions">
         <button className="pt-post-action" onClick={() => onComment(post.id)}>
           <IconComment size={16} />
           <span>{post.comment_count > 0 ? formatCompact(post.comment_count) : ""}</span>
         </button>
 
-        <button
-          className={`pt-post-action ${post.is_reposted ? "reposted" : ""}`}
-          onClick={() => onRepost(post.id, !!post.is_reposted)}
-        >
-          <IconRepost size={20} style={post.is_reposted ? { color: "var(--green)" } : undefined} />
-          <span>{post.repost_count > 0 ? formatCompact(post.repost_count) : ""}</span>
-        </button>
+        {/* Repost with dropdown */}
+        <div style={{ position: "relative", flex: 1, display: "flex", justifyContent: "center" }}>
+          <button
+            className={`pt-post-action ${post.is_reposted ? "reposted" : ""}`}
+            onClick={() => onToggleRepostMenu(post.id)}
+          >
+            <IconRepost size={20} style={post.is_reposted ? { color: "var(--green)" } : undefined} />
+            <span>{post.repost_count > 0 ? formatCompact(post.repost_count) : ""}</span>
+          </button>
+          {isRepostMenuOpen && (
+            <div className="pt-repost-menu">
+              <button onClick={() => { onRepost(post.id, !!post.is_reposted); onToggleRepostMenu(post.id); }}>
+                <IconRepost size={16} style={post.is_reposted ? { color: "var(--green)" } : undefined} />
+                {post.is_reposted ? "Undo Repost" : "Repost"}
+              </button>
+              <button onClick={() => { onQuote(post.id); onToggleRepostMenu(post.id); }}>
+                <IconQuote size={16} />
+                Quote
+              </button>
+            </div>
+          )}
+        </div>
 
         <button
           className={`pt-post-action ${post.is_liked ? "liked" : ""}`}
@@ -335,9 +386,12 @@ export default function FeedPage() {
     createPost.mutate(data, { onSuccess: () => reset() });
   });
 
-  /* Comment & share state */
+  /* Comment, share, repost menu, & quote state */
   const [expandedCommentPostId, setExpandedCommentPostId] = useState<string | null>(null);
   const [copiedPostId, setCopiedPostId] = useState<string | null>(null);
+  const [repostMenuPostId, setRepostMenuPostId] = useState<string | null>(null);
+  const [quotePostId, setQuotePostId] = useState<string | null>(null);
+  const [quoteContent, setQuoteContent] = useState("");
 
   /* Handlers */
   const handleLike = useCallback(
@@ -383,6 +437,34 @@ export default function FeedPage() {
     },
     [],
   );
+
+  const handleToggleRepostMenu = useCallback(
+    (postId: string) => {
+      setRepostMenuPostId((prev) => (prev === postId ? null : postId));
+    },
+    [],
+  );
+
+  const handleQuote = useCallback(
+    (postId: string) => {
+      setQuotePostId(postId);
+      setRepostMenuPostId(null);
+    },
+    [],
+  );
+
+  const handleQuoteSubmit = useCallback(() => {
+    if (!quoteContent.trim() || !quotePostId) return;
+    createPost.mutate(
+      { content: quoteContent.trim(), type: "quote", quoted_post_id: quotePostId },
+      {
+        onSuccess: () => {
+          setQuoteContent("");
+          setQuotePostId(null);
+        },
+      },
+    );
+  }, [quoteContent, quotePostId, createPost]);
 
   /* Infinite scroll observer */
   const sentinelRef = useRef<HTMLDivElement>(null);
@@ -488,9 +570,12 @@ export default function FeedPage() {
                 onLike={handleLike}
                 onBookmark={handleBookmark}
                 onRepost={handleRepost}
+                onQuote={handleQuote}
                 onComment={handleComment}
                 onShare={handleShare}
                 isCommentsOpen={expandedCommentPostId === post.id}
+                isRepostMenuOpen={repostMenuPostId === post.id}
+                onToggleRepostMenu={handleToggleRepostMenu}
                 supabase={supabase}
               />
               {copiedPostId === post.id && (
@@ -544,6 +629,62 @@ export default function FeedPage() {
           </div>
         </aside>
       </div>
+
+      {/* Quote Composer Modal */}
+      {quotePostId && (() => {
+        const quotedPost = posts.find((p) => p.id === quotePostId);
+        if (!quotedPost) return null;
+        return (
+          <div className="pt-modal-overlay" onClick={() => { setQuotePostId(null); setQuoteContent(""); }}>
+            <div className="pt-quote-composer" onClick={(e) => e.stopPropagation()}>
+              <div className="pt-composer-top">
+                <Avatar
+                  src={profile?.avatar_url}
+                  name={profile?.display_name ?? "You"}
+                  size="md"
+                />
+                <textarea
+                  placeholder="Add your thoughts..."
+                  value={quoteContent}
+                  onChange={(e) => setQuoteContent(e.target.value)}
+                  rows={3}
+                  autoFocus
+                />
+              </div>
+              <div className="pt-quoted-embed" style={{ margin: "0 0 16px 0" }}>
+                <div className="pt-quoted-embed-header">
+                  <Avatar
+                    src={quotedPost.author?.avatar_url}
+                    name={quotedPost.author?.display_name ?? "User"}
+                    size="xs"
+                  />
+                  <span className="pt-quoted-embed-name">
+                    {quotedPost.author?.display_name ?? "Unknown"}
+                  </span>
+                  {quotedPost.author?.is_verified && (
+                    <IconVerified size={12} style={{ color: "var(--lime)" }} />
+                  )}
+                  <span className="pt-quoted-embed-handle">
+                    @{quotedPost.author?.username ?? "user"}
+                  </span>
+                </div>
+                <p className="pt-quoted-embed-body">{quotedPost.content}</p>
+              </div>
+              <div className="pt-composer-actions" style={{ borderTop: "none", paddingTop: 0 }}>
+                <div />
+                <Button
+                  variant="lime"
+                  size="sm"
+                  onClick={handleQuoteSubmit}
+                  disabled={!quoteContent.trim() || createPost.isPending}
+                >
+                  {createPost.isPending ? "Posting..." : "Post"}
+                </Button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </section>
   );
 }

@@ -31,6 +31,7 @@ export { IconPhoto } from "./Photo";
 export { IconPlay } from "./Play";
 export { IconPlus } from "./Plus";
 export { IconQuiz } from "./Quiz";
+export { IconQuote } from "./Quote";
 export { IconRepeat } from "./Repeat";
 export { IconRepost } from "./Repost";
 export { IconSchool } from "./School";

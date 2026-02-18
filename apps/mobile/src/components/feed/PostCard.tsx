@@ -19,7 +19,7 @@ interface PostCardProps {
   post: Post;
   onLike: (postId: string, action: "like" | "unlike") => void;
   onBookmark: (postId: string, action: "bookmark" | "unbookmark") => void;
-  onRepost?: (postId: string, action: "repost" | "unrepost") => void;
+  onRepost?: (postId: string) => void;
   onComment?: (postId: string) => void;
   onShare?: (postId: string) => void;
 }
@@ -79,6 +79,42 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
       {/* Content */}
       <Text style={styles.content}>{post.content}</Text>
 
+      {/* Quoted post embed (for type='quote') */}
+      {post.type === "quote" && post.quoted_post && (
+        <View style={styles.quotedEmbed}>
+          <View style={styles.quotedEmbedHeader}>
+            <Avatar
+              src={post.quoted_post.author?.avatar_url}
+              name={post.quoted_post.author?.display_name || ""}
+              size="sm"
+            />
+            <View style={{ flex: 1 }}>
+              <View style={styles.nameRow}>
+                <Text style={styles.quotedEmbedName} numberOfLines={1}>
+                  {post.quoted_post.author?.display_name || "Unknown"}
+                </Text>
+                {post.quoted_post.author?.is_verified && (
+                  <IconVerified size={12} color={colors.lime} />
+                )}
+              </View>
+              <Text style={styles.quotedEmbedHandle}>
+                @{post.quoted_post.author?.username || "user"}
+              </Text>
+            </View>
+          </View>
+          <Text style={styles.quotedEmbedContent} numberOfLines={3}>
+            {post.quoted_post.content}
+          </Text>
+        </View>
+      )}
+
+      {/* Deleted quoted post fallback */}
+      {post.type === "quote" && !post.quoted_post && (
+        <View style={styles.quotedEmbedDeleted}>
+          <Text style={styles.quotedEmbedDeletedText}>This post is unavailable</Text>
+        </View>
+      )}
+
       {/* Action Bar — X/Twitter order: Comment, Repost, Heart, Views, Bookmark, Share */}
       <View style={styles.actionBar}>
         {/* Comment — viewBox 32, dense paths → size 16 */}
@@ -102,7 +138,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
           style={styles.actionButton}
           onPress={() => {
             triggerHaptic("light");
-            onRepost?.(post.id, post.is_reposted ? "unrepost" : "repost");
+            onRepost?.(post.id);
           }}
         >
           <IconRepost
@@ -251,5 +287,50 @@ const styles = StyleSheet.create({
   },
   actionCountRepost: {
     color: colors.green,
+  },
+  quotedEmbed: {
+    borderWidth: 1,
+    borderColor: colors.g200,
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: colors.g50,
+    marginBottom: 14,
+  },
+  quotedEmbedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6,
+  },
+  quotedEmbedName: {
+    fontFamily: "Outfit_600SemiBold",
+    fontSize: 13,
+    color: colors.black,
+  },
+  quotedEmbedHandle: {
+    fontFamily: "Outfit_400Regular",
+    fontSize: 12,
+    color: colors.g400,
+    marginTop: 1,
+  },
+  quotedEmbedContent: {
+    fontFamily: "Outfit_400Regular",
+    fontSize: 14,
+    color: colors.g600,
+    lineHeight: 20,
+  },
+  quotedEmbedDeleted: {
+    borderWidth: 1,
+    borderColor: colors.g200,
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: colors.g100,
+    marginBottom: 14,
+    alignItems: "center" as const,
+  },
+  quotedEmbedDeletedText: {
+    fontFamily: "Outfit_400Regular",
+    fontSize: 13,
+    color: colors.g400,
   },
 });

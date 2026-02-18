@@ -9,7 +9,7 @@ export async function getFeedPosts(
 ): Promise<PaginatedResponse<Post>> {
   let query = supabase
     .from("posts")
-    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified), quoted_post:posts!quoted_post_id(*, quoted_author:profiles!user_id(id, username, display_name, avatar_url, is_verified))")
     .order("created_at", { ascending: false })
     .limit(PAGE_SIZE + 1);
 
@@ -22,6 +22,15 @@ export async function getFeedPosts(
 
   const hasMore = (data?.length ?? 0) > PAGE_SIZE;
   const posts = hasMore ? data!.slice(0, PAGE_SIZE) : (data ?? []);
+
+  // Remap quoted_post author from nested join alias
+  for (const post of posts) {
+    const qp = (post as any).quoted_post;
+    if (qp) {
+      qp.author = qp.quoted_author;
+      delete qp.quoted_author;
+    }
+  }
 
   // Populate is_liked, is_bookmarked, is_reposted for the current user
   const { data: { user } } = await supabase.auth.getUser();
@@ -52,7 +61,7 @@ export async function getFeedPosts(
 
 export async function createPost(
   supabase: SupabaseClient,
-  post: { content: string; type?: string; sentiment_tag?: string | null; media_urls?: string[] }
+  post: { content: string; type?: string; sentiment_tag?: string | null; media_urls?: string[]; quoted_post_id?: string | null }
 ) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");

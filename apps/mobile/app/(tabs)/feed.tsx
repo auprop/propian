@@ -20,6 +20,8 @@ import { useFeed, useLikePost, useBookmark, useRepost, useCreatePost, useCurrent
 import { useAuth } from "@/providers/AuthProvider";
 import { PostCard } from "@/components/feed/PostCard";
 import { CommentSheet } from "@/components/feed/CommentSheet";
+import { RepostMenu } from "@/components/feed/RepostMenu";
+import { QuoteComposer } from "@/components/feed/QuoteComposer";
 import { TrendingBar } from "@/components/feed/TrendingBar";
 import { Button, Textarea, EmptyState, Skeleton } from "@/components/ui";
 import { IconPlus } from "@/components/icons/IconPlus";
@@ -52,6 +54,8 @@ export default function FeedScreen() {
   const [composerVisible, setComposerVisible] = useState(false);
   const [postContent, setPostContent] = useState("");
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
+  const [repostMenuPostId, setRepostMenuPostId] = useState<string | null>(null);
+  const [quotePostId, setQuotePostId] = useState<string | null>(null);
 
   const posts = useMemo(
     () => data?.pages.flatMap((page) => page.data ?? page) ?? [],
@@ -72,11 +76,33 @@ export default function FeedScreen() {
     [bookmarkMutation]
   );
 
-  const handleRepost = useCallback(
-    (postId: string, action: "repost" | "unrepost") => {
-      repostMutation.mutate({ postId, action });
+  const handleRepostPress = useCallback((postId: string) => {
+    setRepostMenuPostId(postId);
+  }, []);
+
+  const handleSimpleRepost = useCallback(() => {
+    if (!repostMenuPostId) return;
+    const post = posts.find((p) => p.id === repostMenuPostId);
+    repostMutation.mutate({
+      postId: repostMenuPostId,
+      action: post?.is_reposted ? "unrepost" : "repost",
+    });
+  }, [repostMenuPostId, posts, repostMutation]);
+
+  const handleQuoteRepost = useCallback(() => {
+    setQuotePostId(repostMenuPostId);
+    setRepostMenuPostId(null);
+  }, [repostMenuPostId]);
+
+  const handleQuoteSubmit = useCallback(
+    (content: string) => {
+      if (!quotePostId) return;
+      createPostMutation.mutate(
+        { content, type: "quote", quoted_post_id: quotePostId },
+        { onSuccess: () => setQuotePostId(null) }
+      );
     },
-    [repostMutation]
+    [quotePostId, createPostMutation]
   );
 
   const handleComment = useCallback((postId: string) => {
@@ -117,13 +143,13 @@ export default function FeedScreen() {
           post={item}
           onLike={handleLike}
           onBookmark={handleBookmark}
-          onRepost={handleRepost}
+          onRepost={handleRepostPress}
           onComment={handleComment}
           onShare={handleShare}
         />
       </View>
     ),
-    [handleLike, handleBookmark, handleRepost, handleComment, handleShare]
+    [handleLike, handleBookmark, handleRepostPress, handleComment, handleShare]
   );
 
   if (isLoading) {
@@ -222,6 +248,24 @@ export default function FeedScreen() {
         visible={!!commentPostId}
         postId={commentPostId ?? ""}
         onClose={() => setCommentPostId(null)}
+      />
+
+      {/* Repost Menu */}
+      <RepostMenu
+        visible={!!repostMenuPostId}
+        isReposted={!!posts.find((p) => p.id === repostMenuPostId)?.is_reposted}
+        onRepost={handleSimpleRepost}
+        onQuote={handleQuoteRepost}
+        onClose={() => setRepostMenuPostId(null)}
+      />
+
+      {/* Quote Composer */}
+      <QuoteComposer
+        visible={!!quotePostId}
+        quotedPost={posts.find((p) => p.id === quotePostId) ?? null}
+        onSubmit={handleQuoteSubmit}
+        onClose={() => setQuotePostId(null)}
+        isPending={createPostMutation.isPending}
       />
 
       {/* Composer Modal */}
