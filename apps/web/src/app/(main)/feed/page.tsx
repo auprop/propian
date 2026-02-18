@@ -123,7 +123,7 @@ function PostCard({
           className={`pt-post-action ${post.is_reposted ? "reposted" : ""}`}
           onClick={() => onRepost(post.id, !!post.is_reposted)}
         >
-          <IconRepost size={18} style={post.is_reposted ? { color: "var(--green)" } : undefined} />
+          <IconRepost size={20} style={post.is_reposted ? { color: "var(--green)" } : undefined} />
           <span>{post.repost_count > 0 ? formatCompact(post.repost_count) : ""}</span>
         </button>
 
@@ -152,7 +152,7 @@ function PostCard({
         </button>
 
         <button className="pt-post-action">
-          <IconShare size={22} />
+          <IconShare size={19} />
         </button>
       </div>
     </article>

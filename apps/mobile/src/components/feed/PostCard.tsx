@@ -99,7 +99,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onShare }: PostCa
           }}
         >
           <IconRepost
-            size={18}
+            size={20}
             color={post.is_reposted ? colors.green : colors.g400}
           />
           {post.repost_count > 0 && (
@@ -161,7 +161,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onShare }: PostCa
             onShare?.(post.id);
           }}
         >
-          <IconShare size={22} color={colors.g400} />
+          <IconShare size={19} color={colors.g400} />
         </Pressable>
       </View>
     </Card>
