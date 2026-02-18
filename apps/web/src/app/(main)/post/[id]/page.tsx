@@ -371,6 +371,7 @@ function InlineComments({
 }) {
   const [text, setText] = useState("");
   const [replyTo, setReplyTo] = useState<{ id: string; authorName: string } | null>(null);
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
   const { query } = useComments(supabase, postId);
   const createComment = useCreateComment(supabase);
   const likeComment = useLikeComment(supabase);
@@ -423,7 +424,28 @@ function InlineComments({
     } catch (_) {}
   };
 
-  const renderComment = (comment: Comment, isReply = false) => (
+  const toggleThread = (commentId: string) => {
+    setExpandedThreads((prev) => {
+      const next = new Set(prev);
+      if (next.has(commentId)) next.delete(commentId);
+      else next.add(commentId);
+      return next;
+    });
+  };
+
+  /* Flatten all nested replies into a single list — no cascading */
+  const flattenReplies = (replies: Comment[]): Comment[] => {
+    const flat: Comment[] = [];
+    for (const reply of replies) {
+      flat.push(reply);
+      if (reply.replies && reply.replies.length > 0) {
+        flat.push(...flattenReplies(reply.replies));
+      }
+    }
+    return flat;
+  };
+
+  const renderSingleComment = (comment: Comment, isReply: boolean) => (
     <div key={comment.id} className={`pt-comment-thread${isReply ? " pt-comment-reply" : ""}`}>
       <div className="pt-comment">
         {isReply && <div className="pt-thread-line" />}
@@ -444,54 +466,56 @@ function InlineComments({
           </div>
           <p className="pt-comment-text">{comment.content}</p>
 
-          {/* Action bar */}
           <div className="pt-comment-actions">
-            <button
-              className="pt-comment-action-btn"
-              onClick={() => handleReply(comment)}
-              title="Reply"
-            >
+            <button className="pt-comment-action-btn" onClick={() => handleReply(comment)} title="Reply">
               <IconReply size={14} />
-              {(comment.reply_count ?? 0) > 0 && (
-                <span>{formatCompact(comment.reply_count ?? 0)}</span>
-              )}
+              {(comment.reply_count ?? 0) > 0 && <span>{formatCompact(comment.reply_count ?? 0)}</span>}
             </button>
-            <button
-              className={`pt-comment-action-btn${comment.is_liked ? " pt-comment-action-liked" : ""}`}
-              onClick={() => handleLikeComment(comment)}
-              title="Like"
-            >
+            <button className={`pt-comment-action-btn${comment.is_liked ? " pt-comment-action-liked" : ""}`} onClick={() => handleLikeComment(comment)} title="Like">
               {comment.is_liked ? <IconHeart size={14} /> : <IconHeartOutline size={14} />}
-              {comment.like_count > 0 && (
-                <span>{formatCompact(comment.like_count)}</span>
-              )}
+              {comment.like_count > 0 && <span>{formatCompact(comment.like_count)}</span>}
             </button>
-            <button
-              className={`pt-comment-action-btn${comment.is_bookmarked ? " pt-comment-action-bookmarked" : ""}`}
-              onClick={() => handleBookmarkComment(comment)}
-              title="Bookmark"
-            >
+            <button className={`pt-comment-action-btn${comment.is_bookmarked ? " pt-comment-action-bookmarked" : ""}`} onClick={() => handleBookmarkComment(comment)} title="Bookmark">
               <IconBookmark size={14} />
             </button>
-            <button
-              className="pt-comment-action-btn"
-              onClick={() => handleShareComment(comment)}
-              title="Share"
-            >
+            <button className="pt-comment-action-btn" onClick={() => handleShareComment(comment)} title="Share">
               <IconShare size={14} />
             </button>
           </div>
         </div>
       </div>
-
-      {/* Nested replies */}
-      {comment.replies && comment.replies.length > 0 && (
-        <div className="pt-comment-replies">
-          {comment.replies.map((reply) => renderComment(reply, true))}
-        </div>
-      )}
     </div>
   );
+
+  const renderCommentWithReplies = (comment: Comment) => {
+    const allReplies = comment.replies ? flattenReplies(comment.replies) : [];
+    const isExpanded = expandedThreads.has(comment.id);
+    const visibleReplies = isExpanded ? allReplies : allReplies.slice(0, 1);
+    const hiddenCount = allReplies.length - 1;
+
+    return (
+      <div key={comment.id}>
+        {renderSingleComment(comment, false)}
+
+        {allReplies.length > 0 && (
+          <div className="pt-comment-replies">
+            {visibleReplies.map((reply) => renderSingleComment(reply, true))}
+
+            {hiddenCount > 0 && (
+              <button
+                className="pt-view-more-replies"
+                onClick={() => toggleThread(comment.id)}
+              >
+                {isExpanded
+                  ? "Show less"
+                  : `View ${hiddenCount} more ${hiddenCount === 1 ? "reply" : "replies"}`}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="pt-comments">
@@ -511,7 +535,7 @@ function InlineComments({
         <p className="pt-comments-empty">No replies yet. Start the conversation!</p>
       ) : (
         <div className="pt-comments-list">
-          {comments.map((comment) => renderComment(comment, false))}
+          {comments.map((comment) => renderCommentWithReplies(comment))}
         </div>
       )}
 

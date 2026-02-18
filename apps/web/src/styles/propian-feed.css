@@ -397,6 +397,24 @@
   border-radius: 1px;
 }
 
+/* View more replies button */
+.pt-view-more-replies {
+  display: block;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 6px 0 2px 38px;
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lime);
+  transition: color 0.15s ease;
+}
+
+.pt-view-more-replies:hover {
+  color: var(--black);
+}
+
 /* Reply indicator */
 .pt-reply-indicator {
   display: flex;
