@@ -30,10 +30,12 @@ import {
   useLikePost,
   useBookmark,
   useRepost,
+  useComments,
+  useCreateComment,
 } from "@propian/shared/hooks";
 import { createPostSchema } from "@propian/shared/validation";
 import type { CreatePostInput } from "@propian/shared/validation";
-import type { Post } from "@propian/shared/types";
+import type { Post, Comment } from "@propian/shared/types";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { timeAgo } from "@propian/shared/utils";
 import { formatCompact } from "@propian/shared/utils";
@@ -68,11 +70,19 @@ function PostCard({
   onLike,
   onBookmark,
   onRepost,
+  onComment,
+  onShare,
+  isCommentsOpen,
+  supabase,
 }: {
   post: Post;
   onLike: (postId: string, isLiked: boolean) => void;
   onBookmark: (postId: string, isBookmarked: boolean) => void;
   onRepost: (postId: string, isReposted: boolean) => void;
+  onComment: (postId: string) => void;
+  onShare: (postId: string) => void;
+  isCommentsOpen: boolean;
+  supabase: ReturnType<typeof createBrowserClient>;
 }) {
   return (
     <article className="pt-post">
@@ -114,7 +124,7 @@ function PostCard({
       {/* Actions bar — X/Twitter order: Comment, Repost, Heart, Views, Bookmark, Share */}
       {/* Sizes are optically calibrated per viewBox: 32→16, 32→18, 24→17, 24→18, 24→17, 48→22 */}
       <div className="pt-post-actions">
-        <button className="pt-post-action">
+        <button className="pt-post-action" onClick={() => onComment(post.id)}>
           <IconComment size={16} />
           <span>{post.comment_count > 0 ? formatCompact(post.comment_count) : ""}</span>
         </button>
@@ -151,11 +161,114 @@ function PostCard({
           <IconBookmark size={17} style={post.is_bookmarked ? { color: "var(--lime)" } : undefined} />
         </button>
 
-        <button className="pt-post-action">
+        <button className="pt-post-action" onClick={() => onShare(post.id)}>
           <IconShare size={19} />
         </button>
       </div>
+
+      {/* Inline comment section */}
+      {isCommentsOpen && (
+        <InlineComments postId={post.id} supabase={supabase} />
+      )}
     </article>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Inline Comments Section                                            */
+/* ------------------------------------------------------------------ */
+
+function InlineComments({
+  postId,
+  supabase,
+}: {
+  postId: string;
+  supabase: ReturnType<typeof createBrowserClient>;
+}) {
+  const [text, setText] = useState("");
+  const { query } = useComments(supabase, postId);
+  const createComment = useCreateComment(supabase);
+
+  const comments: Comment[] = useMemo(
+    () => (query.data?.pages?.flatMap((page: unknown) => (Array.isArray(page) ? page : [])) ?? []) as Comment[],
+    [query.data],
+  );
+
+  const handleSend = () => {
+    const content = text.trim();
+    if (!content || createComment.isPending) return;
+    createComment.mutate(
+      { postId, content },
+      { onSuccess: () => setText("") },
+    );
+  };
+
+  return (
+    <div className="pt-comments">
+      {query.isLoading ? (
+        <div className="pt-comments-loading">
+          {[1, 2].map((i) => (
+            <div key={i} className="pt-comment">
+              <Skeleton width={28} height={28} borderRadius="50%" />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
+                <Skeleton width={100} height={12} borderRadius={4} />
+                <Skeleton width="80%" height={12} borderRadius={4} />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : comments.length === 0 ? (
+        <p className="pt-comments-empty">No comments yet. Be the first!</p>
+      ) : (
+        <div className="pt-comments-list">
+          {comments.map((comment) => (
+            <div key={comment.id} className="pt-comment">
+              <Avatar
+                src={comment.author?.avatar_url}
+                name={comment.author?.display_name ?? "User"}
+                size="sm"
+              />
+              <div className="pt-comment-body">
+                <div className="pt-comment-header">
+                  <span className="pt-comment-author">
+                    {comment.author?.display_name ?? "Unknown"}
+                  </span>
+                  {comment.author?.is_verified && (
+                    <IconVerified size={12} style={{ color: "var(--lime)" }} />
+                  )}
+                  <span className="pt-comment-time">{timeAgo(comment.created_at)}</span>
+                </div>
+                <p className="pt-comment-text">{comment.content}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="pt-comment-input">
+        <input
+          type="text"
+          placeholder="Add a comment..."
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSend();
+            }
+          }}
+          maxLength={500}
+        />
+        <Button
+          variant="lime"
+          size="sm"
+          onClick={handleSend}
+          disabled={!text.trim() || createComment.isPending}
+        >
+          {createComment.isPending ? "..." : "Send"}
+        </Button>
+      </div>
+    </div>
   );
 }
 
@@ -222,6 +335,10 @@ export default function FeedPage() {
     createPost.mutate(data, { onSuccess: () => reset() });
   });
 
+  /* Comment & share state */
+  const [expandedCommentPostId, setExpandedCommentPostId] = useState<string | null>(null);
+  const [copiedPostId, setCopiedPostId] = useState<string | null>(null);
+
   /* Handlers */
   const handleLike = useCallback(
     (postId: string, isLiked: boolean) => {
@@ -242,6 +359,29 @@ export default function FeedPage() {
       repostPost.mutate({ postId, action: isReposted ? "unrepost" : "repost" });
     },
     [repostPost],
+  );
+
+  const handleComment = useCallback(
+    (postId: string) => {
+      setExpandedCommentPostId((prev) => (prev === postId ? null : postId));
+    },
+    [],
+  );
+
+  const handleShare = useCallback(
+    async (postId: string) => {
+      const url = `${window.location.origin}/post/${postId}`;
+      try {
+        if (navigator.share) {
+          await navigator.share({ url });
+        } else {
+          await navigator.clipboard.writeText(url);
+          setCopiedPostId(postId);
+          setTimeout(() => setCopiedPostId(null), 2000);
+        }
+      } catch (_) {}
+    },
+    [],
   );
 
   /* Infinite scroll observer */
@@ -342,13 +482,21 @@ export default function FeedPage() {
           )}
 
           {posts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              onLike={handleLike}
-              onBookmark={handleBookmark}
-              onRepost={handleRepost}
-            />
+            <div key={post.id} style={{ position: "relative" }}>
+              <PostCard
+                post={post}
+                onLike={handleLike}
+                onBookmark={handleBookmark}
+                onRepost={handleRepost}
+                onComment={handleComment}
+                onShare={handleShare}
+                isCommentsOpen={expandedCommentPostId === post.id}
+                supabase={supabase}
+              />
+              {copiedPostId === post.id && (
+                <div className="pt-copied-toast">Link copied!</div>
+              )}
+            </div>
           ))}
 
           {/* Infinite scroll sentinel */}

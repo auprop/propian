@@ -237,3 +237,134 @@
 .pt-suggest-card:last-child {
   border-bottom: none;
 }
+
+/* ─── Inline Comments ─── */
+
+.pt-comments {
+  border-top: var(--brd-l);
+  padding: 16px 20px;
+}
+
+.pt-comments-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pt-comments-empty {
+  font-size: 13px;
+  color: var(--g400);
+  text-align: center;
+  padding: 12px 0;
+  margin: 0;
+}
+
+.pt-comments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.pt-comment {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.pt-comment-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.pt-comment-header {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 2px;
+}
+
+.pt-comment-author {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.pt-comment-time {
+  font-size: 12px;
+  color: var(--g400);
+  margin-left: 4px;
+}
+
+.pt-comment-text {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--g700);
+  margin: 0;
+}
+
+.pt-comment-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: var(--brd-l);
+}
+
+.pt-comment-input input {
+  flex: 1;
+  border: var(--brd-l);
+  border-radius: var(--r-md);
+  padding: 8px 12px;
+  font-family: var(--font);
+  font-size: 13px;
+  outline: none;
+  background: var(--g50);
+  transition: border-color var(--tf);
+}
+
+.pt-comment-input input:focus {
+  border-color: var(--lime);
+}
+
+.pt-comment-input input::placeholder {
+  color: var(--g400);
+}
+
+/* ─── Copied Toast ─── */
+
+.pt-copied-toast {
+  position: absolute;
+  bottom: 48px;
+  right: 12px;
+  background: var(--g900);
+  color: var(--white);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--r-sm);
+  animation: pt-toast-in 0.2s ease-out;
+  pointer-events: none;
+  z-index: 10;
+}
+
+@keyframes pt-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Active states for repost/bookmark actions */
+.pt-post-action.reposted {
+  color: var(--green);
+}
+
+.pt-post-action.bookmarked {
+  color: var(--lime);
+}

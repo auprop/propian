@@ -9,6 +9,7 @@ import {
   Text,
   KeyboardAvoidingView,
   Platform,
+  Share,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -18,6 +19,7 @@ import { triggerHaptic } from "@/hooks/useHaptics";
 import { useFeed, useLikePost, useBookmark, useRepost, useCreatePost, useCurrentProfile } from "@propian/shared/hooks";
 import { useAuth } from "@/providers/AuthProvider";
 import { PostCard } from "@/components/feed/PostCard";
+import { CommentSheet } from "@/components/feed/CommentSheet";
 import { TrendingBar } from "@/components/feed/TrendingBar";
 import { Button, Textarea, EmptyState, Skeleton } from "@/components/ui";
 import { IconPlus } from "@/components/icons/IconPlus";
@@ -49,6 +51,7 @@ export default function FeedScreen() {
 
   const [composerVisible, setComposerVisible] = useState(false);
   const [postContent, setPostContent] = useState("");
+  const [commentPostId, setCommentPostId] = useState<string | null>(null);
 
   const posts = useMemo(
     () => data?.pages.flatMap((page) => page.data ?? page) ?? [],
@@ -75,6 +78,18 @@ export default function FeedScreen() {
     },
     [repostMutation]
   );
+
+  const handleComment = useCallback((postId: string) => {
+    setCommentPostId(postId);
+  }, []);
+
+  const handleShare = useCallback(async (postId: string) => {
+    try {
+      await Share.share({
+        message: `Check out this post on Propian: https://propian.com/post/${postId}`,
+      });
+    } catch (_) {}
+  }, []);
 
   const handleCreatePost = () => {
     if (!postContent.trim()) return;
@@ -103,10 +118,12 @@ export default function FeedScreen() {
           onLike={handleLike}
           onBookmark={handleBookmark}
           onRepost={handleRepost}
+          onComment={handleComment}
+          onShare={handleShare}
         />
       </View>
     ),
-    [handleLike, handleBookmark, handleRepost]
+    [handleLike, handleBookmark, handleRepost, handleComment, handleShare]
   );
 
   if (isLoading) {
@@ -199,6 +216,13 @@ export default function FeedScreen() {
       >
         <IconPlus size={24} color={colors.black} />
       </Pressable>
+
+      {/* Comment Sheet */}
+      <CommentSheet
+        visible={!!commentPostId}
+        postId={commentPostId ?? ""}
+        onClose={() => setCommentPostId(null)}
+      />
 
       {/* Composer Modal */}
       <Modal

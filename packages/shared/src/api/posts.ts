@@ -23,6 +23,26 @@ export async function getFeedPosts(
   const hasMore = (data?.length ?? 0) > PAGE_SIZE;
   const posts = hasMore ? data!.slice(0, PAGE_SIZE) : (data ?? []);
 
+  // Populate is_liked, is_bookmarked, is_reposted for the current user
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user && posts.length > 0) {
+    const postIds = posts.map((p: any) => p.id);
+    const [likedRes, bookmarkedRes, repostedRes] = await Promise.all([
+      supabase.from("likes").select("target_id").eq("user_id", user.id).eq("target_type", "post").in("target_id", postIds),
+      supabase.from("bookmarks").select("post_id").eq("user_id", user.id).in("post_id", postIds),
+      supabase.from("reposts").select("post_id").eq("user_id", user.id).in("post_id", postIds),
+    ]);
+    const likedIds = new Set((likedRes.data ?? []).map((r: any) => r.target_id));
+    const bookmarkedIds = new Set((bookmarkedRes.data ?? []).map((r: any) => r.post_id));
+    const repostedIds = new Set((repostedRes.data ?? []).map((r: any) => r.post_id));
+
+    for (const post of posts) {
+      (post as any).is_liked = likedIds.has((post as any).id);
+      (post as any).is_bookmarked = bookmarkedIds.has((post as any).id);
+      (post as any).is_reposted = repostedIds.has((post as any).id);
+    }
+  }
+
   return {
     data: posts as Post[],
     nextCursor: hasMore ? posts[posts.length - 1].created_at : null,
@@ -134,5 +154,10 @@ export async function unrepostPost(supabase: SupabaseClient, postId: string) {
     .from("reposts")
     .delete()
     .match({ user_id: user.id, post_id: postId });
+  if (error) throw error;
+}
+
+export async function incrementShareCount(supabase: SupabaseClient, postId: string) {
+  const { error } = await supabase.rpc("increment_share_count", { post_id: postId });
   if (error) throw error;
 }

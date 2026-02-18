@@ -20,10 +20,11 @@ interface PostCardProps {
   onLike: (postId: string, action: "like" | "unlike") => void;
   onBookmark: (postId: string, action: "bookmark" | "unbookmark") => void;
   onRepost?: (postId: string, action: "repost" | "unrepost") => void;
+  onComment?: (postId: string) => void;
   onShare?: (postId: string) => void;
 }
 
-export function PostCard({ post, onLike, onBookmark, onRepost, onShare }: PostCardProps) {
+export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShare }: PostCardProps) {
   const router = useRouter();
   const author = post.author;
 
@@ -81,7 +82,13 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onShare }: PostCa
       {/* Action Bar — X/Twitter order: Comment, Repost, Heart, Views, Bookmark, Share */}
       <View style={styles.actionBar}>
         {/* Comment — viewBox 32, dense paths → size 16 */}
-        <Pressable style={styles.actionButton}>
+        <Pressable
+          style={styles.actionButton}
+          onPress={() => {
+            triggerHaptic("light");
+            onComment?.(post.id);
+          }}
+        >
           <IconComment size={16} color={colors.g400} />
           {post.comment_count > 0 && (
             <Text style={styles.actionCount}>
