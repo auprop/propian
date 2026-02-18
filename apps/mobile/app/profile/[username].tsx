@@ -36,7 +36,7 @@ import { IconUser } from "@/components/icons/IconUser";
 import { formatCompact } from "@propian/shared/utils";
 import type { Post } from "@propian/shared/types";
 import { PostCard } from "@/components/feed/PostCard";
-import { useLikePost, useBookmark } from "@propian/shared/hooks";
+import { useLikePost, useBookmark, useRepost } from "@propian/shared/hooks";
 
 export default function ProfileScreen() {
   const { username } = useLocalSearchParams<{ username: string }>();

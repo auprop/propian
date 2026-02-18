@@ -13,11 +13,14 @@ export interface Post {
   like_count: number;
   comment_count: number;
   share_count: number;
+  repost_count: number;
+  view_count: number;
   created_at: string;
   updated_at: string;
   author?: UserPreview;
   is_liked?: boolean;
   is_bookmarked?: boolean;
+  is_reposted?: boolean;
 }
 
 export interface Comment {
@@ -40,6 +43,13 @@ export interface Like {
 }
 
 export interface Bookmark {
+  id: string;
+  user_id: string;
+  post_id: string;
+  created_at: string;
+}
+
+export interface Repost {
   id: string;
   user_id: string;
   post_id: string;

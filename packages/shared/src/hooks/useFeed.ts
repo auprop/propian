@@ -69,3 +69,14 @@ export function useBookmark(supabase: SupabaseClient) {
     },
   });
 }
+
+export function useRepost(supabase: SupabaseClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ postId, action }: { postId: string; action: "repost" | "unrepost" }) =>
+      action === "repost" ? postsApi.repostPost(supabase, postId) : postsApi.unrepostPost(supabase, postId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+    },
+  });
+}

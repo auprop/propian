@@ -15,7 +15,7 @@ import { useRouter } from "expo-router";
 import { colors, fontFamily, radii, spacing, shadows } from "@/theme";
 import { supabase } from "@/lib/supabase";
 import { triggerHaptic } from "@/hooks/useHaptics";
-import { useFeed, useLikePost, useBookmark, useCreatePost, useCurrentProfile } from "@propian/shared/hooks";
+import { useFeed, useLikePost, useBookmark, useRepost, useCreatePost, useCurrentProfile } from "@propian/shared/hooks";
 import { useAuth } from "@/providers/AuthProvider";
 import { PostCard } from "@/components/feed/PostCard";
 import { TrendingBar } from "@/components/feed/TrendingBar";
@@ -44,6 +44,7 @@ export default function FeedScreen() {
   } = useFeed(supabase);
   const likeMutation = useLikePost(supabase);
   const bookmarkMutation = useBookmark(supabase);
+  const repostMutation = useRepost(supabase);
   const createPostMutation = useCreatePost(supabase);
 
   const [composerVisible, setComposerVisible] = useState(false);
@@ -66,6 +67,13 @@ export default function FeedScreen() {
       bookmarkMutation.mutate({ postId, action });
     },
     [bookmarkMutation]
+  );
+
+  const handleRepost = useCallback(
+    (postId: string, action: "repost" | "unrepost") => {
+      repostMutation.mutate({ postId, action });
+    },
+    [repostMutation]
   );
 
   const handleCreatePost = () => {
@@ -94,10 +102,11 @@ export default function FeedScreen() {
           post={item}
           onLike={handleLike}
           onBookmark={handleBookmark}
+          onRepost={handleRepost}
         />
       </View>
     ),
-    [handleLike, handleBookmark]
+    [handleLike, handleBookmark, handleRepost]
   );
 
   if (isLoading) {

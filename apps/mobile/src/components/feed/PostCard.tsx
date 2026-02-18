@@ -1,14 +1,15 @@
-import { useState } from "react";
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import { colors, fontFamily, radii, spacing, shadows } from "@/theme";
+import { colors } from "@/theme";
 import { triggerHaptic } from "@/hooks/useHaptics";
 import { Avatar, Badge, Card } from "@/components/ui";
 import { IconHeart } from "@/components/icons/IconHeart";
 import { IconHeartOutline } from "@/components/icons/IconHeartOutline";
 import { IconComment } from "@/components/icons/IconComment";
+import { IconRepost } from "@/components/icons/IconRepost";
 import { IconShare } from "@/components/icons/IconShare";
 import { IconBookmark } from "@/components/icons/IconBookmark";
+import { IconEye } from "@/components/icons/IconEye";
 import { IconVerified } from "@/components/icons/IconVerified";
 import { formatCompact } from "@propian/shared/utils";
 import { timeAgo } from "@propian/shared/utils";
@@ -18,10 +19,11 @@ interface PostCardProps {
   post: Post;
   onLike: (postId: string, action: "like" | "unlike") => void;
   onBookmark: (postId: string, action: "bookmark" | "unbookmark") => void;
+  onRepost?: (postId: string, action: "repost" | "unrepost") => void;
   onShare?: (postId: string) => void;
 }
 
-export function PostCard({ post, onLike, onBookmark, onShare }: PostCardProps) {
+export function PostCard({ post, onLike, onBookmark, onRepost, onShare }: PostCardProps) {
   const router = useRouter();
   const author = post.author;
 
@@ -76,8 +78,38 @@ export function PostCard({ post, onLike, onBookmark, onShare }: PostCardProps) {
       {/* Content */}
       <Text style={styles.content}>{post.content}</Text>
 
-      {/* Action Bar */}
+      {/* Action Bar — X/Twitter order: Comment, Repost, Heart, Views, Bookmark, Share */}
       <View style={styles.actionBar}>
+        {/* Comment */}
+        <Pressable style={styles.actionButton}>
+          <IconComment size={18} color={colors.g400} />
+          {post.comment_count > 0 && (
+            <Text style={styles.actionCount}>
+              {formatCompact(post.comment_count)}
+            </Text>
+          )}
+        </Pressable>
+
+        {/* Repost */}
+        <Pressable
+          style={styles.actionButton}
+          onPress={() => {
+            triggerHaptic("light");
+            onRepost?.(post.id, post.is_reposted ? "unrepost" : "repost");
+          }}
+        >
+          <IconRepost
+            size={18}
+            color={post.is_reposted ? colors.green : colors.g400}
+          />
+          {post.repost_count > 0 && (
+            <Text style={[styles.actionCount, post.is_reposted && styles.actionCountRepost]}>
+              {formatCompact(post.repost_count)}
+            </Text>
+          )}
+        </Pressable>
+
+        {/* Like */}
         <Pressable
           style={styles.actionButton}
           onPress={() => {
@@ -91,36 +123,23 @@ export function PostCard({ post, onLike, onBookmark, onShare }: PostCardProps) {
             <IconHeartOutline size={18} color={colors.g400} />
           )}
           {post.like_count > 0 && (
-            <Text style={[styles.actionCount, post.is_liked && styles.actionCountActive]}>
+            <Text style={[styles.actionCount, post.is_liked && styles.actionCountLike]}>
               {formatCompact(post.like_count)}
             </Text>
           )}
         </Pressable>
 
-        <Pressable style={styles.actionButton}>
-          <IconComment size={18} color={colors.g400} />
-          {post.comment_count > 0 && (
+        {/* Views */}
+        <View style={styles.actionButton}>
+          <IconEye size={18} color={colors.g400} />
+          {post.view_count > 0 && (
             <Text style={styles.actionCount}>
-              {formatCompact(post.comment_count)}
+              {formatCompact(post.view_count)}
             </Text>
           )}
-        </Pressable>
+        </View>
 
-        <Pressable
-          style={styles.actionButton}
-          onPress={() => {
-            triggerHaptic("light");
-            onShare?.(post.id);
-          }}
-        >
-          <IconShare size={18} color={colors.g400} />
-          {post.share_count > 0 && (
-            <Text style={styles.actionCount}>
-              {formatCompact(post.share_count)}
-            </Text>
-          )}
-        </Pressable>
-
+        {/* Bookmark */}
         <Pressable
           style={styles.actionButton}
           onPress={() => {
@@ -132,6 +151,17 @@ export function PostCard({ post, onLike, onBookmark, onShare }: PostCardProps) {
             size={18}
             color={post.is_bookmarked ? colors.lime : colors.g400}
           />
+        </Pressable>
+
+        {/* Share */}
+        <Pressable
+          style={styles.actionButton}
+          onPress={() => {
+            triggerHaptic("light");
+            onShare?.(post.id);
+          }}
+        >
+          <IconShare size={16} color={colors.g400} />
         </Pressable>
       </View>
     </Card>
@@ -200,16 +230,19 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 4,
     paddingVertical: 4,
-    paddingHorizontal: 8,
+    paddingHorizontal: 4,
   },
   actionCount: {
     fontFamily: "Outfit_500Medium",
     fontSize: 13,
     color: colors.g500,
   },
-  actionCountActive: {
+  actionCountLike: {
     color: colors.red,
+  },
+  actionCountRepost: {
+    color: colors.green,
   },
 });

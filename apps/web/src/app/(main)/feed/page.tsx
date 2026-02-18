@@ -14,8 +14,10 @@ import {
   IconHeart,
   IconHeartOutline,
   IconComment,
+  IconRepost,
   IconShare,
   IconBookmark,
+  IconEye,
   IconVerified,
   IconFire,
   IconTrendUp,
@@ -27,6 +29,7 @@ import {
   useCreatePost,
   useLikePost,
   useBookmark,
+  useRepost,
 } from "@propian/shared/hooks";
 import { createPostSchema } from "@propian/shared/validation";
 import type { CreatePostInput } from "@propian/shared/validation";
@@ -64,10 +67,12 @@ function PostCard({
   post,
   onLike,
   onBookmark,
+  onRepost,
 }: {
   post: Post;
   onLike: (postId: string, isLiked: boolean) => void;
   onBookmark: (postId: string, isBookmarked: boolean) => void;
+  onRepost: (postId: string, isReposted: boolean) => void;
 }) {
   return (
     <article className="pt-post">
@@ -106,8 +111,21 @@ function PostCard({
         </div>
       )}
 
-      {/* Actions bar */}
+      {/* Actions bar — X/Twitter order: Comment, Repost, Heart, Views, Bookmark, Share */}
       <div className="pt-post-actions">
+        <button className="pt-post-action">
+          <IconComment size={18} />
+          <span>{post.comment_count > 0 ? formatCompact(post.comment_count) : ""}</span>
+        </button>
+
+        <button
+          className={`pt-post-action ${post.is_reposted ? "reposted" : ""}`}
+          onClick={() => onRepost(post.id, !!post.is_reposted)}
+        >
+          <IconRepost size={18} style={post.is_reposted ? { color: "var(--green)" } : undefined} />
+          <span>{post.repost_count > 0 ? formatCompact(post.repost_count) : ""}</span>
+        </button>
+
         <button
           className={`pt-post-action ${post.is_liked ? "liked" : ""}`}
           onClick={() => onLike(post.id, !!post.is_liked)}
@@ -120,21 +138,20 @@ function PostCard({
           <span>{post.like_count > 0 ? formatCompact(post.like_count) : ""}</span>
         </button>
 
-        <button className="pt-post-action">
-          <IconComment size={18} />
-          <span>{post.comment_count > 0 ? formatCompact(post.comment_count) : ""}</span>
-        </button>
-
-        <button className="pt-post-action">
-          <IconShare size={16} />
-          <span>{post.share_count > 0 ? formatCompact(post.share_count) : ""}</span>
-        </button>
+        <div className="pt-post-action" style={{ cursor: "default" }}>
+          <IconEye size={18} />
+          <span>{post.view_count > 0 ? formatCompact(post.view_count) : ""}</span>
+        </div>
 
         <button
           className={`pt-post-action ${post.is_bookmarked ? "bookmarked" : ""}`}
           onClick={() => onBookmark(post.id, !!post.is_bookmarked)}
         >
           <IconBookmark size={18} style={post.is_bookmarked ? { color: "var(--lime)" } : undefined} />
+        </button>
+
+        <button className="pt-post-action">
+          <IconShare size={16} />
         </button>
       </div>
     </article>
@@ -187,6 +204,7 @@ export default function FeedPage() {
   const createPost = useCreatePost(supabase);
   const likePost = useLikePost(supabase);
   const bookmarkPost = useBookmark(supabase);
+  const repostPost = useRepost(supabase);
 
   /* Composer form */
   const {
@@ -216,6 +234,13 @@ export default function FeedPage() {
       bookmarkPost.mutate({ postId, action: isBookmarked ? "unbookmark" : "bookmark" });
     },
     [bookmarkPost],
+  );
+
+  const handleRepost = useCallback(
+    (postId: string, isReposted: boolean) => {
+      repostPost.mutate({ postId, action: isReposted ? "unrepost" : "repost" });
+    },
+    [repostPost],
   );
 
   /* Infinite scroll observer */
@@ -321,6 +346,7 @@ export default function FeedPage() {
               post={post}
               onLike={handleLike}
               onBookmark={handleBookmark}
+              onRepost={handleRepost}
             />
           ))}
 

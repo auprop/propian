@@ -47,6 +47,7 @@ export { IconVideo } from "./IconVideo";
 export { IconFire } from "./IconFire";
 export { IconLayers } from "./IconLayers";
 export { IconRepeat } from "./IconRepeat";
+export { IconRepost } from "./IconRepost";
 export { IconShield } from "./IconShield";
 export { IconNotes } from "./IconNotes";
 export { IconChallenges } from "./IconChallenges";

@@ -32,6 +32,7 @@ export { IconPlay } from "./Play";
 export { IconPlus } from "./Plus";
 export { IconQuiz } from "./Quiz";
 export { IconRepeat } from "./Repeat";
+export { IconRepost } from "./Repost";
 export { IconSchool } from "./School";
 export { IconSearch } from "./Search";
 export { IconSend } from "./Send";

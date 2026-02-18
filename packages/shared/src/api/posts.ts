@@ -115,3 +115,24 @@ export async function unbookmarkPost(supabase: SupabaseClient, postId: string) {
     .match({ user_id: user.id, post_id: postId });
   if (error) throw error;
 }
+
+export async function repostPost(supabase: SupabaseClient, postId: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("reposts")
+    .insert({ user_id: user.id, post_id: postId });
+  if (error) throw error;
+}
+
+export async function unrepostPost(supabase: SupabaseClient, postId: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("reposts")
+    .delete()
+    .match({ user_id: user.id, post_id: postId });
+  if (error) throw error;
+}
