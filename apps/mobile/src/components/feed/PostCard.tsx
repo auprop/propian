@@ -26,6 +26,181 @@ interface PostCardProps {
 
 export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShare }: PostCardProps) {
   const router = useRouter();
+
+  // For simple reposts, show the original post with a "reposted by" header
+  if (post.type === "repost" && post.quoted_post) {
+    const original = post.quoted_post;
+    const reposter = post.author;
+    const originalAuthor = original.author;
+
+    return (
+      <Card>
+        {/* Reposted by header */}
+        <View style={styles.repostHeader}>
+          <IconRepost size={14} color={colors.green} />
+          <Text style={styles.repostHeaderText}>
+            {reposter?.display_name || "Someone"} reposted
+          </Text>
+        </View>
+
+        {/* Original post header */}
+        <Pressable
+          onPress={() => {
+            if (originalAuthor?.username) {
+              router.push({ pathname: "/profile/[username]", params: { username: originalAuthor.username } });
+            }
+          }}
+          style={styles.header}
+        >
+          <Avatar
+            src={originalAuthor?.avatar_url}
+            name={originalAuthor?.display_name || ""}
+            size="md"
+          />
+          <View style={styles.headerText}>
+            <View style={styles.nameRow}>
+              <Text style={styles.displayName} numberOfLines={1}>
+                {originalAuthor?.display_name || "Unknown"}
+              </Text>
+              {originalAuthor?.is_verified && (
+                <IconVerified size={14} color={colors.lime} />
+              )}
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={styles.handle}>@{originalAuthor?.username || "user"}</Text>
+              <Text style={styles.dot}>-</Text>
+              <Text style={styles.timestamp}>{timeAgo(original.created_at)}</Text>
+            </View>
+          </View>
+        </Pressable>
+
+        {/* Sentiment tag */}
+        {original.sentiment_tag && (
+          <Badge
+            variant={
+              original.sentiment_tag === "bullish"
+                ? "green"
+                : original.sentiment_tag === "bearish"
+                  ? "red"
+                  : "gray"
+            }
+            style={styles.sentimentBadge}
+          >
+            {original.sentiment_tag.toUpperCase()}
+          </Badge>
+        )}
+
+        {/* Original content */}
+        <Text style={styles.content}>{original.content}</Text>
+
+        {/* Action Bar — actions target the original post */}
+        <View style={styles.actionBar}>
+          <Pressable
+            style={styles.actionButton}
+            onPress={() => {
+              triggerHaptic("light");
+              onComment?.(original.id);
+            }}
+          >
+            <IconComment size={16} color={colors.g400} />
+            {original.comment_count > 0 && (
+              <Text style={styles.actionCount}>
+                {formatCompact(original.comment_count)}
+              </Text>
+            )}
+          </Pressable>
+
+          <Pressable
+            style={styles.actionButton}
+            onPress={() => {
+              triggerHaptic("light");
+              onRepost?.(original.id);
+            }}
+          >
+            <IconRepost
+              size={20}
+              color={original.is_reposted ? colors.green : colors.g400}
+            />
+            {original.repost_count > 0 && (
+              <Text style={[styles.actionCount, original.is_reposted && styles.actionCountRepost]}>
+                {formatCompact(original.repost_count)}
+              </Text>
+            )}
+          </Pressable>
+
+          <Pressable
+            style={styles.actionButton}
+            onPress={() => {
+              triggerHaptic("success");
+              onLike(original.id, original.is_liked ? "unlike" : "like");
+            }}
+          >
+            {original.is_liked ? (
+              <IconHeart size={17} color={colors.red} />
+            ) : (
+              <IconHeartOutline size={17} color={colors.g400} />
+            )}
+            {original.like_count > 0 && (
+              <Text style={[styles.actionCount, original.is_liked && styles.actionCountLike]}>
+                {formatCompact(original.like_count)}
+              </Text>
+            )}
+          </Pressable>
+
+          <View style={styles.actionButton}>
+            <IconEye size={18} color={colors.g400} />
+            {original.view_count > 0 && (
+              <Text style={styles.actionCount}>
+                {formatCompact(original.view_count)}
+              </Text>
+            )}
+          </View>
+
+          <Pressable
+            style={styles.actionButton}
+            onPress={() => {
+              triggerHaptic("success");
+              onBookmark(original.id, original.is_bookmarked ? "unbookmark" : "bookmark");
+            }}
+          >
+            <IconBookmark
+              size={17}
+              color={original.is_bookmarked ? colors.lime : colors.g400}
+            />
+          </Pressable>
+
+          <Pressable
+            style={styles.actionButton}
+            onPress={() => {
+              triggerHaptic("light");
+              onShare?.(original.id);
+            }}
+          >
+            <IconShare size={19} color={colors.g400} />
+          </Pressable>
+        </View>
+      </Card>
+    );
+  }
+
+  // For simple reposts where original was deleted
+  if (post.type === "repost" && !post.quoted_post) {
+    return (
+      <Card>
+        <View style={styles.repostHeader}>
+          <IconRepost size={14} color={colors.green} />
+          <Text style={styles.repostHeaderText}>
+            {post.author?.display_name || "Someone"} reposted
+          </Text>
+        </View>
+        <View style={styles.quotedEmbedDeleted}>
+          <Text style={styles.quotedEmbedDeletedText}>This post is unavailable</Text>
+        </View>
+      </Card>
+    );
+  }
+
+  // Regular post (text, image, poll, quote)
   const author = post.author;
 
   const handleProfilePress = () => {
@@ -77,7 +252,9 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
       )}
 
       {/* Content */}
-      <Text style={styles.content}>{post.content}</Text>
+      {post.content ? (
+        <Text style={styles.content}>{post.content}</Text>
+      ) : null}
 
       {/* Quoted post embed (for type='quote') */}
       {post.type === "quote" && post.quoted_post && (
@@ -117,7 +294,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
 
       {/* Action Bar — X/Twitter order: Comment, Repost, Heart, Views, Bookmark, Share */}
       <View style={styles.actionBar}>
-        {/* Comment — viewBox 32, dense paths → size 16 */}
+        {/* Comment */}
         <Pressable
           style={styles.actionButton}
           onPress={() => {
@@ -133,7 +310,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
           )}
         </Pressable>
 
-        {/* Repost — viewBox 32, medium density → size 18 */}
+        {/* Repost */}
         <Pressable
           style={styles.actionButton}
           onPress={() => {
@@ -152,7 +329,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
           )}
         </Pressable>
 
-        {/* Like — viewBox 24, very dense → size 17 */}
+        {/* Like */}
         <Pressable
           style={styles.actionButton}
           onPress={() => {
@@ -172,7 +349,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
           )}
         </Pressable>
 
-        {/* Views — viewBox 24, sparse → size 18 */}
+        {/* Views */}
         <View style={styles.actionButton}>
           <IconEye size={18} color={colors.g400} />
           {post.view_count > 0 && (
@@ -182,7 +359,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
           )}
         </View>
 
-        {/* Bookmark — viewBox 24, tall/narrow → size 17 */}
+        {/* Bookmark */}
         <Pressable
           style={styles.actionButton}
           onPress={() => {
@@ -196,7 +373,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
           />
         </Pressable>
 
-        {/* Share — viewBox 48, very sparse → size 22 */}
+        {/* Share */}
         <Pressable
           style={styles.actionButton}
           onPress={() => {
@@ -212,6 +389,18 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
 }
 
 const styles = StyleSheet.create({
+  repostHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 10,
+    paddingLeft: 4,
+  },
+  repostHeaderText: {
+    fontFamily: "Outfit_500Medium",
+    fontSize: 13,
+    color: colors.g500,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",

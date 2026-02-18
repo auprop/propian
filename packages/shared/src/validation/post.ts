@@ -3,9 +3,9 @@ import { z } from "zod";
 export const createPostSchema = z.object({
   content: z
     .string()
-    .min(1, "Post cannot be empty")
-    .max(2000, "Post must be under 2000 characters"),
-  type: z.enum(["text", "image", "poll", "quote"]).default("text"),
+    .max(2000, "Post must be under 2000 characters")
+    .default(""),
+  type: z.enum(["text", "image", "poll", "quote", "repost"]).default("text"),
   sentiment_tag: z.enum(["bullish", "bearish", "neutral"]).nullable().default(null),
   media_urls: z.array(z.string().url()).default([]),
   quoted_post_id: z.string().uuid().nullable().optional(),

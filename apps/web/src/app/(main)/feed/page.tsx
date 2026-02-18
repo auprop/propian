@@ -63,6 +63,92 @@ const SUGGESTED_TRADERS = [
 ];
 
 /* ------------------------------------------------------------------ */
+/*  Action bar — shared between regular & repost cards                 */
+/* ------------------------------------------------------------------ */
+
+function ActionBar({
+  post,
+  onLike,
+  onBookmark,
+  onRepost,
+  onQuote,
+  onComment,
+  onShare,
+  isRepostMenuOpen,
+  onToggleRepostMenu,
+}: {
+  post: Post;
+  onLike: (postId: string, isLiked: boolean) => void;
+  onBookmark: (postId: string, isBookmarked: boolean) => void;
+  onRepost: (postId: string, isReposted: boolean) => void;
+  onQuote: (postId: string) => void;
+  onComment: (postId: string) => void;
+  onShare: (postId: string) => void;
+  isRepostMenuOpen: boolean;
+  onToggleRepostMenu: (postId: string) => void;
+}) {
+  return (
+    <div className="pt-post-actions">
+      <button className="pt-post-action" onClick={() => onComment(post.id)}>
+        <IconComment size={16} />
+        <span>{post.comment_count > 0 ? formatCompact(post.comment_count) : ""}</span>
+      </button>
+
+      {/* Repost with dropdown */}
+      <div style={{ position: "relative", flex: 1, display: "flex", justifyContent: "center" }}>
+        <button
+          className={`pt-post-action ${post.is_reposted ? "reposted" : ""}`}
+          onClick={() => onToggleRepostMenu(post.id)}
+        >
+          <IconRepost size={20} style={post.is_reposted ? { color: "var(--green)" } : undefined} />
+          <span>{post.repost_count > 0 ? formatCompact(post.repost_count) : ""}</span>
+        </button>
+        {isRepostMenuOpen && (
+          <div className="pt-repost-menu">
+            <button onClick={() => { onRepost(post.id, !!post.is_reposted); onToggleRepostMenu(post.id); }}>
+              <IconRepost size={16} style={post.is_reposted ? { color: "var(--green)" } : undefined} />
+              {post.is_reposted ? "Undo Repost" : "Repost"}
+            </button>
+            <button onClick={() => { onQuote(post.id); onToggleRepostMenu(post.id); }}>
+              <IconQuote size={16} />
+              Quote
+            </button>
+          </div>
+        )}
+      </div>
+
+      <button
+        className={`pt-post-action ${post.is_liked ? "liked" : ""}`}
+        onClick={() => onLike(post.id, !!post.is_liked)}
+      >
+        {post.is_liked ? (
+          <IconHeart size={17} style={{ color: "var(--red)" }} />
+        ) : (
+          <IconHeartOutline size={17} />
+        )}
+        <span>{post.like_count > 0 ? formatCompact(post.like_count) : ""}</span>
+      </button>
+
+      <div className="pt-post-action" style={{ cursor: "default" }}>
+        <IconEye size={18} />
+        <span>{post.view_count > 0 ? formatCompact(post.view_count) : ""}</span>
+      </div>
+
+      <button
+        className={`pt-post-action ${post.is_bookmarked ? "bookmarked" : ""}`}
+        onClick={() => onBookmark(post.id, !!post.is_bookmarked)}
+      >
+        <IconBookmark size={17} style={post.is_bookmarked ? { color: "var(--lime)" } : undefined} />
+      </button>
+
+      <button className="pt-post-action" onClick={() => onShare(post.id)}>
+        <IconShare size={19} />
+      </button>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Post Card                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -91,6 +177,81 @@ function PostCard({
   onToggleRepostMenu: (postId: string) => void;
   supabase: ReturnType<typeof createBrowserClient>;
 }) {
+  // Simple repost — show "reposted by" header with original post content
+  if (post.type === "repost" && post.quoted_post) {
+    const original = post.quoted_post;
+    const reposter = post.author;
+    const originalAuthor = original.author;
+
+    return (
+      <article className="pt-post">
+        {/* Reposted by header */}
+        <div className="pt-repost-banner">
+          <IconRepost size={14} style={{ color: "var(--green)" }} />
+          <span>{reposter?.display_name ?? "Someone"} reposted</span>
+        </div>
+
+        {/* Original post header */}
+        <div className="pt-post-header">
+          <Avatar
+            src={originalAuthor?.avatar_url}
+            name={originalAuthor?.display_name ?? "User"}
+            size="md"
+          />
+          <div className="pt-post-author">
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontWeight: 600 }}>{originalAuthor?.display_name ?? "User"}</span>
+              {originalAuthor?.is_verified && (
+                <IconVerified size={14} style={{ color: "var(--lime)" }} />
+              )}
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span className="pt-post-handle">@{originalAuthor?.username ?? "user"}</span>
+              <span className="pt-post-time">{timeAgo(original.created_at)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Original body */}
+        <div className="pt-post-body">{original.content}</div>
+
+        {/* Actions target the original post */}
+        <ActionBar
+          post={original}
+          onLike={onLike}
+          onBookmark={onBookmark}
+          onRepost={onRepost}
+          onQuote={onQuote}
+          onComment={onComment}
+          onShare={onShare}
+          isRepostMenuOpen={isRepostMenuOpen}
+          onToggleRepostMenu={onToggleRepostMenu}
+        />
+
+        {/* Inline comments on original */}
+        {isCommentsOpen && (
+          <InlineComments postId={original.id} supabase={supabase} />
+        )}
+      </article>
+    );
+  }
+
+  // Simple repost where original was deleted
+  if (post.type === "repost" && !post.quoted_post) {
+    return (
+      <article className="pt-post">
+        <div className="pt-repost-banner">
+          <IconRepost size={14} style={{ color: "var(--green)" }} />
+          <span>{post.author?.display_name ?? "Someone"} reposted</span>
+        </div>
+        <div className="pt-quoted-embed pt-quoted-embed--deleted">
+          <p>This post is unavailable</p>
+        </div>
+      </article>
+    );
+  }
+
+  // Regular post (text, image, poll, quote)
   return (
     <article className="pt-post">
       {/* Header */}
@@ -115,7 +276,7 @@ function PostCard({
       </div>
 
       {/* Body */}
-      <div className="pt-post-body">{post.content}</div>
+      {post.content && <div className="pt-post-body">{post.content}</div>}
 
       {/* Quoted post embed */}
       {post.type === "quote" && post.quoted_post && (
@@ -124,7 +285,7 @@ function PostCard({
             <Avatar
               src={post.quoted_post.author?.avatar_url}
               name={post.quoted_post.author?.display_name ?? "User"}
-              size="xs"
+              size="sm"
             />
             <span className="pt-quoted-embed-name">
               {post.quoted_post.author?.display_name ?? "Unknown"}
@@ -159,63 +320,17 @@ function PostCard({
       )}
 
       {/* Actions bar */}
-      <div className="pt-post-actions">
-        <button className="pt-post-action" onClick={() => onComment(post.id)}>
-          <IconComment size={16} />
-          <span>{post.comment_count > 0 ? formatCompact(post.comment_count) : ""}</span>
-        </button>
-
-        {/* Repost with dropdown */}
-        <div style={{ position: "relative", flex: 1, display: "flex", justifyContent: "center" }}>
-          <button
-            className={`pt-post-action ${post.is_reposted ? "reposted" : ""}`}
-            onClick={() => onToggleRepostMenu(post.id)}
-          >
-            <IconRepost size={20} style={post.is_reposted ? { color: "var(--green)" } : undefined} />
-            <span>{post.repost_count > 0 ? formatCompact(post.repost_count) : ""}</span>
-          </button>
-          {isRepostMenuOpen && (
-            <div className="pt-repost-menu">
-              <button onClick={() => { onRepost(post.id, !!post.is_reposted); onToggleRepostMenu(post.id); }}>
-                <IconRepost size={16} style={post.is_reposted ? { color: "var(--green)" } : undefined} />
-                {post.is_reposted ? "Undo Repost" : "Repost"}
-              </button>
-              <button onClick={() => { onQuote(post.id); onToggleRepostMenu(post.id); }}>
-                <IconQuote size={16} />
-                Quote
-              </button>
-            </div>
-          )}
-        </div>
-
-        <button
-          className={`pt-post-action ${post.is_liked ? "liked" : ""}`}
-          onClick={() => onLike(post.id, !!post.is_liked)}
-        >
-          {post.is_liked ? (
-            <IconHeart size={17} style={{ color: "var(--red)" }} />
-          ) : (
-            <IconHeartOutline size={17} />
-          )}
-          <span>{post.like_count > 0 ? formatCompact(post.like_count) : ""}</span>
-        </button>
-
-        <div className="pt-post-action" style={{ cursor: "default" }}>
-          <IconEye size={18} />
-          <span>{post.view_count > 0 ? formatCompact(post.view_count) : ""}</span>
-        </div>
-
-        <button
-          className={`pt-post-action ${post.is_bookmarked ? "bookmarked" : ""}`}
-          onClick={() => onBookmark(post.id, !!post.is_bookmarked)}
-        >
-          <IconBookmark size={17} style={post.is_bookmarked ? { color: "var(--lime)" } : undefined} />
-        </button>
-
-        <button className="pt-post-action" onClick={() => onShare(post.id)}>
-          <IconShare size={19} />
-        </button>
-      </div>
+      <ActionBar
+        post={post}
+        onLike={onLike}
+        onBookmark={onBookmark}
+        onRepost={onRepost}
+        onQuote={onQuote}
+        onComment={onComment}
+        onShare={onShare}
+        isRepostMenuOpen={isRepostMenuOpen}
+        onToggleRepostMenu={onToggleRepostMenu}
+      />
 
       {/* Inline comment section */}
       {isCommentsOpen && (
@@ -656,7 +771,7 @@ export default function FeedPage() {
                   <Avatar
                     src={quotedPost.author?.avatar_url}
                     name={quotedPost.author?.display_name ?? "User"}
-                    size="xs"
+                    size="sm"
                   />
                   <span className="pt-quoted-embed-name">
                     {quotedPost.author?.display_name ?? "Unknown"}

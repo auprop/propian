@@ -157,9 +157,14 @@ export function useBookmark(supabase: SupabaseClient) {
 
 export function useRepost(supabase: SupabaseClient) {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ postId, action }: { postId: string; action: "repost" | "unrepost" }) =>
-      action === "repost" ? postsApi.repostPost(supabase, postId) : postsApi.unrepostPost(supabase, postId),
+  return useMutation<void, Error, { postId: string; action: "repost" | "unrepost" }, { previousFeed: unknown }>({
+    mutationFn: async ({ postId, action }) => {
+      if (action === "repost") {
+        await postsApi.repostPost(supabase, postId);
+      } else {
+        await postsApi.unrepostPost(supabase, postId);
+      }
+    },
     onMutate: async ({ postId, action }) => {
       await queryClient.cancelQueries({ queryKey: ["feed"] });
       const previousFeed = queryClient.getQueryData(["feed"]);

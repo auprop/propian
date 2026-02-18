@@ -369,6 +369,18 @@
   color: var(--lime);
 }
 
+/* ─── Repost Banner (for simple reposts) ─── */
+
+.pt-repost-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--g500);
+}
+
 /* ─── Repost Dropdown Menu ─── */
 
 .pt-repost-menu {

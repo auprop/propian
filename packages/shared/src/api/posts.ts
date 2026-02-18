@@ -9,7 +9,7 @@ export async function getFeedPosts(
 ): Promise<PaginatedResponse<Post>> {
   let query = supabase
     .from("posts")
-    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified), quoted_post:posts!quoted_post_id(*, quoted_author:profiles!user_id(id, username, display_name, avatar_url, is_verified))")
+    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
     .order("created_at", { ascending: false })
     .limit(PAGE_SIZE + 1);
 
@@ -23,12 +23,29 @@ export async function getFeedPosts(
   const hasMore = (data?.length ?? 0) > PAGE_SIZE;
   const posts = hasMore ? data!.slice(0, PAGE_SIZE) : (data ?? []);
 
-  // Remap quoted_post author from nested join alias
-  for (const post of posts) {
-    const qp = (post as any).quoted_post;
-    if (qp) {
-      qp.author = qp.quoted_author;
-      delete qp.quoted_author;
+  // Collect quoted_post_ids for posts that reference another post (quote or repost)
+  const quotedIds = [
+    ...new Set(
+      posts
+        .map((p: any) => p.quoted_post_id)
+        .filter((id: any): id is string => !!id)
+    ),
+  ];
+
+  // Fetch quoted posts separately (avoids buggy self-referential PostgREST join)
+  if (quotedIds.length > 0) {
+    const { data: quotedPosts } = await supabase
+      .from("posts")
+      .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+      .in("id", quotedIds);
+
+    if (quotedPosts) {
+      const quotedMap = new Map(quotedPosts.map((qp: any) => [qp.id, qp]));
+      for (const post of posts) {
+        if ((post as any).quoted_post_id) {
+          (post as any).quoted_post = quotedMap.get((post as any).quoted_post_id) ?? null;
+        }
+      }
     }
   }
 
@@ -149,20 +166,43 @@ export async function repostPost(supabase: SupabaseClient, postId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const { error } = await supabase
+  // Insert into reposts table (for tracking)
+  const { error: repostError } = await supabase
     .from("reposts")
     .insert({ user_id: user.id, post_id: postId });
+  if (repostError) throw repostError;
+
+  // Also create a post entry so it appears in the feed
+  const { data, error } = await supabase
+    .from("posts")
+    .insert({
+      user_id: user.id,
+      content: "",
+      type: "repost",
+      quoted_post_id: postId,
+    })
+    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+    .single();
   if (error) throw error;
+  return data as Post;
 }
 
 export async function unrepostPost(supabase: SupabaseClient, postId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
-  const { error } = await supabase
+  // Remove from reposts table
+  const { error: repostError } = await supabase
     .from("reposts")
     .delete()
     .match({ user_id: user.id, post_id: postId });
+  if (repostError) throw repostError;
+
+  // Also delete the repost post entry from the feed
+  const { error } = await supabase
+    .from("posts")
+    .delete()
+    .match({ user_id: user.id, type: "repost", quoted_post_id: postId });
   if (error) throw error;
 }
 
