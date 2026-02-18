@@ -256,9 +256,16 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
         <Text style={styles.content}>{post.content}</Text>
       ) : null}
 
-      {/* Quoted post embed (for type='quote') */}
+      {/* Quoted post embed (for type='quote') — clickable */}
       {post.type === "quote" && post.quoted_post && (
-        <View style={styles.quotedEmbed}>
+        <Pressable
+          style={({ pressed }) => [styles.quotedEmbed, pressed && styles.quotedEmbedPressed]}
+          onPress={() => {
+            if (post.quoted_post?.author?.username) {
+              router.push({ pathname: "/post/[id]" as any, params: { id: post.quoted_post.id } });
+            }
+          }}
+        >
           <View style={styles.quotedEmbedHeader}>
             <Avatar
               src={post.quoted_post.author?.avatar_url}
@@ -282,7 +289,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
           <Text style={styles.quotedEmbedContent} numberOfLines={3}>
             {post.quoted_post.content}
           </Text>
-        </View>
+        </Pressable>
       )}
 
       {/* Deleted quoted post fallback */}
@@ -484,6 +491,10 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: colors.g50,
     marginBottom: 14,
+  },
+  quotedEmbedPressed: {
+    backgroundColor: colors.g100,
+    borderColor: colors.g300,
   },
   quotedEmbedHeader: {
     flexDirection: "row",

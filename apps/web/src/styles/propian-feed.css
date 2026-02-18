@@ -457,6 +457,18 @@
   overflow: hidden;
 }
 
+.pt-quoted-embed--clickable {
+  cursor: pointer;
+  text-decoration: none;
+  display: block;
+  transition: background var(--tf), border-color var(--tf);
+}
+
+.pt-quoted-embed--clickable:hover {
+  background: var(--g100);
+  border-color: var(--g300);
+}
+
 .pt-quoted-embed--deleted {
   background: var(--g100);
   text-align: center;

@@ -280,7 +280,7 @@ function PostCard({
 
       {/* Quoted post embed */}
       {post.type === "quote" && post.quoted_post && (
-        <div className="pt-quoted-embed">
+        <a href={`/post/${post.quoted_post.id}`} className="pt-quoted-embed pt-quoted-embed--clickable">
           <div className="pt-quoted-embed-header">
             <Avatar
               src={post.quoted_post.author?.avatar_url}
@@ -298,7 +298,7 @@ function PostCard({
             </span>
           </div>
           <p className="pt-quoted-embed-body">{post.quoted_post.content}</p>
-        </div>
+        </a>
       )}
 
       {/* Deleted quoted post fallback */}
