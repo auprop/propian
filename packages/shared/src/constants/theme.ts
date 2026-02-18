@@ -1,6 +1,7 @@
 export const colors = {
   lime: "#a8ff39",
-  limeDim: "#8ad42e",
+  limeDim: "#4d7c0f",
+  limeBar: "#65a30d",
   black: "#000000",
   white: "#ffffff",
   red: "#ff4444",

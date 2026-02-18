@@ -81,11 +81,11 @@ function SentimentGauge({ longPct }: { longPct: number }) {
           strokeWidth={8}
           strokeLinecap="round"
         />
-        {/* Long (lime) from left */}
+        {/* Long (green) from left */}
         <Path
           d="M 5 50 A 45 45 0 0 1 95 50"
           fill="none"
-          stroke={colors.lime}
+          stroke={colors.limeBar}
           strokeWidth={8}
           strokeLinecap="round"
           strokeDasharray={`${longPct * 1.41} 200`}
@@ -210,8 +210,8 @@ function HistoryChart({ data }: { data: SentimentHistory[] }) {
       {/* 50% line */}
       <View style={s.chartMidLine} />
       <Svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
-        <Path d={longArea} fill="rgba(168,255,57,0.12)" />
-        <Path d={longLine} fill="none" stroke={colors.lime} strokeWidth={2} />
+        <Path d={longArea} fill="rgba(101,163,13,0.12)" />
+        <Path d={longLine} fill="none" stroke={colors.limeBar} strokeWidth={2} />
       </Svg>
     </View>
   );
@@ -363,7 +363,7 @@ export default function SentimentsScreen() {
                 {hero && (
                   <View style={{ gap: 10, marginBottom: 20 }}>
                     <View style={s.heroCard}>
-                      <Text style={[s.heroVal, { color: colors.lime }]}>
+                      <Text style={[s.heroVal, { color: colors.limeDim }]}>
                         {hero.community_bullish_pct}%
                       </Text>
                       <Text style={s.heroLabel}>COMMUNITY BULLISH</Text>
@@ -377,7 +377,7 @@ export default function SentimentsScreen() {
                         <Text style={s.heroLabel}>POSITIONED</Text>
                       </View>
                       <View style={[s.heroCard, { flex: 1 }]}>
-                        <Text style={[s.heroVal, { color: colors.lime, fontSize: 22 }]}>
+                        <Text style={[s.heroVal, { color: colors.limeDim, fontSize: 22 }]}>
                           {hero.most_traded_symbol}
                         </Text>
                         <Text style={s.heroLabel}>MOST TRADED</Text>
@@ -592,7 +592,7 @@ export default function SentimentsScreen() {
                 {/* Legend */}
                 <View style={s.legendRow}>
                   {[
-                    { label: "Long", bg: colors.lime },
+                    { label: "Long", bg: colors.limeBar },
                     { label: "Neutral", bg: colors.g200 },
                     { label: "Short", bg: colors.red },
                   ].map((l) => (
@@ -613,7 +613,7 @@ export default function SentimentsScreen() {
                 {/* Strongest Long */}
                 <View style={s.convictionCard}>
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                    <View style={[s.convDot, { backgroundColor: colors.lime }]} />
+                    <View style={[s.convDot, { backgroundColor: colors.limeBar }]} />
                     <Text style={s.convTitle}>Strongest Long Conviction</Text>
                   </View>
                   {strongLong.map((d, i) => (
@@ -965,7 +965,7 @@ const s = StyleSheet.create({
   },
   barLong: {
     height: "100%",
-    backgroundColor: colors.lime,
+    backgroundColor: colors.limeBar,
     borderTopLeftRadius: 4,
     borderBottomLeftRadius: 4,
   },
@@ -1334,7 +1334,7 @@ const s = StyleSheet.create({
   },
   histBarLong: {
     height: "100%",
-    backgroundColor: colors.lime,
+    backgroundColor: colors.limeBar,
     borderTopLeftRadius: 3,
     borderBottomLeftRadius: 3,
   },
