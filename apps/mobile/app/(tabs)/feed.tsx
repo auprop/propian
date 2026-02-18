@@ -91,10 +91,15 @@ export default function FeedScreen() {
   }, [repostMenuPostId]);
 
   const handleQuoteSubmit = useCallback(
-    (content: string) => {
+    (data: { content: string; sentiment_tag?: "bullish" | "bearish" | "neutral" | null }) => {
       if (!quotePostId) return;
       createPostMutation.mutate(
-        { content, type: "quote", quoted_post_id: quotePostId },
+        {
+          content: data.content,
+          type: "quote",
+          quoted_post_id: quotePostId,
+          ...(data.sentiment_tag ? { sentiment_tag: data.sentiment_tag } : {}),
+        },
         { onSuccess: () => setQuotePostId(null) }
       );
     },
@@ -263,6 +268,8 @@ export default function FeedScreen() {
         onSubmit={handleQuoteSubmit}
         onClose={() => setQuotePostId(null)}
         isPending={createPostMutation.isPending}
+        avatar={profile?.avatar_url}
+        displayName={profile?.display_name}
       />
 
       {/* Post Composer */}
