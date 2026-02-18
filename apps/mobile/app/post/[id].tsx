@@ -1,18 +1,19 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   Pressable,
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
   Share,
   TextInput,
+  ActivityIndicator,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, fontFamily, radii, spacing } from "@/theme";
+import { colors, radii, spacing, shadows } from "@/theme";
 import { supabase } from "@/lib/supabase";
 import { triggerHaptic } from "@/hooks/useHaptics";
 import {
@@ -20,28 +21,47 @@ import {
   useLikePost,
   useBookmark,
   useRepost,
-  useCreatePost,
   useComments,
   useCreateComment,
+  useCurrentProfile,
 } from "@propian/shared/hooks";
-import { Avatar, Badge, Card, Button, Skeleton, EmptyState } from "@/components/ui";
+import { useAuth } from "@/providers/AuthProvider";
+import { Avatar, Badge, Skeleton } from "@/components/ui";
 import { IconHeart } from "@/components/icons/IconHeart";
 import { IconHeartOutline } from "@/components/icons/IconHeartOutline";
 import { IconComment } from "@/components/icons/IconComment";
 import { IconRepost } from "@/components/icons/IconRepost";
 import { IconShare } from "@/components/icons/IconShare";
 import { IconBookmark } from "@/components/icons/IconBookmark";
-import { IconEye } from "@/components/icons/IconEye";
 import { IconVerified } from "@/components/icons/IconVerified";
-import { formatCompact } from "@propian/shared/utils";
-import { timeAgo } from "@propian/shared/utils";
-import type { Post, Comment } from "@propian/shared/types";
+import { IconSend } from "@/components/icons/IconSend";
+import { formatCompact, timeAgo } from "@propian/shared/utils";
+import Svg, { Path } from "react-native-svg";
+import type { Comment } from "@propian/shared/types";
+
+/* ─── Inline back chevron ─── */
+function IconChevLeft({ size = 24, color = "#000" }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M15 18l-6-6 6-6"
+        stroke={color}
+        strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
 
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const inputRef = useRef<TextInput>(null);
 
+  const { user } = useAuth();
+  const { data: myProfile } = useCurrentProfile(supabase, user?.id);
   const { data: post, isLoading, isError } = usePost(supabase, id);
 
   /* Mutations */
@@ -53,12 +73,11 @@ export default function PostDetailScreen() {
   const { query: commentsQuery } = useComments(supabase, id ?? "");
   const createComment = useCreateComment(supabase);
   const [commentText, setCommentText] = useState("");
-  const [showComments, setShowComments] = useState(false);
 
   const comments: Comment[] = useMemo(
     () =>
       (commentsQuery.data?.pages?.flatMap((page: unknown) =>
-        Array.isArray(page) ? page : []
+        Array.isArray(page) ? page : [],
       ) ?? []) as Comment[],
     [commentsQuery.data],
   );
@@ -66,6 +85,7 @@ export default function PostDetailScreen() {
   const handleSendComment = useCallback(() => {
     const content = commentText.trim();
     if (!content || !id || createComment.isPending) return;
+    triggerHaptic("success");
     createComment.mutate(
       { postId: id, content },
       { onSuccess: () => setCommentText("") },
@@ -82,313 +102,503 @@ export default function PostDetailScreen() {
   const handleBookmark = useCallback(() => {
     if (!post) return;
     triggerHaptic("success");
-    bookmarkPost.mutate({ postId: post.id, action: post.is_bookmarked ? "unbookmark" : "bookmark" });
+    bookmarkPost.mutate({
+      postId: post.id,
+      action: post.is_bookmarked ? "unbookmark" : "bookmark",
+    });
   }, [post, bookmarkPost]);
 
   const handleRepost = useCallback(() => {
     if (!post) return;
     triggerHaptic("light");
-    repostPost.mutate({ postId: post.id, action: post.is_reposted ? "unrepost" : "repost" });
+    repostPost.mutate({
+      postId: post.id,
+      action: post.is_reposted ? "unrepost" : "repost",
+    });
   }, [post, repostPost]);
 
   const handleShare = useCallback(async () => {
     if (!post) return;
     triggerHaptic("light");
     try {
-      await Share.share({ message: `Check out this post on Propian: https://propian.com/post/${post.id}` });
+      await Share.share({
+        message: `Check out this post on Propian: https://propian.com/post/${post.id}`,
+      });
     } catch (_) {}
   }, [post]);
 
-  /* ---------------------------------------------------------------- */
-  /*  Loading                                                          */
-  /* ---------------------------------------------------------------- */
-
+  /* ── Loading ── */
   if (isLoading) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <Card>
-          <View style={styles.header}>
+      <View style={[styles.screen, { paddingTop: insets.top }]}>
+        <View style={styles.navBar}>
+          <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+            <IconChevLeft size={24} color={colors.black} />
+          </Pressable>
+          <Text style={styles.navTitle}>Post</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.loadingBody}>
+          <View style={styles.loadingRow}>
             <Skeleton width={48} height={48} radius={24} />
             <View style={{ flex: 1, gap: 6 }}>
-              <Skeleton width={160} height={14} radius={4} />
-              <Skeleton width={120} height={12} radius={4} />
+              <Skeleton width={160} height={14} />
+              <Skeleton width={120} height={12} />
             </View>
           </View>
-          <Skeleton width="100%" height={14} radius={4} />
-          <View style={{ height: 6 }} />
-          <Skeleton width="90%" height={14} radius={4} />
-          <View style={{ height: 6 }} />
-          <Skeleton width="70%" height={14} radius={4} />
-        </Card>
+          <Skeleton width="100%" height={14} />
+          <Skeleton width="90%" height={14} />
+          <Skeleton width="60%" height={14} />
+          <View style={styles.divider} />
+          <View style={styles.loadingRow}>
+            <Skeleton width={32} height={32} radius={16} />
+            <View style={{ flex: 1, gap: 4 }}>
+              <Skeleton width={100} height={12} />
+              <Skeleton width="80%" height={12} />
+            </View>
+          </View>
+          <View style={styles.loadingRow}>
+            <Skeleton width={32} height={32} radius={16} />
+            <View style={{ flex: 1, gap: 4 }}>
+              <Skeleton width={80} height={12} />
+              <Skeleton width="70%" height={12} />
+            </View>
+          </View>
+        </View>
       </View>
     );
   }
 
   if (isError || !post) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <EmptyState
-          title="Post not found"
-          description="This post may have been deleted or doesn't exist."
-        />
+      <View style={[styles.screen, { paddingTop: insets.top }]}>
+        <View style={styles.navBar}>
+          <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+            <IconChevLeft size={24} color={colors.black} />
+          </Pressable>
+          <Text style={styles.navTitle}>Post</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.errorBody}>
+          <Text style={styles.errorEmoji}>🔍</Text>
+          <Text style={styles.errorTitle}>Post not found</Text>
+          <Text style={styles.errorDesc}>
+            This post may have been deleted or doesn't exist.
+          </Text>
+        </View>
       </View>
     );
   }
 
-  /* ---------------------------------------------------------------- */
-  /*  Render                                                           */
-  /* ---------------------------------------------------------------- */
-
+  /* ── Render ── */
   const author = post.author;
 
-  return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.g50 }}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-    >
-      <ScrollView
-        style={[styles.container, { paddingTop: insets.top }]}
-        contentContainerStyle={{ paddingBottom: 120 }}
-        keyboardShouldPersistTaps="handled"
+  /* Post header component rendered as FlatList ListHeaderComponent */
+  const postHeader = (
+    <View style={styles.postSection}>
+      {/* Author row */}
+      <Pressable
+        onPress={() => {
+          if (author?.username) {
+            router.push({
+              pathname: "/profile/[username]",
+              params: { username: author.username },
+            });
+          }
+        }}
+        style={styles.authorRow}
       >
-        <Card>
-          {/* Author header */}
-          <Pressable
-            onPress={() => {
-              if (author?.username) {
-                router.push({ pathname: "/profile/[username]", params: { username: author.username } });
-              }
-            }}
-            style={styles.header}
-          >
-            <Avatar
-              src={author?.avatar_url}
-              name={author?.display_name || ""}
-              size="lg"
-            />
-            <View style={styles.headerText}>
-              <View style={styles.nameRow}>
-                <Text style={styles.displayName} numberOfLines={1}>
-                  {author?.display_name || "Unknown"}
-                </Text>
-                {author?.is_verified && (
-                  <IconVerified size={16} color={colors.lime} />
-                )}
-              </View>
-              <View style={styles.metaRow}>
-                <Text style={styles.handle}>@{author?.username || "user"}</Text>
-                <Text style={styles.dot}>-</Text>
-                <Text style={styles.timestamp}>{timeAgo(post.created_at)}</Text>
-              </View>
-            </View>
-          </Pressable>
-
-          {/* Sentiment tag */}
-          {post.sentiment_tag && (
-            <Badge
-              variant={
-                post.sentiment_tag === "bullish"
-                  ? "green"
-                  : post.sentiment_tag === "bearish"
-                    ? "red"
-                    : "gray"
-              }
-              style={styles.sentimentBadge}
-            >
-              {post.sentiment_tag.toUpperCase()}
-            </Badge>
-          )}
-
-          {/* Content */}
-          {post.content ? (
-            <Text style={styles.content}>{post.content}</Text>
-          ) : null}
-
-          {/* Quoted post embed */}
-          {(post.type === "quote" || post.type === "repost") && post.quoted_post && (
-            <Pressable
-              style={({ pressed }) => [styles.quotedEmbed, pressed && styles.quotedEmbedPressed]}
-              onPress={() => {
-                router.push({ pathname: "/post/[id]" as any, params: { id: post.quoted_post!.id } });
-              }}
-            >
-              <View style={styles.quotedEmbedHeader}>
-                <Avatar
-                  src={post.quoted_post.author?.avatar_url}
-                  name={post.quoted_post.author?.display_name || ""}
-                  size="sm"
-                />
-                <View style={{ flex: 1 }}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.quotedEmbedName} numberOfLines={1}>
-                      {post.quoted_post.author?.display_name || "Unknown"}
-                    </Text>
-                    {post.quoted_post.author?.is_verified && (
-                      <IconVerified size={12} color={colors.lime} />
-                    )}
-                  </View>
-                  <Text style={styles.quotedEmbedHandle}>
-                    @{post.quoted_post.author?.username || "user"}
-                  </Text>
-                </View>
-              </View>
-              <Text style={styles.quotedEmbedContent} numberOfLines={5}>
-                {post.quoted_post.content}
-              </Text>
-            </Pressable>
-          )}
-
-          {/* Deleted quoted post */}
-          {(post.type === "quote" || post.type === "repost") && !post.quoted_post && post.quoted_post_id && (
-            <View style={styles.quotedEmbedDeleted}>
-              <Text style={styles.quotedEmbedDeletedText}>This post is unavailable</Text>
-            </View>
-          )}
-
-          {/* Action Bar */}
-          <View style={styles.actionBar}>
-            <Pressable
-              style={styles.actionButton}
-              onPress={() => {
-                triggerHaptic("light");
-                setShowComments((prev) => !prev);
-              }}
-            >
-              <IconComment size={16} color={showComments ? colors.lime : colors.g400} />
-              {post.comment_count > 0 && (
-                <Text style={[styles.actionCount, showComments && { color: colors.lime }]}>
-                  {formatCompact(post.comment_count)}
-                </Text>
-              )}
-            </Pressable>
-
-            <Pressable style={styles.actionButton} onPress={handleRepost}>
-              <IconRepost size={20} color={post.is_reposted ? colors.green : colors.g400} />
-              {post.repost_count > 0 && (
-                <Text style={[styles.actionCount, post.is_reposted && styles.actionCountRepost]}>
-                  {formatCompact(post.repost_count)}
-                </Text>
-              )}
-            </Pressable>
-
-            <Pressable style={styles.actionButton} onPress={handleLike}>
-              {post.is_liked ? (
-                <IconHeart size={17} color={colors.red} />
-              ) : (
-                <IconHeartOutline size={17} color={colors.g400} />
-              )}
-              {post.like_count > 0 && (
-                <Text style={[styles.actionCount, post.is_liked && styles.actionCountLike]}>
-                  {formatCompact(post.like_count)}
-                </Text>
-              )}
-            </Pressable>
-
-            <View style={styles.actionButton}>
-              <IconEye size={18} color={colors.g400} />
-              {post.view_count > 0 && (
-                <Text style={styles.actionCount}>{formatCompact(post.view_count)}</Text>
-              )}
-            </View>
-
-            <Pressable style={styles.actionButton} onPress={handleBookmark}>
-              <IconBookmark size={17} color={post.is_bookmarked ? colors.lime : colors.g400} />
-            </Pressable>
-
-            <Pressable style={styles.actionButton} onPress={handleShare}>
-              <IconShare size={19} color={colors.g400} />
-            </Pressable>
+        <Avatar
+          src={author?.avatar_url}
+          name={author?.display_name || ""}
+          size="lg"
+        />
+        <View style={styles.authorInfo}>
+          <View style={styles.nameRow}>
+            <Text style={styles.displayName} numberOfLines={1}>
+              {author?.display_name || "Unknown"}
+            </Text>
+            {author?.is_verified && <IconVerified size={16} color={colors.lime} />}
           </View>
-        </Card>
+          <Text style={styles.handle}>
+            @{author?.username || "user"}{" "}
+            <Text style={styles.dot}>·</Text>{" "}
+            <Text style={styles.timestamp}>{timeAgo(post.created_at)}</Text>
+          </Text>
+        </View>
+      </Pressable>
 
-        {/* Comments section — only visible when toggled */}
-        {showComments && (
-          <View style={styles.commentsSection}>
-            <Text style={styles.commentsTitle}>Comments</Text>
+      {/* Sentiment tag */}
+      {post.sentiment_tag && (
+        <View style={styles.sentimentRow}>
+          <Badge
+            variant={
+              post.sentiment_tag === "bullish"
+                ? "green"
+                : post.sentiment_tag === "bearish"
+                  ? "red"
+                  : "gray"
+            }
+          >
+            {post.sentiment_tag.toUpperCase()}
+          </Badge>
+        </View>
+      )}
 
-            {commentsQuery.isLoading ? (
-              <View style={{ gap: 12 }}>
-                {[1, 2].map((i) => (
-                  <View key={i} style={styles.commentRow}>
-                    <Skeleton width={32} height={32} radius={16} />
-                    <View style={{ flex: 1, gap: 4 }}>
-                      <Skeleton width={100} height={12} radius={4} />
-                      <Skeleton width="80%" height={12} radius={4} />
-                    </View>
-                  </View>
-                ))}
-              </View>
-            ) : comments.length === 0 ? (
-              <Text style={styles.noComments}>No comments yet. Be the first!</Text>
-            ) : (
-              <View style={{ gap: 12 }}>
-                {comments.map((comment) => (
-                  <View key={comment.id} style={styles.commentRow}>
-                    <Avatar
-                      src={comment.author?.avatar_url}
-                      name={comment.author?.display_name ?? "User"}
-                      size="sm"
-                    />
-                    <View style={{ flex: 1 }}>
-                      <View style={styles.commentHeader}>
-                        <Text style={styles.commentAuthor}>
-                          {comment.author?.display_name ?? "Unknown"}
-                        </Text>
-                        {comment.author?.is_verified && (
-                          <IconVerified size={12} color={colors.lime} />
-                        )}
-                        <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
-                      </View>
-                      <Text style={styles.commentText}>{comment.content}</Text>
-                    </View>
-                  </View>
-                ))}
-              </View>
+      {/* Content */}
+      {post.content ? (
+        <Text style={styles.content}>{post.content}</Text>
+      ) : null}
+
+      {/* Quoted post embed */}
+      {(post.type === "quote" || post.type === "repost") && post.quoted_post && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.quotedEmbed,
+            pressed && styles.quotedEmbedPressed,
+          ]}
+          onPress={() => {
+            router.push({
+              pathname: "/post/[id]" as any,
+              params: { id: post.quoted_post!.id },
+            });
+          }}
+        >
+          <View style={styles.quotedHeader}>
+            <Avatar
+              src={post.quoted_post.author?.avatar_url}
+              name={post.quoted_post.author?.display_name || ""}
+              size="sm"
+            />
+            <Text style={styles.quotedName} numberOfLines={1}>
+              {post.quoted_post.author?.display_name || "Unknown"}
+            </Text>
+            {post.quoted_post.author?.is_verified && (
+              <IconVerified size={12} color={colors.lime} />
             )}
+            <Text style={styles.quotedHandle}>
+              @{post.quoted_post.author?.username || "user"}
+            </Text>
+          </View>
+          <Text style={styles.quotedContent} numberOfLines={4}>
+            {post.quoted_post.content}
+          </Text>
+        </Pressable>
+      )}
 
-            {/* Comment input */}
-            <View style={styles.commentInputRow}>
-              <TextInput
-                style={styles.commentInput}
-                placeholder="Add a comment..."
-                placeholderTextColor={colors.g400}
-                value={commentText}
-                onChangeText={setCommentText}
-                maxLength={500}
-                onSubmitEditing={handleSendComment}
-                returnKeyType="send"
-                autoFocus
-              />
-              <Button
-                variant="lime"
-                size="sm"
-                onPress={handleSendComment}
-                disabled={!commentText.trim() || createComment.isPending}
-              >
-                {createComment.isPending ? "..." : "Send"}
-              </Button>
-            </View>
+      {/* Deleted quoted post */}
+      {(post.type === "quote" || post.type === "repost") &&
+        !post.quoted_post &&
+        post.quoted_post_id && (
+          <View style={styles.quotedDeleted}>
+            <Text style={styles.quotedDeletedText}>
+              This post is unavailable
+            </Text>
           </View>
         )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+
+      {/* Engagement stats */}
+      {(post.like_count > 0 || post.repost_count > 0 || post.view_count > 0) && (
+        <View style={styles.statsRow}>
+          {post.repost_count > 0 && (
+            <Text style={styles.statText}>
+              <Text style={styles.statNumber}>{formatCompact(post.repost_count)}</Text>
+              {" Reposts"}
+            </Text>
+          )}
+          {post.like_count > 0 && (
+            <Text style={styles.statText}>
+              <Text style={styles.statNumber}>{formatCompact(post.like_count)}</Text>
+              {" Likes"}
+            </Text>
+          )}
+          {post.view_count > 0 && (
+            <Text style={styles.statText}>
+              <Text style={styles.statNumber}>{formatCompact(post.view_count)}</Text>
+              {" Views"}
+            </Text>
+          )}
+        </View>
+      )}
+
+      {/* Action bar */}
+      <View style={styles.actionBar}>
+        <Pressable
+          style={styles.actionBtn}
+          onPress={() => {
+            triggerHaptic("light");
+            inputRef.current?.focus();
+          }}
+        >
+          <IconComment size={20} color={colors.g400} />
+        </Pressable>
+
+        <Pressable style={styles.actionBtn} onPress={handleRepost}>
+          <IconRepost size={22} color={post.is_reposted ? colors.green : colors.g400} />
+        </Pressable>
+
+        <Pressable style={styles.actionBtn} onPress={handleLike}>
+          {post.is_liked ? (
+            <IconHeart size={20} color={colors.red} />
+          ) : (
+            <IconHeartOutline size={20} color={colors.g400} />
+          )}
+        </Pressable>
+
+        <Pressable style={styles.actionBtn} onPress={handleBookmark}>
+          <IconBookmark
+            size={20}
+            color={post.is_bookmarked ? colors.lime : colors.g400}
+          />
+        </Pressable>
+
+        <Pressable style={styles.actionBtn} onPress={handleShare}>
+          <IconShare size={20} color={colors.g400} />
+        </Pressable>
+      </View>
+
+      {/* Comments section header */}
+      <View style={styles.commentsSectionHeader}>
+        <Text style={styles.commentsSectionTitle}>
+          {comments.length > 0
+            ? `Replies (${comments.length})`
+            : "Replies"}
+        </Text>
+      </View>
+
+      {/* Comments loading state */}
+      {commentsQuery.isLoading && (
+        <View style={styles.commentsLoading}>
+          {[1, 2, 3].map((i) => (
+            <View key={i} style={styles.commentSkeleton}>
+              <Skeleton width={36} height={36} radius={18} />
+              <View style={{ flex: 1, gap: 6 }}>
+                <Skeleton width={120} height={12} />
+                <Skeleton width="85%" height={12} />
+              </View>
+            </View>
+          ))}
+        </View>
+      )}
+
+      {/* Empty state */}
+      {!commentsQuery.isLoading && comments.length === 0 && (
+        <View style={styles.emptyComments}>
+          <IconComment size={32} color={colors.g200} />
+          <Text style={styles.emptyTitle}>No replies yet</Text>
+          <Text style={styles.emptyDesc}>
+            Start the conversation — share your thoughts!
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+
+  /* Comment row renderer */
+  const renderComment = ({ item }: { item: Comment }) => (
+    <View style={styles.commentCard}>
+      <Pressable
+        onPress={() => {
+          if (item.author?.username) {
+            router.push({
+              pathname: "/profile/[username]",
+              params: { username: item.author.username },
+            });
+          }
+        }}
+      >
+        <Avatar
+          src={item.author?.avatar_url}
+          name={item.author?.display_name || "User"}
+          size="sm"
+        />
+      </Pressable>
+      <View style={styles.commentBody}>
+        <View style={styles.commentMeta}>
+          <Text style={styles.commentAuthor} numberOfLines={1}>
+            {item.author?.display_name || "Unknown"}
+          </Text>
+          {item.author?.is_verified && (
+            <IconVerified size={12} color={colors.lime} />
+          )}
+          <Text style={styles.commentDot}>·</Text>
+          <Text style={styles.commentTime}>{timeAgo(item.created_at)}</Text>
+        </View>
+        <Text style={styles.commentText}>{item.content}</Text>
+      </View>
+    </View>
+  );
+
+  return (
+    <View style={[styles.screen, { paddingTop: insets.top }]}>
+      {/* Navigation bar */}
+      <View style={styles.navBar}>
+        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
+          <IconChevLeft size={24} color={colors.black} />
+        </Pressable>
+        <Text style={styles.navTitle}>Post</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
+      >
+        {/* Main content — FlatList for comments with post as header */}
+        <FlatList
+          data={!commentsQuery.isLoading ? comments : []}
+          keyExtractor={(item) => item.id}
+          renderItem={renderComment}
+          ListHeaderComponent={postHeader}
+          contentContainerStyle={[
+            styles.listContent,
+            { paddingBottom: Math.max(insets.bottom, 16) + 72 },
+          ]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        />
+
+        {/* Sticky comment input */}
+        <View
+          style={[
+            styles.inputBar,
+            { paddingBottom: Math.max(insets.bottom, 12) },
+          ]}
+        >
+          <Avatar
+            src={myProfile?.avatar_url}
+            name={myProfile?.display_name || ""}
+            size="sm"
+          />
+          <View style={styles.inputWrapper}>
+            <TextInput
+              ref={inputRef}
+              style={styles.input}
+              placeholder="Write a reply..."
+              placeholderTextColor={colors.g400}
+              value={commentText}
+              onChangeText={setCommentText}
+              multiline
+              maxLength={500}
+              returnKeyType="default"
+            />
+          </View>
+          <Pressable
+            onPress={handleSendComment}
+            disabled={!commentText.trim() || createComment.isPending}
+            style={[
+              styles.sendBtn,
+              (commentText.trim() && !createComment.isPending) && styles.sendBtnActive,
+            ]}
+          >
+            {createComment.isPending ? (
+              <ActivityIndicator size="small" color={colors.black} />
+            ) : (
+              <IconSend
+                size={18}
+                color={commentText.trim() ? colors.black : colors.g400}
+              />
+            )}
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
+/* ─── Styles ─── */
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    backgroundColor: colors.g50,
-    padding: spacing.md,
+    backgroundColor: colors.white,
   },
-  header: {
+
+  /* Nav bar */
+  navBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.g100,
+    backgroundColor: colors.white,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  navTitle: {
+    fontFamily: "Outfit_700Bold",
+    fontSize: 17,
+    color: colors.black,
+  },
+
+  /* Loading */
+  loadingBody: {
+    padding: 20,
+    gap: 12,
+  },
+  loadingRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginBottom: 14,
   },
-  headerText: {
+  divider: {
+    height: 1,
+    backgroundColor: colors.g100,
+    marginVertical: 4,
+  },
+
+  /* Error */
+  errorBody: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: 80,
+    gap: 8,
+  },
+  errorEmoji: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  errorTitle: {
+    fontFamily: "Outfit_700Bold",
+    fontSize: 18,
+    color: colors.black,
+  },
+  errorDesc: {
+    fontFamily: "Outfit_400Regular",
+    fontSize: 14,
+    color: colors.g400,
+    textAlign: "center",
+    paddingHorizontal: 40,
+  },
+
+  /* List */
+  listContent: {
+    flexGrow: 1,
+  },
+
+  /* Post section */
+  postSection: {
+    backgroundColor: colors.white,
+  },
+
+  /* Author */
+  authorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 12,
+  },
+  authorInfo: {
     flex: 1,
   },
   nameRow: {
@@ -398,178 +608,258 @@ const styles = StyleSheet.create({
   },
   displayName: {
     fontFamily: "Outfit_700Bold",
-    fontSize: 17,
+    fontSize: 16,
     color: colors.black,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 2,
+    flexShrink: 1,
   },
   handle: {
     fontFamily: "Outfit_400Regular",
     fontSize: 14,
-    color: colors.g500,
+    color: colors.g400,
+    marginTop: 1,
   },
   dot: {
-    fontFamily: "Outfit_400Regular",
-    fontSize: 14,
-    color: colors.g400,
+    color: colors.g300,
   },
   timestamp: {
     fontFamily: "Outfit_400Regular",
     fontSize: 14,
     color: colors.g400,
   },
-  sentimentBadge: {
-    marginBottom: 10,
+
+  /* Sentiment */
+  sentimentRow: {
+    paddingHorizontal: 16,
+    marginBottom: 6,
   },
+
+  /* Content */
   content: {
     fontFamily: "Outfit_400Regular",
     fontSize: 17,
     color: colors.black,
     lineHeight: 26,
-    marginBottom: 14,
+    paddingHorizontal: 16,
+    marginBottom: 12,
   },
-  actionBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.g100,
-  },
-  actionButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingVertical: 4,
-    paddingHorizontal: 4,
-  },
-  actionCount: {
-    fontFamily: "Outfit_500Medium",
-    fontSize: 13,
-    color: colors.g500,
-  },
-  actionCountLike: {
-    color: colors.red,
-  },
-  actionCountRepost: {
-    color: colors.green,
-  },
+
+  /* Quoted embed */
   quotedEmbed: {
+    marginHorizontal: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.g200,
-    borderRadius: 12,
-    padding: 12,
+    borderRadius: radii.lg,
+    padding: 14,
     backgroundColor: colors.g50,
-    marginBottom: 14,
   },
   quotedEmbedPressed: {
     backgroundColor: colors.g100,
     borderColor: colors.g300,
   },
-  quotedEmbedHeader: {
+  quotedHeader: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  quotedEmbedName: {
+  quotedName: {
     fontFamily: "Outfit_600SemiBold",
     fontSize: 13,
     color: colors.black,
+    flexShrink: 1,
   },
-  quotedEmbedHandle: {
+  quotedHandle: {
     fontFamily: "Outfit_400Regular",
-    fontSize: 12,
+    fontSize: 13,
     color: colors.g400,
-    marginTop: 1,
   },
-  quotedEmbedContent: {
+  quotedContent: {
     fontFamily: "Outfit_400Regular",
     fontSize: 14,
     color: colors.g600,
     lineHeight: 20,
   },
-  quotedEmbedDeleted: {
+  quotedDeleted: {
+    marginHorizontal: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.g200,
-    borderRadius: 12,
+    borderRadius: radii.lg,
     padding: 16,
     backgroundColor: colors.g100,
-    marginBottom: 14,
     alignItems: "center" as const,
   },
-  quotedEmbedDeletedText: {
+  quotedDeletedText: {
     fontFamily: "Outfit_400Regular",
     fontSize: 13,
     color: colors.g400,
   },
-  commentsSection: {
-    marginTop: 16,
-  },
-  commentsTitle: {
-    fontFamily: "Outfit_700Bold",
-    fontSize: 16,
-    color: colors.black,
-    marginBottom: 12,
-  },
-  noComments: {
-    fontFamily: "Outfit_400Regular",
-    fontSize: 14,
-    color: colors.g400,
-    textAlign: "center",
-    paddingVertical: 20,
-  },
-  commentRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-  },
-  commentHeader: {
+
+  /* Stats row */
+  statsRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    marginBottom: 2,
-  },
-  commentAuthor: {
-    fontFamily: "Outfit_600SemiBold",
-    fontSize: 13,
-    color: colors.black,
-  },
-  commentTime: {
-    fontFamily: "Outfit_400Regular",
-    fontSize: 12,
-    color: colors.g400,
-    marginLeft: 4,
-  },
-  commentText: {
-    fontFamily: "Outfit_400Regular",
-    fontSize: 14,
-    color: colors.g700,
-    lineHeight: 20,
-  },
-  commentInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 16,
-    paddingTop: 12,
+    gap: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: colors.g100,
   },
-  commentInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: colors.g200,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+  statText: {
     fontFamily: "Outfit_400Regular",
     fontSize: 14,
+    color: colors.g500,
+  },
+  statNumber: {
+    fontFamily: "Outfit_700Bold",
     color: colors.black,
+  },
+
+  /* Action bar */
+  actionBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: colors.g100,
+  },
+  actionBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  /* Comments section header */
+  commentsSectionHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
+  },
+  commentsSectionTitle: {
+    fontFamily: "Outfit_700Bold",
+    fontSize: 16,
+    color: colors.black,
+  },
+
+  /* Comments loading */
+  commentsLoading: {
+    paddingHorizontal: 16,
+    gap: 16,
+    paddingBottom: 16,
+  },
+  commentSkeleton: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+
+  /* Empty comments */
+  emptyComments: {
+    alignItems: "center",
+    paddingVertical: 40,
+    paddingHorizontal: 40,
+    gap: 6,
+  },
+  emptyTitle: {
+    fontFamily: "Outfit_600SemiBold",
+    fontSize: 15,
+    color: colors.g500,
+    marginTop: 8,
+  },
+  emptyDesc: {
+    fontFamily: "Outfit_400Regular",
+    fontSize: 13,
+    color: colors.g400,
+    textAlign: "center",
+    lineHeight: 18,
+  },
+
+  /* Comment card */
+  commentCard: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.g100,
+  },
+  commentBody: {
+    flex: 1,
+  },
+  commentMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 3,
+  },
+  commentAuthor: {
+    fontFamily: "Outfit_600SemiBold",
+    fontSize: 14,
+    color: colors.black,
+    flexShrink: 1,
+  },
+  commentDot: {
+    fontFamily: "Outfit_400Regular",
+    fontSize: 12,
+    color: colors.g300,
+  },
+  commentTime: {
+    fontFamily: "Outfit_400Regular",
+    fontSize: 13,
+    color: colors.g400,
+  },
+  commentText: {
+    fontFamily: "Outfit_400Regular",
+    fontSize: 15,
+    color: colors.g700,
+    lineHeight: 22,
+  },
+
+  /* Input bar */
+  inputBar: {
+    flexDirection: "row",
+    alignItems: "flex-end",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.g100,
     backgroundColor: colors.white,
+  },
+  inputWrapper: {
+    flex: 1,
+    backgroundColor: colors.g50,
+    borderRadius: radii.xl,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === "ios" ? 10 : 6,
+    maxHeight: 120,
+    minHeight: 40,
+    justifyContent: "center",
+  },
+  input: {
+    fontFamily: "Outfit_400Regular",
+    fontSize: 15,
+    color: colors.black,
+    lineHeight: 20,
+    padding: 0,
+    maxHeight: 100,
+  },
+  sendBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.g100,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: Platform.OS === "ios" ? 0 : 2,
+  },
+  sendBtnActive: {
+    backgroundColor: colors.lime,
   },
 });
