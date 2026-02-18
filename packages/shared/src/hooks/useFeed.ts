@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Post } from "../types";
 import * as postsApi from "../api/posts";
@@ -38,6 +38,18 @@ export function useFeed(supabase: SupabaseClient) {
     queryFn: ({ pageParam }) => postsApi.getFeedPosts(supabase, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Single post                                                        */
+/* ------------------------------------------------------------------ */
+
+export function usePost(supabase: SupabaseClient, postId: string | undefined) {
+  return useQuery({
+    queryKey: ["post", postId],
+    queryFn: () => postsApi.getPostById(supabase, postId!),
+    enabled: !!postId,
   });
 }
 

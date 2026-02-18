@@ -76,6 +76,45 @@ export async function getFeedPosts(
   };
 }
 
+export async function getPostById(
+  supabase: SupabaseClient,
+  postId: string
+): Promise<Post | null> {
+  const { data, error } = await supabase
+    .from("posts")
+    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+    .eq("id", postId)
+    .single();
+  if (error) return null;
+
+  const post = data as any;
+
+  // Fetch quoted post separately if needed
+  if (post.quoted_post_id) {
+    const { data: quotedPost } = await supabase
+      .from("posts")
+      .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+      .eq("id", post.quoted_post_id)
+      .single();
+    post.quoted_post = quotedPost ?? null;
+  }
+
+  // Populate user interaction flags
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    const [likedRes, bookmarkedRes, repostedRes] = await Promise.all([
+      supabase.from("likes").select("id").eq("user_id", user.id).eq("target_id", postId).eq("target_type", "post").maybeSingle(),
+      supabase.from("bookmarks").select("id").eq("user_id", user.id).eq("post_id", postId).maybeSingle(),
+      supabase.from("reposts").select("id").eq("user_id", user.id).eq("post_id", postId).maybeSingle(),
+    ]);
+    post.is_liked = !!likedRes.data;
+    post.is_bookmarked = !!bookmarkedRes.data;
+    post.is_reposted = !!repostedRes.data;
+  }
+
+  return post as Post;
+}
+
 export async function createPost(
   supabase: SupabaseClient,
   post: { content: string; type?: string; sentiment_tag?: string | null; media_urls?: string[]; quoted_post_id?: string | null }

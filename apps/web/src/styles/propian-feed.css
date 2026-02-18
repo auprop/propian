@@ -523,3 +523,37 @@
 .pt-quote-composer textarea::placeholder {
   color: var(--g400);
 }
+
+/* ─── Post Detail Page ─── */
+
+.pt-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 0;
+  margin-bottom: 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--g500);
+  transition: color var(--tf);
+}
+
+.pt-back-link:hover {
+  color: var(--black);
+}
+
+.pt-post-detail {
+  transform: none !important;
+}
+
+.pt-post-detail .pt-comments {
+  max-height: none;
+}
+
+.pt-post-detail .pt-comments-list {
+  max-height: none;
+}
