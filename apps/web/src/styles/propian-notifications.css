@@ -1,0 +1,87 @@
+/* ─── Notifications ─── */
+
+.pt-notif {
+  display: flex;
+  gap: 14px;
+  padding: 16px 20px;
+  border: var(--brd-l);
+  border-radius: var(--r-md);
+  transition: all var(--tf);
+  cursor: pointer;
+  background: var(--white);
+}
+
+.pt-notif:hover {
+  border-color: var(--black);
+  box-shadow: var(--sh-sm);
+  transform: translateY(-1px);
+}
+
+.pt-notif.unread {
+  background: var(--lime-10);
+  border-color: var(--lime);
+}
+
+.pt-notif-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.pt-notif-content {
+  flex: 1;
+}
+
+.pt-notif-text {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.pt-notif-text strong {
+  font-weight: 600;
+}
+
+.pt-notif-time {
+  font-size: 11px;
+  color: var(--g400);
+  margin-top: 4px;
+  font-family: var(--mono);
+}
+
+.pt-notif-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+.pt-notif-body {
+  font-size: 13px;
+  color: var(--g600);
+  line-height: 1.4;
+}
+
+.pt-notif-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lime);
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.pt-notif-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pt-notif-icon-mention { background: var(--blue-bg); color: var(--blue); }
+.pt-notif-icon-like { background: var(--red-bg); color: var(--red); }
+.pt-notif-icon-follow { background: var(--green-bg); color: var(--green); }
+.pt-notif-icon-comment { background: var(--blue-bg); color: var(--blue); }
+.pt-notif-icon-review { background: var(--amber-bg); color: var(--amber); }
+.pt-notif-icon-system { background: var(--g100); color: var(--g600); }

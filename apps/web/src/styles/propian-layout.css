@@ -1,0 +1,175 @@
+/* ─── Hero ─── */
+
+.pt-hero {
+  background: var(--black);
+  color: var(--white);
+  padding: 64px 40px 48px;
+  position: relative;
+  overflow: hidden;
+}
+
+.pt-hero::before {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -15%;
+  width: 500px;
+  height: 500px;
+  background: radial-gradient(circle, var(--lime) 0%, transparent 70%);
+  opacity: .06;
+}
+
+.pt-hero-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.pt-hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  background: var(--g800);
+  border: 1px solid var(--g700);
+  border-radius: var(--r-full);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--lime);
+  margin-bottom: 24px;
+  letter-spacing: .5px;
+  text-transform: uppercase;
+}
+
+.pt-hero-badge-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--lime);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+.pt-hero h1 {
+  font-size: clamp(36px, 5vw, 64px);
+  font-weight: 800;
+  line-height: .95;
+  letter-spacing: -2px;
+  margin-bottom: 16px;
+}
+
+.pt-hero h1 .lime {
+  color: var(--lime);
+}
+
+.pt-hero p {
+  font-size: 16px;
+  color: var(--g400);
+  max-width: 480px;
+  line-height: 1.5;
+  font-weight: 300;
+}
+
+/* ─── Section ─── */
+
+.pt-section {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 48px 40px;
+}
+
+.pt-section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--g400);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin-bottom: 10px;
+  font-family: var(--mono);
+}
+
+.pt-section-title {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  margin-bottom: 40px;
+}
+
+.pt-sub {
+  margin-bottom: 48px;
+}
+
+.pt-sub-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--g400);
+  margin-bottom: 16px;
+  font-family: var(--mono);
+}
+
+/* ─── Grid & Flex Utilities ─── */
+
+.pt-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.pt-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.pt-g2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.pt-g3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.pt-g4 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+/* ─── Container (page wrapper) ─── */
+
+.pt-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.pt-page-title {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  margin-bottom: 24px;
+}
+
+.pt-page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.pt-page-header .pt-page-title {
+  margin-bottom: 0;
+}
+
+@media (max-width: 768px) {
+  .pt-container {
+    padding: 24px 16px;
+  }
+}

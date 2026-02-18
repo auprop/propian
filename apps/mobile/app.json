@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "Propian",
+    "slug": "propian",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "propian",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "backgroundColor": "#a8ff39",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.propian.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#a8ff39"
+      },
+      "package": "com.propian.app"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

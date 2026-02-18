@@ -1,0 +1,42 @@
+/* ─── Design Tokens ─── */
+
+:root {
+  --black: #000;
+  --white: #fff;
+  --lime: #a8ff39;
+  --lime-dim: #8ad42e;
+  --lime-10: rgba(168, 255, 57, .1);
+  --lime-25: rgba(168, 255, 57, .25);
+  --lime-bg: #f4ffe5;
+  --g50: #fafafa;
+  --g100: #f5f5f5;
+  --g200: #e5e5e5;
+  --g300: #d4d4d4;
+  --g400: #a3a3a3;
+  --g500: #737373;
+  --g600: #525252;
+  --g700: #404040;
+  --g800: #262626;
+  --g900: #171717;
+  --red: #ff4444;
+  --red-bg: #fff0f0;
+  --amber: #ffaa00;
+  --amber-bg: #fffbf0;
+  --green: #22c55e;
+  --green-bg: #f0fdf4;
+  --blue: #3b82f6;
+  --blue-bg: #eff6ff;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 24px;
+  --r-full: 9999px;
+  --brd: 2px solid var(--black);
+  --brd-l: 1px solid var(--g200);
+  --font: var(--font-outfit, 'Outfit'), sans-serif;
+  --mono: var(--font-jetbrains, 'JetBrains Mono'), monospace;
+  --sh-sm: 4px 4px 0 var(--black);
+  --sh-md: 6px 6px 0 var(--black);
+  --t: .3s ease;
+  --tf: .15s ease;
+}

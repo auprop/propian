@@ -1,0 +1,71 @@
+/* ─── Shared States ─── */
+
+.pt-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 32px;
+  border: 2px dashed var(--g300);
+  border-radius: var(--r-lg);
+  text-align: center;
+  background: var(--white);
+}
+
+.pt-empty-icon {
+  width: 56px;
+  height: 56px;
+  background: var(--g100);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  color: var(--g400);
+}
+
+.pt-empty-title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.pt-empty-desc {
+  font-size: 13px;
+  color: var(--g400);
+  margin-bottom: 20px;
+  max-width: 280px;
+  line-height: 1.5;
+}
+
+.pt-error-page {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.pt-error-code {
+  font-size: 80px;
+  font-weight: 900;
+  color: var(--lime);
+  font-family: var(--mono);
+  letter-spacing: -4px;
+}
+
+.pt-error-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin: 8px 0;
+}
+
+.pt-error-desc {
+  font-size: 14px;
+  color: var(--g400);
+  margin-bottom: 24px;
+}
+
+.pt-skeleton {
+  background: linear-gradient(90deg, var(--g200) 25%, var(--g100) 50%, var(--g200) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--r-sm);
+}

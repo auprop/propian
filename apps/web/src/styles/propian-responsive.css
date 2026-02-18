@@ -1,0 +1,50 @@
+/* ─── Responsive ─── */
+
+@media (max-width: 768px) {
+  .pt-hero {
+    padding: 40px 20px 32px;
+  }
+
+  .pt-section {
+    padding: 32px 20px;
+  }
+
+  .pt-nav {
+    padding: 0 12px;
+  }
+
+  .pt-chat-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .pt-chat-sidebar {
+    display: none;
+  }
+
+  .pt-settings-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .pt-settings-nav {
+    display: none;
+  }
+
+  .pt-pros-cons {
+    grid-template-columns: 1fr;
+  }
+
+  .pt-g3 {
+    grid-template-columns: 1fr;
+  }
+
+  /* Feed layout goes single column on mobile */
+  .pt-feed-layout {
+    grid-template-columns: 1fr;
+  }
+
+  /* Hide the feed right sidebar on mobile */
+  .pt-feed-layout > aside,
+  .pt-feed-layout > .pt-trending {
+    display: none;
+  }
+}

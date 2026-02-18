@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* ─── Global resets (override Tailwind v4 preflight) ─── */
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+img {
+  display: inline-block;
+}
+
+/* ─── Tailwind theme extensions ─── */
+@theme {
+  --color-lime: #a8ff39;
+  --color-lime-dim: #8ad42e;
+  --color-g50: #fafafa;
+  --color-g100: #f5f5f5;
+  --color-g200: #e5e5e5;
+  --color-g300: #d4d4d4;
+  --color-g400: #a3a3a3;
+  --color-g500: #737373;
+  --color-g600: #525252;
+  --color-g700: #404040;
+  --color-g800: #262626;
+  --color-g900: #171717;
+  --font-family-sans: var(--font-outfit, "Outfit"), sans-serif;
+  --font-family-mono: var(--font-jetbrains, "JetBrains Mono"), monospace;
+}

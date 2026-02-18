@@ -1,0 +1,18 @@
+/* ─── Cards ─── */
+
+.pt-card {
+  border: var(--brd);
+  border-radius: var(--r-lg);
+  background: var(--white);
+  overflow: hidden;
+  transition: box-shadow var(--t), transform var(--tf);
+}
+
+.pt-card:hover {
+  box-shadow: var(--sh-sm);
+  transform: translateY(-2px);
+}
+
+.pt-card-body {
+  padding: 20px;
+}

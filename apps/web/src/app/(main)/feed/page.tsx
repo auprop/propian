@@ -1,0 +1,374 @@
+"use client";
+
+import { useMemo, useCallback, useRef, useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Button } from "@/components/ui/Button";
+import { Avatar } from "@/components/ui/Avatar";
+import { Skeleton } from "@/components/ui/Skeleton";
+import { EmptyState } from "@/components/ui/EmptyState";
+import {
+  IconPhoto,
+  IconChart,
+  IconBarChart,
+  IconHeart,
+  IconHeartOutline,
+  IconComment,
+  IconShare,
+  IconBookmark,
+  IconVerified,
+  IconFire,
+  IconTrendUp,
+} from "@propian/shared/icons";
+import {
+  useSession,
+  useCurrentProfile,
+  useFeed,
+  useCreatePost,
+  useLikePost,
+  useBookmark,
+} from "@propian/shared/hooks";
+import { createPostSchema } from "@propian/shared/validation";
+import type { CreatePostInput } from "@propian/shared/validation";
+import type { Post } from "@propian/shared/types";
+import { createBrowserClient } from "@/lib/supabase/client";
+import { timeAgo } from "@propian/shared/utils";
+import { formatCompact } from "@propian/shared/utils";
+
+/* ------------------------------------------------------------------ */
+/*  Mock sidebar data                                                  */
+/* ------------------------------------------------------------------ */
+
+const TRENDING_TAGS = [
+  { tag: "#FTMOChallenge", count: 1243 },
+  { tag: "#GoldSetup", count: 894 },
+  { tag: "#NFPTrade", count: 671 },
+  { tag: "#RiskManagement", count: 542 },
+  { tag: "#FundedTrader", count: 438 },
+  { tag: "#EURUSD", count: 387 },
+  { tag: "#SmartMoney", count: 312 },
+];
+
+const SUGGESTED_TRADERS = [
+  { id: "s1", name: "Marcus Chen", handle: "@marcusfx", avatar: null, verified: true },
+  { id: "s2", name: "Sarah Kim", handle: "@sarahswing", avatar: null, verified: false },
+  { id: "s3", name: "Alex Rivera", handle: "@alexrisk", avatar: null, verified: true },
+  { id: "s4", name: "Nina Volkov", handle: "@ninavtrading", avatar: null, verified: false },
+];
+
+/* ------------------------------------------------------------------ */
+/*  Post Card                                                          */
+/* ------------------------------------------------------------------ */
+
+function PostCard({
+  post,
+  onLike,
+  onBookmark,
+}: {
+  post: Post;
+  onLike: (postId: string, isLiked: boolean) => void;
+  onBookmark: (postId: string, isBookmarked: boolean) => void;
+}) {
+  return (
+    <article className="pt-post">
+      {/* Header */}
+      <div className="pt-post-header">
+        <Avatar
+          src={post.author?.avatar_url}
+          name={post.author?.display_name ?? "User"}
+          size="md"
+        />
+        <div className="pt-post-author">
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            <span style={{ fontWeight: 600 }}>{post.author?.display_name ?? "User"}</span>
+            {post.author?.is_verified && (
+              <IconVerified size={14} style={{ color: "var(--lime)" }} />
+            )}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <span className="pt-post-handle">@{post.author?.username ?? "user"}</span>
+            <span className="pt-post-time">{timeAgo(post.created_at)}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Body */}
+      <div className="pt-post-body">{post.content}</div>
+
+      {/* Optional chart placeholder */}
+      {post.type === "image" && post.media_urls.length > 0 && (
+        <div className="pt-post-chart">
+          <img
+            src={post.media_urls[0]}
+            alt="Trade chart"
+            style={{ width: "100%", borderRadius: 8 }}
+          />
+        </div>
+      )}
+
+      {/* Actions bar */}
+      <div className="pt-post-actions">
+        <button
+          className={`pt-post-action ${post.is_liked ? "liked" : ""}`}
+          onClick={() => onLike(post.id, !!post.is_liked)}
+        >
+          {post.is_liked ? (
+            <IconHeart size={18} style={{ color: "var(--red)" }} />
+          ) : (
+            <IconHeartOutline size={18} />
+          )}
+          <span>{post.like_count > 0 ? formatCompact(post.like_count) : ""}</span>
+        </button>
+
+        <button className="pt-post-action">
+          <IconComment size={18} />
+          <span>{post.comment_count > 0 ? formatCompact(post.comment_count) : ""}</span>
+        </button>
+
+        <button className="pt-post-action">
+          <IconShare size={16} />
+          <span>{post.share_count > 0 ? formatCompact(post.share_count) : ""}</span>
+        </button>
+
+        <button
+          className={`pt-post-action ${post.is_bookmarked ? "bookmarked" : ""}`}
+          onClick={() => onBookmark(post.id, !!post.is_bookmarked)}
+        >
+          <IconBookmark size={18} style={post.is_bookmarked ? { color: "var(--lime)" } : undefined} />
+        </button>
+      </div>
+    </article>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Post Skeleton                                                      */
+/* ------------------------------------------------------------------ */
+
+function PostSkeleton() {
+  return (
+    <div className="pt-post">
+      <div className="pt-post-header">
+        <Skeleton width={40} height={40} borderRadius="50%" />
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <Skeleton width={140} height={14} borderRadius={4} />
+          <Skeleton width={100} height={12} borderRadius={4} />
+        </div>
+      </div>
+      <div className="pt-post-body">
+        <Skeleton width="100%" height={14} borderRadius={4} />
+        <Skeleton width="80%" height={14} borderRadius={4} />
+        <Skeleton width="60%" height={14} borderRadius={4} />
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main Feed Page                                                     */
+/* ------------------------------------------------------------------ */
+
+export default function FeedPage() {
+  const supabase = useMemo(() => createBrowserClient(), []);
+  const { data: session } = useSession(supabase);
+  const { data: profile } = useCurrentProfile(supabase, session?.user?.id);
+
+  /* Feed query */
+  const {
+    data: feedData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+  } = useFeed(supabase);
+
+  /* Mutations */
+  const createPost = useCreatePost(supabase);
+  const likePost = useLikePost(supabase);
+  const bookmarkPost = useBookmark(supabase);
+
+  /* Composer form */
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isValid },
+  } = useForm<CreatePostInput>({
+    resolver: zodResolver(createPostSchema),
+    defaultValues: { content: "", type: "text", sentiment_tag: null, media_urls: [] },
+  });
+
+  const onSubmitPost = handleSubmit((data) => {
+    createPost.mutate(data, { onSuccess: () => reset() });
+  });
+
+  /* Handlers */
+  const handleLike = useCallback(
+    (postId: string, isLiked: boolean) => {
+      likePost.mutate({ postId, action: isLiked ? "unlike" : "like" });
+    },
+    [likePost],
+  );
+
+  const handleBookmark = useCallback(
+    (postId: string, isBookmarked: boolean) => {
+      bookmarkPost.mutate({ postId, action: isBookmarked ? "unbookmark" : "bookmark" });
+    },
+    [bookmarkPost],
+  );
+
+  /* Infinite scroll observer */
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!sentinelRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { rootMargin: "200px" },
+    );
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  /* Flatten pages */
+  const posts: Post[] = feedData?.pages.flatMap((page) => page.data ?? []) ?? [];
+
+  /* ---------------------------------------------------------------- */
+  /*  Render                                                           */
+  /* ---------------------------------------------------------------- */
+
+  return (
+    <section className="pt-section">
+      <div className="pt-feed-layout">
+
+        {/* ============ Left column: Composer + Feed ============ */}
+        <div>
+          {/* Composer */}
+          <form className="pt-composer" onSubmit={onSubmitPost}>
+            <div className="pt-composer-top">
+              <Avatar
+                src={profile?.avatar_url}
+                name={profile?.display_name ?? "You"}
+                size="md"
+              />
+              <textarea
+                {...register("content")}
+                placeholder="What's your trade thesis today?"
+                rows={2}
+              />
+            </div>
+
+            {errors.content && (
+              <p style={{ color: "var(--red)", fontSize: 13, margin: "4px 0 0 52px" }}>
+                {errors.content.message}
+              </p>
+            )}
+
+            <div className="pt-composer-actions">
+              <div className="pt-composer-tools">
+                <button type="button" className="pt-composer-tool" title="Photo">
+                  <IconPhoto size={20} />
+                </button>
+                <button type="button" className="pt-composer-tool" title="Chart">
+                  <IconChart size={20} />
+                </button>
+                <button type="button" className="pt-composer-tool" title="Poll">
+                  <IconBarChart size={20} />
+                </button>
+              </div>
+              <Button
+                variant="lime"
+                size="sm"
+                type="submit"
+                disabled={createPost.isPending}
+              >
+                {createPost.isPending ? "Posting..." : "Post"}
+              </Button>
+            </div>
+          </form>
+
+          {/* Feed list */}
+          {isLoading && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <PostSkeleton />
+              <PostSkeleton />
+              <PostSkeleton />
+            </div>
+          )}
+
+          {isError && (
+            <EmptyState
+              title="Failed to load feed"
+              description="Something went wrong. Please try again later."
+            />
+          )}
+
+          {!isLoading && !isError && posts.length === 0 && (
+            <EmptyState
+              icon={<IconChart size={32} />}
+              title="Your feed is empty"
+              description="Follow traders or post your first trade thesis to get started."
+            />
+          )}
+
+          {posts.map((post) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              onLike={handleLike}
+              onBookmark={handleBookmark}
+            />
+          ))}
+
+          {/* Infinite scroll sentinel */}
+          <div ref={sentinelRef} style={{ height: 1 }} />
+          {isFetchingNextPage && <PostSkeleton />}
+        </div>
+
+        {/* ============ Right column: Sidebar ============ */}
+        <aside>
+          {/* Trending hashtags */}
+          <div className="pt-trending">
+            <h3 className="pt-trending-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <IconFire size={18} style={{ color: "var(--lime)" }} />
+              Trending
+            </h3>
+            {TRENDING_TAGS.map((item) => (
+              <div key={item.tag} className="pt-trend-item">
+                <span className="pt-trend-tag">{item.tag}</span>
+                <span className="pt-trend-count">{formatCompact(item.count)} posts</span>
+              </div>
+            ))}
+          </div>
+
+          {/* Suggested traders */}
+          <div className="pt-trending" style={{ marginTop: 16 }}>
+            <h3 className="pt-trending-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <IconTrendUp size={16} style={{ color: "var(--lime)" }} />
+              Suggested Traders
+            </h3>
+            {SUGGESTED_TRADERS.map((trader) => (
+              <div key={trader.id} className="pt-suggest-card">
+                <Avatar src={trader.avatar} name={trader.name} size="sm" />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>{trader.name}</span>
+                    {trader.verified && <IconVerified size={12} style={{ color: "var(--lime)" }} />}
+                  </div>
+                  <div style={{ fontSize: 13, color: "var(--g400)" }}>{trader.handle}</div>
+                </div>
+                <Button variant="primary" size="sm">
+                  Follow
+                </Button>
+              </div>
+            ))}
+          </div>
+        </aside>
+      </div>
+    </section>
+  );
+}

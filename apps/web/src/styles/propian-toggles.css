@@ -1,0 +1,36 @@
+/* ─── Toggles ─── */
+
+.pt-toggle {
+  cursor: pointer;
+}
+
+.pt-toggle-track {
+  width: 44px;
+  height: 24px;
+  border: var(--brd);
+  border-radius: var(--r-full);
+  background: var(--g100);
+  position: relative;
+  transition: background var(--t);
+  flex-shrink: 0;
+}
+
+.pt-toggle-track.on {
+  background: var(--black);
+}
+
+.pt-toggle-thumb {
+  width: 16px;
+  height: 16px;
+  background: var(--white);
+  border-radius: 50%;
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  transition: transform var(--t), background var(--t);
+}
+
+.pt-toggle-track.on .pt-toggle-thumb {
+  transform: translateX(19px);
+  background: var(--lime);
+}

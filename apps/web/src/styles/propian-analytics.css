@@ -1,0 +1,148 @@
+/* ─── Analytics ─── */
+
+.pt-stat-card {
+  border: var(--brd);
+  border-radius: var(--r-lg);
+  background: var(--white);
+  padding: 24px;
+  transition: all var(--t);
+}
+
+.pt-stat-card:hover {
+  box-shadow: var(--sh-sm);
+  transform: translateY(-2px);
+}
+
+.pt-stat-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--g400);
+  margin-bottom: 6px;
+}
+
+.pt-stat-value {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -2px;
+  line-height: 1;
+  margin-bottom: 8px;
+}
+
+.pt-stat-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--r-full);
+}
+
+.pt-stat-change.up {
+  background: var(--green-bg);
+  color: var(--green);
+}
+
+.pt-stat-change.down {
+  background: var(--red-bg);
+  color: var(--red);
+}
+
+.pt-chart-placeholder {
+  border: var(--brd);
+  border-radius: var(--r-lg);
+  background: var(--white);
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.pt-chart-area {
+  height: 200px;
+  background: var(--g900);
+  border-radius: var(--r-md);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+
+.pt-chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 20px;
+  width: 100%;
+  height: 100%;
+}
+
+.pt-chart-bar {
+  flex: 1;
+  border-radius: 4px 4px 0 0;
+  transition: height .6s cubic-bezier(.34, 1.56, .64, 1);
+  min-height: 8px;
+}
+
+.pt-sentiment {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.pt-sentiment-bar {
+  flex: 1;
+  height: 12px;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  border: 1px solid var(--g200);
+}
+
+.pt-price-table {
+  border: var(--brd);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  background: var(--white);
+}
+
+.pt-price-table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.pt-price-table th {
+  text-align: left;
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--g400);
+  background: var(--g50);
+  border-bottom: var(--brd);
+}
+
+.pt-price-table td {
+  padding: 12px 16px;
+  font-size: 13px;
+  border-bottom: 1px solid var(--g200);
+}
+
+.pt-price-table tr:last-child td {
+  border-bottom: none;
+}
+
+.pt-price-table tr:hover td {
+  background: var(--g50);
+}
+
+.pt-price-best {
+  background: var(--lime);
+  color: var(--black);
+  padding: 2px 8px;
+  border-radius: var(--r-full);
+  font-size: 11px;
+  font-weight: 700;
+}

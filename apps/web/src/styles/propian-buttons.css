@@ -1,0 +1,152 @@
+/* ─── Buttons ─── */
+
+.pt-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  padding: 9px 9px 9px 22px;
+  border: var(--brd);
+  border-radius: var(--r-lg);
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--black);
+  transition: all var(--t);
+  white-space: nowrap;
+}
+
+.pt-btn:active {
+  transform: scale(.95);
+}
+
+.pt-btn:hover {
+  background: var(--black);
+  color: var(--lime);
+}
+
+.pt-btn-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--lime);
+  padding: 7px;
+  border-radius: var(--r-sm);
+  transition: transform var(--t);
+  color: var(--black);
+  flex-shrink: 0;
+}
+
+.pt-btn:hover .pt-btn-icon {
+  transform: rotate(45deg);
+}
+
+.pt-btn:hover .pt-btn-icon svg {
+  transform: rotate(-45deg);
+  transition: transform var(--t);
+}
+
+.pt-btn.primary {
+  background: var(--black);
+  color: var(--white);
+}
+
+.pt-btn.primary:hover {
+  background: var(--g800);
+  color: var(--lime);
+}
+
+.pt-btn.lime {
+  background: var(--lime);
+  border-color: var(--lime);
+  color: var(--black);
+}
+
+.pt-btn.lime:hover {
+  background: var(--black);
+  border-color: var(--black);
+  color: var(--lime);
+}
+
+.pt-btn.lime .pt-btn-icon {
+  background: var(--black);
+  color: var(--lime);
+}
+
+.pt-btn.lime:hover .pt-btn-icon {
+  background: var(--lime);
+  color: var(--black);
+}
+
+.pt-btn.ghost {
+  border-color: var(--g200);
+  color: var(--g500);
+}
+
+.pt-btn.ghost:hover {
+  border-color: var(--black);
+  background: var(--black);
+  color: var(--lime);
+}
+
+.pt-btn.ghost .pt-btn-icon {
+  background: var(--g200);
+  color: var(--g600);
+}
+
+.pt-btn.ghost:hover .pt-btn-icon {
+  background: var(--lime);
+  color: var(--black);
+}
+
+.pt-btn.danger {
+  border-color: var(--red);
+  color: var(--red);
+}
+
+.pt-btn.danger:hover {
+  background: var(--red);
+  border-color: var(--red);
+  color: var(--white);
+}
+
+.pt-btn.sm {
+  padding: 5px 5px 5px 16px;
+  font-size: 12px;
+  gap: 10px;
+  border-radius: var(--r-md);
+}
+
+.pt-btn.sm .pt-btn-icon {
+  padding: 4px;
+  border-radius: 5px;
+}
+
+.pt-btn.icon-only {
+  padding: 9px;
+  gap: 0;
+}
+
+.pt-btn.text-btn {
+  border: none;
+  padding: 6px 12px;
+  gap: 6px;
+  color: var(--g500);
+}
+
+.pt-btn.text-btn:hover {
+  background: var(--g100);
+  color: var(--black);
+}
+
+.pt-btn.text-btn .pt-btn-icon {
+  background: transparent;
+  color: inherit;
+  padding: 2px;
+}
+
+.pt-btn.full {
+  width: 100%;
+  justify-content: center;
+}

@@ -1,0 +1,66 @@
+/* ─── Badges ─── */
+
+.pt-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 11px;
+  border-radius: var(--r-full);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pt-badge.lime {
+  background: var(--lime);
+  color: var(--black);
+  border: 1px solid var(--black);
+}
+
+.pt-badge.dark {
+  background: var(--black);
+  color: var(--lime);
+}
+
+.pt-badge.green {
+  background: var(--green-bg);
+  color: var(--green);
+  border: 1px solid var(--green);
+}
+
+.pt-badge.red {
+  background: var(--red-bg);
+  color: var(--red);
+  border: 1px solid var(--red);
+}
+
+.pt-badge.blue {
+  background: var(--blue-bg);
+  color: var(--blue);
+  border: 1px solid var(--blue);
+}
+
+.pt-badge.amber {
+  background: var(--amber-bg);
+  color: #996600;
+  border: 1px solid var(--amber);
+}
+
+.pt-badge.outline {
+  background: var(--white);
+  color: var(--g600);
+  border: var(--brd);
+}
+
+.pt-badge-elite {
+  background: linear-gradient(135deg, #ffd700, #ff8c00);
+  color: var(--black);
+  border: none;
+  font-weight: 700;
+}
+
+.pt-badge-pro {
+  background: var(--blue);
+  color: var(--white);
+  border: none;
+}

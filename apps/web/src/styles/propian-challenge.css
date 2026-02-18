@@ -1,0 +1,342 @@
+/* ─── Challenge Tracker ─── */
+
+.pt-challenge-card {
+  border: var(--brd);
+  border-radius: var(--r-xl);
+  background: var(--white);
+  overflow: hidden;
+  margin-bottom: 20px;
+  transition: all var(--tf);
+}
+
+.pt-challenge-card:hover {
+  box-shadow: var(--sh-sm);
+}
+
+.pt-challenge-header {
+  padding: 24px 28px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  cursor: pointer;
+}
+
+.pt-challenge-firm-logo {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--r-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--white);
+  flex-shrink: 0;
+  border: var(--brd);
+}
+
+.pt-challenge-info {
+  flex: 1;
+}
+
+.pt-challenge-firm-name {
+  font-weight: 700;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pt-challenge-phase {
+  font-size: 12px;
+  color: var(--g400);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pt-challenge-status {
+  padding: 4px 12px;
+  border-radius: var(--r-full);
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.pt-challenge-status.active {
+  background: var(--lime-10);
+  color: var(--lime-dim);
+  border: 1px solid var(--lime);
+}
+
+.pt-challenge-status.danger {
+  background: rgba(255, 68, 68, .1);
+  color: var(--red);
+  border: 1px solid var(--red);
+}
+
+.pt-challenge-status.passed {
+  background: rgba(34, 197, 94, .1);
+  color: var(--green);
+  border: 1px solid var(--green);
+}
+
+.pt-challenge-status.failed {
+  background: var(--g100);
+  color: var(--g500);
+  border: 1px solid var(--g300);
+}
+
+.pt-challenge-body {
+  padding: 0 28px 28px;
+}
+
+.pt-challenge-progress-section {
+  margin-bottom: 24px;
+}
+
+.pt-challenge-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.pt-challenge-progress-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--g500);
+}
+
+.pt-challenge-progress-val {
+  font-size: 14px;
+  font-weight: 700;
+  font-family: var(--mono);
+}
+
+.pt-challenge-progress-track {
+  height: 14px;
+  background: var(--g100);
+  border-radius: var(--r-full);
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--g200);
+}
+
+.pt-challenge-progress-fill {
+  height: 100%;
+  border-radius: var(--r-full);
+  transition: width .8s cubic-bezier(.34, 1.56, .64, 1);
+  position: relative;
+}
+
+.pt-challenge-progress-fill::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .3));
+}
+
+.pt-challenge-progress-marker {
+  position: absolute;
+  top: -6px;
+  width: 2px;
+  height: 26px;
+  background: var(--black);
+  z-index: 1;
+}
+
+.pt-challenge-progress-marker-label {
+  position: absolute;
+  top: -20px;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-family: var(--mono);
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--g500);
+}
+
+.pt-challenge-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.pt-challenge-metric {
+  padding: 14px;
+  border-radius: var(--r-md);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.pt-challenge-metric-val {
+  font-size: 22px;
+  font-weight: 800;
+  font-family: var(--mono);
+  letter-spacing: -1px;
+  position: relative;
+  z-index: 1;
+}
+
+.pt-challenge-metric-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  margin-top: 2px;
+  position: relative;
+  z-index: 1;
+}
+
+.pt-challenge-metric-sub {
+  font-size: 10px;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-weight: 600;
+  position: relative;
+  z-index: 1;
+}
+
+.pt-challenge-calendar {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.pt-challenge-day {
+  aspect-ratio: 1.2;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-family: var(--mono);
+  font-weight: 600;
+  position: relative;
+  cursor: default;
+  transition: all var(--tf);
+}
+
+.pt-challenge-day:hover {
+  transform: scale(1.08);
+  z-index: 1;
+}
+
+.pt-challenge-day .day-num {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.pt-challenge-day .day-pnl {
+  font-size: 8px;
+  margin-top: 1px;
+}
+
+.pt-challenge-rules {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.pt-challenge-rule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.pt-challenge-rule-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 12px;
+}
+
+.pt-challenge-danger {
+  border: 2px solid var(--red);
+  border-radius: var(--r-md);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+  background: rgba(255, 68, 68, .04);
+}
+
+.pt-challenge-danger-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--red);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 18px;
+}
+
+.pt-challenge-danger-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--red);
+}
+
+.pt-challenge-danger-sub {
+  font-size: 12px;
+  color: var(--g500);
+  margin-top: 2px;
+}
+
+.pt-challenge-countdown {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.pt-challenge-countdown-unit {
+  text-align: center;
+}
+
+.pt-challenge-countdown-val {
+  font-size: 28px;
+  font-weight: 900;
+  font-family: var(--mono);
+  background: var(--g900);
+  color: var(--white);
+  padding: 8px 14px;
+  border-radius: var(--r-md);
+  min-width: 52px;
+  letter-spacing: -1px;
+  border: var(--brd);
+}
+
+.pt-challenge-countdown-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--g400);
+  margin-top: 4px;
+}
+
+.pt-challenge-countdown-sep {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--g300);
+  padding-bottom: 16px;
+}
