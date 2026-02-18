@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
     resizeMode: "cover",
   },
   fallback: {
-    backgroundColor: colors.g800,
+    backgroundColor: colors.g600,
     alignItems: "center",
     justifyContent: "center",
   },

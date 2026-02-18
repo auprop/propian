@@ -8,7 +8,7 @@
   font-weight: 700;
   flex-shrink: 0;
   border: 2px solid var(--white);
-  background: var(--g800);
+  background: var(--g600);
   color: var(--white);
   overflow: hidden;
   position: relative;

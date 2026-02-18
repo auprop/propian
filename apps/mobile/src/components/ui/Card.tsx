@@ -63,8 +63,8 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.black,
+    borderWidth: 1,
+    borderColor: colors.g200,
     borderRadius: radii.lg,
     ...shadows.sm,
   },
@@ -76,11 +76,11 @@ const styles = StyleSheet.create({
   },
   androidShadow: {
     position: "absolute",
-    top: 4,
-    left: 4,
-    right: -4,
-    bottom: -4,
-    backgroundColor: colors.black,
+    top: 1,
+    left: 0,
+    right: 0,
+    bottom: -2,
+    backgroundColor: "rgba(0,0,0,0.04)",
     borderRadius: radii.lg,
   },
 });

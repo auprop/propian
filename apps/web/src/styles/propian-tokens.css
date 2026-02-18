@@ -31,7 +31,7 @@
   --r-lg: 16px;
   --r-xl: 24px;
   --r-full: 9999px;
-  --brd: 2px solid var(--black);
+  --brd: 1px solid var(--g200);
   --brd-l: 1px solid var(--g200);
   --font: var(--font-outfit, 'Outfit'), sans-serif;
   --mono: var(--font-jetbrains, 'JetBrains Mono'), monospace;
