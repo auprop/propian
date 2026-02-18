@@ -2,7 +2,7 @@
 
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Post } from "../types";
+import type { Post, Comment } from "../types";
 import * as postsApi from "../api/posts";
 
 /* ------------------------------------------------------------------ */
@@ -192,6 +192,79 @@ export function useRepost(supabase: SupabaseClient) {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["feed"] });
+    },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Comment interactions                                               */
+/* ------------------------------------------------------------------ */
+
+function updateCommentInCache(
+  queryClient: ReturnType<typeof useQueryClient>,
+  postId: string,
+  commentId: string,
+  updater: (comment: Comment) => Comment
+) {
+  queryClient.setQueryData(["comments", postId], (old: any) => {
+    if (!old) return old;
+    const updateComment = (c: any): any => {
+      if (c.id === commentId) return updater(c);
+      if (c.replies) return { ...c, replies: c.replies.map(updateComment) };
+      return c;
+    };
+    return {
+      ...old,
+      pages: old.pages.map((page: any) =>
+        Array.isArray(page) ? page.map(updateComment) : page
+      ),
+    };
+  });
+}
+
+export function useLikeComment(supabase: SupabaseClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ commentId, action }: { commentId: string; postId: string; action: "like" | "unlike" }) =>
+      action === "like" ? postsApi.likeComment(supabase, commentId) : postsApi.unlikeComment(supabase, commentId),
+    onMutate: async ({ commentId, postId, action }) => {
+      await queryClient.cancelQueries({ queryKey: ["comments", postId] });
+      const previousComments = queryClient.getQueryData(["comments", postId]);
+      updateCommentInCache(queryClient, postId, commentId, (comment) => ({
+        ...comment,
+        is_liked: action === "like",
+        like_count: Math.max(0, comment.like_count + (action === "like" ? 1 : -1)),
+      }));
+      return { previousComments };
+    },
+    onError: (_err, vars, context) => {
+      if (context?.previousComments) queryClient.setQueryData(["comments", vars.postId], context.previousComments);
+    },
+    onSettled: (_, __, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["comments", variables.postId] });
+    },
+  });
+}
+
+export function useBookmarkComment(supabase: SupabaseClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ commentId, action }: { commentId: string; postId: string; action: "bookmark" | "unbookmark" }) =>
+      action === "bookmark" ? postsApi.bookmarkComment(supabase, commentId) : postsApi.unbookmarkComment(supabase, commentId),
+    onMutate: async ({ commentId, postId, action }) => {
+      await queryClient.cancelQueries({ queryKey: ["comments", postId] });
+      const previousComments = queryClient.getQueryData(["comments", postId]);
+      updateCommentInCache(queryClient, postId, commentId, (comment) => ({
+        ...comment,
+        is_bookmarked: action === "bookmark",
+      }));
+      return { previousComments };
+    },
+    onError: (_err, vars, context) => {
+      if (context?.previousComments) queryClient.setQueryData(["comments", vars.postId], context.previousComments);
+    },
+    onSettled: (_, __, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["comments", variables.postId] });
     },
   });
 }

@@ -32,8 +32,12 @@ export interface Comment {
   content: string;
   parent_id: string | null;
   like_count: number;
+  reply_count: number;
   created_at: string;
   author?: UserPreview;
+  is_liked?: boolean;
+  is_bookmarked?: boolean;
+  replies?: Comment[];
 }
 
 export interface Like {

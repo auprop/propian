@@ -23,6 +23,8 @@ import {
   useRepost,
   useComments,
   useCreateComment,
+  useLikeComment,
+  useBookmarkComment,
   useCurrentProfile,
 } from "@propian/shared/hooks";
 import { useAuth } from "@/providers/AuthProvider";
@@ -39,7 +41,7 @@ import { formatCompact, timeAgo } from "@propian/shared/utils";
 import Svg, { Path } from "react-native-svg";
 import type { Comment } from "@propian/shared/types";
 
-/* ─── Inline back chevron ─── */
+/* ─── Inline icons ─── */
 function IconChevLeft({ size = 24, color = "#000" }: { size?: number; color?: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -47,6 +49,27 @@ function IconChevLeft({ size = 24, color = "#000" }: { size?: number; color?: st
         d="M15 18l-6-6 6-6"
         stroke={color}
         strokeWidth={2.5}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function IconReply({ size = 16, color = "#a3a3a3" }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M9 17l-5-5 5-5"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Path
+        d="M4 12h11a4 4 0 0 1 4 4v1"
+        stroke={color}
+        strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -72,7 +95,11 @@ export default function PostDetailScreen() {
   /* Comments */
   const { query: commentsQuery } = useComments(supabase, id ?? "");
   const createComment = useCreateComment(supabase);
+  const likeCommentMutation = useLikeComment(supabase);
+  const bookmarkCommentMutation = useBookmarkComment(supabase);
+
   const [commentText, setCommentText] = useState("");
+  const [replyTo, setReplyTo] = useState<{ id: string; authorName: string } | null>(null);
 
   const comments: Comment[] = useMemo(
     () =>
@@ -87,12 +114,58 @@ export default function PostDetailScreen() {
     if (!content || !id || createComment.isPending) return;
     triggerHaptic("success");
     createComment.mutate(
-      { postId: id, content },
-      { onSuccess: () => setCommentText("") },
+      { postId: id, content, parentId: replyTo?.id ?? null },
+      {
+        onSuccess: () => {
+          setCommentText("");
+          setReplyTo(null);
+        },
+      },
     );
-  }, [commentText, id, createComment]);
+  }, [commentText, id, createComment, replyTo]);
 
-  /* Handlers */
+  const handleReply = useCallback((comment: Comment) => {
+    setReplyTo({ id: comment.id, authorName: comment.author?.display_name || "Unknown" });
+    triggerHaptic("light");
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, []);
+
+  const handleCommentLike = useCallback(
+    (comment: Comment) => {
+      if (!id) return;
+      triggerHaptic("light");
+      likeCommentMutation.mutate({
+        commentId: comment.id,
+        postId: id,
+        action: comment.is_liked ? "unlike" : "like",
+      });
+    },
+    [id, likeCommentMutation],
+  );
+
+  const handleCommentBookmark = useCallback(
+    (comment: Comment) => {
+      if (!id) return;
+      triggerHaptic("light");
+      bookmarkCommentMutation.mutate({
+        commentId: comment.id,
+        postId: id,
+        action: comment.is_bookmarked ? "unbookmark" : "bookmark",
+      });
+    },
+    [id, bookmarkCommentMutation],
+  );
+
+  const handleCommentShare = useCallback(async (comment: Comment) => {
+    triggerHaptic("light");
+    try {
+      await Share.share({
+        message: `${comment.author?.display_name || "Someone"} on Propian: "${comment.content}"`,
+      });
+    } catch (_) {}
+  }, []);
+
+  /* Post action handlers */
   const handleLike = useCallback(() => {
     if (!post) return;
     triggerHaptic("success");
@@ -126,6 +199,118 @@ export default function PostDetailScreen() {
       });
     } catch (_) {}
   }, [post]);
+
+  /* ─── Comment row with actions + threaded replies ─── */
+  const renderCommentRow = (comment: Comment, isReply = false) => (
+    <View key={comment.id}>
+      <View style={[styles.commentCard, isReply && styles.replyCard]}>
+        {/* Thread line for replies */}
+        {isReply && <View style={styles.threadLine} />}
+
+        <Pressable
+          onPress={() => {
+            if (comment.author?.username) {
+              router.push({
+                pathname: "/profile/[username]",
+                params: { username: comment.author.username },
+              });
+            }
+          }}
+        >
+          <Avatar
+            src={comment.author?.avatar_url}
+            name={comment.author?.display_name || "User"}
+            size={isReply ? "sm" : "sm"}
+          />
+        </Pressable>
+
+        <View style={styles.commentBody}>
+          {/* Author + time */}
+          <View style={styles.commentMeta}>
+            <Text style={styles.commentAuthor} numberOfLines={1}>
+              {comment.author?.display_name || "Unknown"}
+            </Text>
+            {comment.author?.is_verified && (
+              <IconVerified size={12} color={colors.lime} />
+            )}
+            <Text style={styles.commentDot}>·</Text>
+            <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
+          </View>
+
+          {/* Content */}
+          <Text style={styles.commentText}>{comment.content}</Text>
+
+          {/* Action bar */}
+          <View style={styles.commentActions}>
+            {/* Reply */}
+            <Pressable
+              style={styles.commentAction}
+              onPress={() => handleReply(comment)}
+              hitSlop={8}
+            >
+              <IconReply size={15} color={colors.g400} />
+              {(comment.reply_count ?? 0) > 0 && (
+                <Text style={styles.commentActionCount}>
+                  {formatCompact(comment.reply_count ?? 0)}
+                </Text>
+              )}
+            </Pressable>
+
+            {/* Like */}
+            <Pressable
+              style={styles.commentAction}
+              onPress={() => handleCommentLike(comment)}
+              hitSlop={8}
+            >
+              {comment.is_liked ? (
+                <IconHeart size={15} color={colors.red} />
+              ) : (
+                <IconHeartOutline size={15} color={colors.g400} />
+              )}
+              {comment.like_count > 0 && (
+                <Text
+                  style={[
+                    styles.commentActionCount,
+                    comment.is_liked && { color: colors.red },
+                  ]}
+                >
+                  {formatCompact(comment.like_count)}
+                </Text>
+              )}
+            </Pressable>
+
+            {/* Bookmark */}
+            <Pressable
+              style={styles.commentAction}
+              onPress={() => handleCommentBookmark(comment)}
+              hitSlop={8}
+            >
+              <IconBookmark
+                size={15}
+                color={comment.is_bookmarked ? colors.lime : colors.g400}
+              />
+            </Pressable>
+
+            {/* Share */}
+            <Pressable
+              style={styles.commentAction}
+              onPress={() => handleCommentShare(comment)}
+              hitSlop={8}
+            >
+              <IconShare size={15} color={colors.g400} />
+            </Pressable>
+          </View>
+        </View>
+      </View>
+
+      {/* Threaded replies */}
+      {comment.replies && comment.replies.length > 0 && (
+        <View style={styles.repliesContainer}>
+          {comment.replies.map((reply) => renderCommentRow(reply, true))}
+        </View>
+      )}
+    </View>
+  );
 
   /* ── Loading ── */
   if (isLoading) {
@@ -193,7 +378,7 @@ export default function PostDetailScreen() {
   /* ── Render ── */
   const author = post.author;
 
-  /* Post header component rendered as FlatList ListHeaderComponent */
+  /* Post header as FlatList ListHeaderComponent */
   const postHeader = (
     <View style={styles.postSection}>
       {/* Author row */}
@@ -321,12 +506,13 @@ export default function PostDetailScreen() {
         </View>
       )}
 
-      {/* Action bar */}
+      {/* Post action bar */}
       <View style={styles.actionBar}>
         <Pressable
           style={styles.actionBtn}
           onPress={() => {
             triggerHaptic("light");
+            setReplyTo(null);
             inputRef.current?.focus();
           }}
         >
@@ -360,9 +546,7 @@ export default function PostDetailScreen() {
       {/* Comments section header */}
       <View style={styles.commentsSectionHeader}>
         <Text style={styles.commentsSectionTitle}>
-          {comments.length > 0
-            ? `Replies (${comments.length})`
-            : "Replies"}
+          {comments.length > 0 ? `Replies (${comments.length})` : "Replies"}
         </Text>
       </View>
 
@@ -394,40 +578,8 @@ export default function PostDetailScreen() {
     </View>
   );
 
-  /* Comment row renderer */
-  const renderComment = ({ item }: { item: Comment }) => (
-    <View style={styles.commentCard}>
-      <Pressable
-        onPress={() => {
-          if (item.author?.username) {
-            router.push({
-              pathname: "/profile/[username]",
-              params: { username: item.author.username },
-            });
-          }
-        }}
-      >
-        <Avatar
-          src={item.author?.avatar_url}
-          name={item.author?.display_name || "User"}
-          size="sm"
-        />
-      </Pressable>
-      <View style={styles.commentBody}>
-        <View style={styles.commentMeta}>
-          <Text style={styles.commentAuthor} numberOfLines={1}>
-            {item.author?.display_name || "Unknown"}
-          </Text>
-          {item.author?.is_verified && (
-            <IconVerified size={12} color={colors.lime} />
-          )}
-          <Text style={styles.commentDot}>·</Text>
-          <Text style={styles.commentTime}>{timeAgo(item.created_at)}</Text>
-        </View>
-        <Text style={styles.commentText}>{item.content}</Text>
-      </View>
-    </View>
-  );
+  /* FlatList renderItem — comment with actions + nested replies */
+  const renderItem = ({ item }: { item: Comment }) => renderCommentRow(item, false);
 
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -445,15 +597,15 @@ export default function PostDetailScreen() {
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 0}
       >
-        {/* Main content — FlatList for comments with post as header */}
+        {/* Main content */}
         <FlatList
           data={!commentsQuery.isLoading ? comments : []}
           keyExtractor={(item) => item.id}
-          renderItem={renderComment}
+          renderItem={renderItem}
           ListHeaderComponent={postHeader}
           contentContainerStyle={[
             styles.listContent,
-            { paddingBottom: Math.max(insets.bottom, 16) + 72 },
+            { paddingBottom: Math.max(insets.bottom, 16) + 80 },
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -471,25 +623,45 @@ export default function PostDetailScreen() {
             name={myProfile?.display_name || ""}
             size="sm"
           />
-          <View style={styles.inputWrapper}>
-            <TextInput
-              ref={inputRef}
-              style={styles.input}
-              placeholder="Write a reply..."
-              placeholderTextColor={colors.g400}
-              value={commentText}
-              onChangeText={setCommentText}
-              multiline
-              maxLength={500}
-              returnKeyType="default"
-            />
+          <View style={{ flex: 1 }}>
+            {/* Reply indicator */}
+            {replyTo && (
+              <View style={styles.replyIndicator}>
+                <Text style={styles.replyIndicatorText}>
+                  Replying to{" "}
+                  <Text style={styles.replyIndicatorName}>
+                    {replyTo.authorName}
+                  </Text>
+                </Text>
+                <Pressable
+                  onPress={() => setReplyTo(null)}
+                  hitSlop={8}
+                  style={styles.replyIndicatorClose}
+                >
+                  <Text style={styles.replyIndicatorX}>✕</Text>
+                </Pressable>
+              </View>
+            )}
+            <View style={styles.inputWrapper}>
+              <TextInput
+                ref={inputRef}
+                style={styles.input}
+                placeholder={replyTo ? `Reply to ${replyTo.authorName}...` : "Write a reply..."}
+                placeholderTextColor={colors.g400}
+                value={commentText}
+                onChangeText={setCommentText}
+                multiline
+                maxLength={500}
+                returnKeyType="default"
+              />
+            </View>
           </View>
           <Pressable
             onPress={handleSendComment}
             disabled={!commentText.trim() || createComment.isPending}
             style={[
               styles.sendBtn,
-              (commentText.trim() && !createComment.isPending) && styles.sendBtnActive,
+              commentText.trim() && !createComment.isPending && styles.sendBtnActive,
             ]}
           >
             {createComment.isPending ? (
@@ -785,9 +957,25 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     gap: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 14,
+    paddingBottom: 4,
     borderBottomWidth: 1,
     borderBottomColor: colors.g100,
+  },
+  replyCard: {
+    paddingLeft: 56,
+    borderBottomWidth: 0,
+    paddingTop: 10,
+    paddingBottom: 2,
+  },
+  threadLine: {
+    position: "absolute",
+    left: 34,
+    top: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: colors.g100,
+    borderRadius: 1,
   },
   commentBody: {
     flex: 1,
@@ -821,6 +1009,60 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
+  /* Comment action bar */
+  commentActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 20,
+    marginTop: 6,
+    paddingBottom: 6,
+  },
+  commentAction: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingVertical: 4,
+  },
+  commentActionCount: {
+    fontFamily: "Outfit_500Medium",
+    fontSize: 12,
+    color: colors.g400,
+  },
+
+  /* Replies container */
+  repliesContainer: {
+    position: "relative",
+  },
+
+  /* Reply indicator */
+  replyIndicator: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    marginBottom: 4,
+    backgroundColor: colors.lime10,
+    borderRadius: radii.sm,
+  },
+  replyIndicatorText: {
+    fontFamily: "Outfit_400Regular",
+    fontSize: 13,
+    color: colors.g500,
+  },
+  replyIndicatorName: {
+    fontFamily: "Outfit_600SemiBold",
+    color: colors.black,
+  },
+  replyIndicatorClose: {
+    padding: 2,
+  },
+  replyIndicatorX: {
+    fontFamily: "Outfit_500Medium",
+    fontSize: 14,
+    color: colors.g400,
+  },
+
   /* Input bar */
   inputBar: {
     flexDirection: "row",
@@ -833,7 +1075,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   inputWrapper: {
-    flex: 1,
     backgroundColor: colors.g50,
     borderRadius: radii.xl,
     paddingHorizontal: 16,

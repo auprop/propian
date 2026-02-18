@@ -159,7 +159,46 @@ export async function getComments(supabase: SupabaseClient, postId: string) {
     .eq("post_id", postId)
     .order("created_at", { ascending: true });
   if (error) throw error;
-  return data;
+
+  const comments = data ?? [];
+  if (comments.length === 0) return comments;
+
+  // Populate is_liked and is_bookmarked for current user
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    const commentIds = comments.map((c: any) => c.id);
+    const [likedRes, bookmarkedRes] = await Promise.all([
+      supabase.from("likes").select("target_id").eq("user_id", user.id).eq("target_type", "comment").in("target_id", commentIds),
+      supabase.from("comment_bookmarks").select("comment_id").eq("user_id", user.id).in("comment_id", commentIds),
+    ]);
+    const likedIds = new Set((likedRes.data ?? []).map((r: any) => r.target_id));
+    const bookmarkedIds = new Set((bookmarkedRes.data ?? []).map((r: any) => r.comment_id));
+
+    for (const comment of comments) {
+      (comment as any).is_liked = likedIds.has((comment as any).id);
+      (comment as any).is_bookmarked = bookmarkedIds.has((comment as any).id);
+    }
+  }
+
+  // Organize into threads: top-level comments get replies array
+  const commentMap = new Map<string, any>();
+  const topLevel: any[] = [];
+
+  for (const comment of comments) {
+    (comment as any).replies = [];
+    commentMap.set((comment as any).id, comment);
+  }
+
+  for (const comment of comments) {
+    const c = comment as any;
+    if (c.parent_id && commentMap.has(c.parent_id)) {
+      commentMap.get(c.parent_id).replies.push(c);
+    } else {
+      topLevel.push(c);
+    }
+  }
+
+  return topLevel;
 }
 
 export async function createComment(
@@ -242,6 +281,52 @@ export async function unrepostPost(supabase: SupabaseClient, postId: string) {
     .from("posts")
     .delete()
     .match({ user_id: user.id, type: "repost", quoted_post_id: postId });
+  if (error) throw error;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Comment interactions                                               */
+/* ------------------------------------------------------------------ */
+
+export async function likeComment(supabase: SupabaseClient, commentId: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("likes")
+    .insert({ user_id: user.id, target_id: commentId, target_type: "comment" });
+  if (error) throw error;
+}
+
+export async function unlikeComment(supabase: SupabaseClient, commentId: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("likes")
+    .delete()
+    .match({ user_id: user.id, target_id: commentId, target_type: "comment" });
+  if (error) throw error;
+}
+
+export async function bookmarkComment(supabase: SupabaseClient, commentId: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("comment_bookmarks")
+    .insert({ user_id: user.id, comment_id: commentId });
+  if (error) throw error;
+}
+
+export async function unbookmarkComment(supabase: SupabaseClient, commentId: string) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("comment_bookmarks")
+    .delete()
+    .match({ user_id: user.id, comment_id: commentId });
   if (error) throw error;
 }
 
