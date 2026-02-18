@@ -53,6 +53,7 @@ export default function PostDetailScreen() {
   const { query: commentsQuery } = useComments(supabase, id ?? "");
   const createComment = useCreateComment(supabase);
   const [commentText, setCommentText] = useState("");
+  const [showComments, setShowComments] = useState(false);
 
   const comments: Comment[] = useMemo(
     () =>
@@ -247,12 +248,20 @@ export default function PostDetailScreen() {
 
           {/* Action Bar */}
           <View style={styles.actionBar}>
-            <View style={styles.actionButton}>
-              <IconComment size={16} color={colors.g400} />
+            <Pressable
+              style={styles.actionButton}
+              onPress={() => {
+                triggerHaptic("light");
+                setShowComments((prev) => !prev);
+              }}
+            >
+              <IconComment size={16} color={showComments ? colors.lime : colors.g400} />
               {post.comment_count > 0 && (
-                <Text style={styles.actionCount}>{formatCompact(post.comment_count)}</Text>
+                <Text style={[styles.actionCount, showComments && { color: colors.lime }]}>
+                  {formatCompact(post.comment_count)}
+                </Text>
               )}
-            </View>
+            </Pressable>
 
             <Pressable style={styles.actionButton} onPress={handleRepost}>
               <IconRepost size={20} color={post.is_reposted ? colors.green : colors.g400} />
@@ -293,72 +302,75 @@ export default function PostDetailScreen() {
           </View>
         </Card>
 
-        {/* Comments section */}
-        <View style={styles.commentsSection}>
-          <Text style={styles.commentsTitle}>Comments</Text>
+        {/* Comments section — only visible when toggled */}
+        {showComments && (
+          <View style={styles.commentsSection}>
+            <Text style={styles.commentsTitle}>Comments</Text>
 
-          {commentsQuery.isLoading ? (
-            <View style={{ gap: 12 }}>
-              {[1, 2].map((i) => (
-                <View key={i} style={styles.commentRow}>
-                  <Skeleton width={32} height={32} borderRadius={16} />
-                  <View style={{ flex: 1, gap: 4 }}>
-                    <Skeleton width={100} height={12} borderRadius={4} />
-                    <Skeleton width="80%" height={12} borderRadius={4} />
-                  </View>
-                </View>
-              ))}
-            </View>
-          ) : comments.length === 0 ? (
-            <Text style={styles.noComments}>No comments yet. Be the first!</Text>
-          ) : (
-            <View style={{ gap: 12 }}>
-              {comments.map((comment) => (
-                <View key={comment.id} style={styles.commentRow}>
-                  <Avatar
-                    src={comment.author?.avatar_url}
-                    name={comment.author?.display_name ?? "User"}
-                    size="sm"
-                  />
-                  <View style={{ flex: 1 }}>
-                    <View style={styles.commentHeader}>
-                      <Text style={styles.commentAuthor}>
-                        {comment.author?.display_name ?? "Unknown"}
-                      </Text>
-                      {comment.author?.is_verified && (
-                        <IconVerified size={12} color={colors.lime} />
-                      )}
-                      <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
+            {commentsQuery.isLoading ? (
+              <View style={{ gap: 12 }}>
+                {[1, 2].map((i) => (
+                  <View key={i} style={styles.commentRow}>
+                    <Skeleton width={32} height={32} borderRadius={16} />
+                    <View style={{ flex: 1, gap: 4 }}>
+                      <Skeleton width={100} height={12} borderRadius={4} />
+                      <Skeleton width="80%" height={12} borderRadius={4} />
                     </View>
-                    <Text style={styles.commentText}>{comment.content}</Text>
                   </View>
-                </View>
-              ))}
-            </View>
-          )}
+                ))}
+              </View>
+            ) : comments.length === 0 ? (
+              <Text style={styles.noComments}>No comments yet. Be the first!</Text>
+            ) : (
+              <View style={{ gap: 12 }}>
+                {comments.map((comment) => (
+                  <View key={comment.id} style={styles.commentRow}>
+                    <Avatar
+                      src={comment.author?.avatar_url}
+                      name={comment.author?.display_name ?? "User"}
+                      size="sm"
+                    />
+                    <View style={{ flex: 1 }}>
+                      <View style={styles.commentHeader}>
+                        <Text style={styles.commentAuthor}>
+                          {comment.author?.display_name ?? "Unknown"}
+                        </Text>
+                        {comment.author?.is_verified && (
+                          <IconVerified size={12} color={colors.lime} />
+                        )}
+                        <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
+                      </View>
+                      <Text style={styles.commentText}>{comment.content}</Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
 
-          {/* Comment input */}
-          <View style={styles.commentInputRow}>
-            <TextInput
-              style={styles.commentInput}
-              placeholder="Add a comment..."
-              placeholderTextColor={colors.g400}
-              value={commentText}
-              onChangeText={setCommentText}
-              maxLength={500}
-              onSubmitEditing={handleSendComment}
-              returnKeyType="send"
-            />
-            <Button
-              variant="lime"
-              size="sm"
-              onPress={handleSendComment}
-              disabled={!commentText.trim() || createComment.isPending}
-            >
-              {createComment.isPending ? "..." : "Send"}
-            </Button>
+            {/* Comment input */}
+            <View style={styles.commentInputRow}>
+              <TextInput
+                style={styles.commentInput}
+                placeholder="Add a comment..."
+                placeholderTextColor={colors.g400}
+                value={commentText}
+                onChangeText={setCommentText}
+                maxLength={500}
+                onSubmitEditing={handleSendComment}
+                returnKeyType="send"
+                autoFocus
+              />
+              <Button
+                variant="lime"
+                size="sm"
+                onPress={handleSendComment}
+                disabled={!commentText.trim() || createComment.isPending}
+              >
+                {createComment.isPending ? "..." : "Send"}
+              </Button>
+            </View>
           </View>
-        </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
