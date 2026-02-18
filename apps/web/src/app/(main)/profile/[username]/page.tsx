@@ -116,7 +116,16 @@ export default function ProfilePage() {
           </div>
 
           {/* Follow / Edit Button */}
-          {!isOwnProfile && (
+          {isOwnProfile ? (
+            <div style={{ marginTop: 12 }}>
+              <Button
+                variant="ghost"
+                onClick={() => window.location.href = "/settings"}
+              >
+                Edit Profile
+              </Button>
+            </div>
+          ) : (
             <div style={{ marginTop: 12 }}>
               <Button
                 variant={isFollowing ? "ghost" : "primary"}

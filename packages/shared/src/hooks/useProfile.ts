@@ -34,6 +34,17 @@ export function useUpdateProfile(supabase: SupabaseClient) {
   });
 }
 
+export function useUploadAvatar(supabase: SupabaseClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: { uri?: string; base64?: string; blob?: Blob; type?: string }) =>
+      profilesApi.uploadAvatar(supabase, file),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+}
+
 export function useFollowStatus(supabase: SupabaseClient, targetUserId: string) {
   return useQuery({
     queryKey: ["follow-status", targetUserId],

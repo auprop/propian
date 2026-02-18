@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   useSession,
   useCurrentProfile,
   useUpdateProfile,
+  useUploadAvatar,
   useSignOut,
   usePreferences,
   useUpdatePreferences,
@@ -21,6 +22,7 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Toggle } from "@/components/ui/Toggle";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Avatar } from "@/components/ui/Avatar";
 
 type SettingsSection = "account" | "notifications" | "privacy" | "danger";
 
@@ -30,6 +32,236 @@ const NAV_ITEMS: { label: string; value: SettingsSection }[] = [
   { label: "Privacy", value: "privacy" },
   { label: "Danger Zone", value: "danger" },
 ];
+
+/* ------------------------------------------------------------------ */
+/*  Avatar Cropper (Canvas-based)                                      */
+/* ------------------------------------------------------------------ */
+function AvatarCropper({
+  file,
+  onCrop,
+  onCancel,
+}: {
+  file: File;
+  onCrop: (blob: Blob) => void;
+  onCancel: () => void;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const dragging = useRef(false);
+  const lastPos = useRef({ x: 0, y: 0 });
+  const [isCropping, setIsCropping] = useState(false);
+
+  const CROP_SIZE = 280;
+
+  const handleImgLoad = useCallback(() => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      imgRef.current = img;
+      // Center the image initially
+      const s = Math.max(CROP_SIZE / img.width, CROP_SIZE / img.height);
+      setScale(s);
+      setOffset({
+        x: (CROP_SIZE - img.width * s) / 2,
+        y: (CROP_SIZE - img.height * s) / 2,
+      });
+      setImgLoaded(true);
+    };
+    img.src = url;
+  }, [file]);
+
+  // Load image on mount
+  useState(() => {
+    handleImgLoad();
+  });
+
+  const drawCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    const img = imgRef.current;
+    if (!canvas || !img) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    canvas.width = CROP_SIZE;
+    canvas.height = CROP_SIZE;
+
+    // Clear
+    ctx.clearRect(0, 0, CROP_SIZE, CROP_SIZE);
+
+    // Clip to circle
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(CROP_SIZE / 2, CROP_SIZE / 2, CROP_SIZE / 2, 0, Math.PI * 2);
+    ctx.clip();
+
+    // Draw image
+    ctx.drawImage(
+      img,
+      offset.x,
+      offset.y,
+      img.width * scale,
+      img.height * scale,
+    );
+
+    ctx.restore();
+
+    // Draw circle border
+    ctx.beginPath();
+    ctx.arc(CROP_SIZE / 2, CROP_SIZE / 2, CROP_SIZE / 2 - 2, 0, Math.PI * 2);
+    ctx.strokeStyle = "var(--lime, #a8ff39)";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+  }, [offset, scale]);
+
+  // Redraw on every offset/scale change
+  useState(() => {
+    if (imgLoaded) drawCanvas();
+  });
+
+  // Use RAF to batch draws
+  const rafRef = useRef<number>(0);
+  const scheduleRedraw = useCallback(() => {
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(drawCanvas);
+  }, [drawCanvas]);
+
+  // Trigger redraw when state changes
+  if (imgLoaded && canvasRef.current) {
+    scheduleRedraw();
+  }
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    dragging.current = true;
+    lastPos.current = { x: e.clientX, y: e.clientY };
+  }, []);
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent) => {
+      if (!dragging.current) return;
+      const dx = e.clientX - lastPos.current.x;
+      const dy = e.clientY - lastPos.current.y;
+      lastPos.current = { x: e.clientX, y: e.clientY };
+      setOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+    },
+    [],
+  );
+
+  const handleMouseUp = useCallback(() => {
+    dragging.current = false;
+  }, []);
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? -0.05 : 0.05;
+    setScale((s) => Math.min(Math.max(s + delta, 0.1), 5));
+  }, []);
+
+  const handleCrop = useCallback(async () => {
+    setIsCropping(true);
+    try {
+      // Render final crop at 512x512
+      const outputCanvas = document.createElement("canvas");
+      outputCanvas.width = 512;
+      outputCanvas.height = 512;
+      const ctx = outputCanvas.getContext("2d");
+      if (!ctx || !imgRef.current) return;
+
+      const img = imgRef.current;
+      const cropScale = 512 / CROP_SIZE;
+
+      ctx.beginPath();
+      ctx.arc(256, 256, 256, 0, Math.PI * 2);
+      ctx.clip();
+
+      ctx.drawImage(
+        img,
+        offset.x * cropScale,
+        offset.y * cropScale,
+        img.width * scale * cropScale,
+        img.height * scale * cropScale,
+      );
+
+      outputCanvas.toBlob(
+        (blob) => {
+          if (blob) onCrop(blob);
+        },
+        "image/jpeg",
+        0.9,
+      );
+    } finally {
+      setIsCropping(false);
+    }
+  }, [offset, scale, onCrop]);
+
+  return (
+    <div className="pt-avatar-cropper-overlay">
+      <div className="pt-avatar-cropper">
+        <h3 className="pt-avatar-cropper-title">Adjust your photo</h3>
+        <p className="pt-avatar-cropper-subtitle">
+          Drag to position, scroll to zoom
+        </p>
+
+        <div
+          className="pt-avatar-cropper-canvas-wrap"
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onWheel={handleWheel}
+        >
+          <canvas
+            ref={canvasRef}
+            width={CROP_SIZE}
+            height={CROP_SIZE}
+            style={{ cursor: "grab", borderRadius: "50%" }}
+          />
+        </div>
+
+        <div className="pt-avatar-cropper-zoom">
+          <button
+            type="button"
+            className="pt-avatar-cropper-zoom-btn"
+            onClick={() => setScale((s) => Math.max(0.1, s - 0.1))}
+          >
+            −
+          </button>
+          <span className="pt-avatar-cropper-zoom-label">
+            {Math.round(scale * 100)}%
+          </span>
+          <button
+            type="button"
+            className="pt-avatar-cropper-zoom-btn"
+            onClick={() => setScale((s) => Math.min(5, s + 0.1))}
+          >
+            +
+          </button>
+        </div>
+
+        <div className="pt-avatar-cropper-actions">
+          <button
+            type="button"
+            className="pt-btn ghost"
+            onClick={onCancel}
+          >
+            <span>Cancel</span>
+          </button>
+          <button
+            type="button"
+            className="pt-btn lime"
+            onClick={handleCrop}
+            disabled={isCropping}
+          >
+            <span>{isCropping ? "Processing..." : "Use Photo"}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /*  Account Section                                                    */
@@ -42,7 +274,15 @@ function AccountSection() {
     session?.user?.id
   );
   const updateProfile = useUpdateProfile(supabase);
+  const uploadAvatar = useUploadAvatar(supabase);
   const [saved, setSaved] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
+  const [pendingBlob, setPendingBlob] = useState<Blob | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Show profile avatar as preview if none pending
+  const displayAvatar = avatarPreview ?? profile?.avatar_url ?? null;
 
   const {
     register,
@@ -61,11 +301,61 @@ function AccountSection() {
       : undefined,
   });
 
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type and size
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      alert("Image must be under 10MB.");
+      return;
+    }
+
+    setCropFile(file);
+    // Reset the input so the same file can be selected again
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }, []);
+
+  const handleCropComplete = useCallback((blob: Blob) => {
+    const url = URL.createObjectURL(blob);
+    setAvatarPreview(url);
+    setPendingBlob(blob);
+    setCropFile(null);
+  }, []);
+
+  const handleRemoveAvatar = useCallback(() => {
+    setAvatarPreview(null);
+    setPendingBlob(null);
+  }, []);
+
   async function onSubmit(data: UpdateProfileInput) {
     setSaved(false);
-    await updateProfile.mutateAsync(data);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+
+    try {
+      // Upload avatar if changed
+      if (pendingBlob) {
+        await uploadAvatar.mutateAsync({
+          blob: pendingBlob,
+          type: "image/jpeg",
+        });
+        setPendingBlob(null);
+      }
+
+      // Remove avatar if explicitly removed
+      if (!displayAvatar && profile?.avatar_url) {
+        data.avatar_url = null;
+      }
+
+      await updateProfile.mutateAsync(data);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err: any) {
+      alert(err?.message || "Failed to save profile.");
+    }
   }
 
   if (isLoading) {
@@ -81,79 +371,147 @@ function AccountSection() {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
-      <div className="pt-col" style={{ gap: 18 }}>
-        <Input
-          label="Display Name"
-          placeholder="Your name"
-          error={errors.display_name?.message}
-          {...register("display_name")}
+    <>
+      {/* Avatar Cropper Modal */}
+      {cropFile && (
+        <AvatarCropper
+          file={cropFile}
+          onCrop={handleCropComplete}
+          onCancel={() => setCropFile(null)}
         />
-        <Input
-          label="Username"
-          placeholder="username"
-          error={errors.username?.message}
-          {...register("username")}
-        />
-        <Input
-          label="Email"
-          value={session?.user?.email ?? ""}
-          disabled
-          readOnly
-        />
-        <Textarea
-          label="Bio"
-          placeholder="Tell other traders about yourself..."
-          rows={3}
-          error={errors.bio?.message}
-          {...register("bio")}
-        />
-        <div>
-          <label className="pt-input-label">Trading Style</label>
-          <select className="pt-input" {...register("trading_style")}>
-            <option value="">Select...</option>
-            <option value="scalper">Scalper</option>
-            <option value="day-trader">Day Trader</option>
-            <option value="swing">Swing Trader</option>
-            <option value="position">Position Trader</option>
-          </select>
-          {errors.trading_style && (
-            <p style={{ color: "var(--red)", fontSize: 13, marginTop: 4 }}>
-              {errors.trading_style.message}
-            </p>
-          )}
-        </div>
-        <div>
-          <label className="pt-input-label">Experience Level</label>
-          <select className="pt-input" {...register("experience_level")}>
-            <option value="">Select...</option>
-            <option value="beginner">Beginner</option>
-            <option value="intermediate">Intermediate</option>
-            <option value="advanced">Advanced</option>
-          </select>
-          {errors.experience_level && (
-            <p style={{ color: "var(--red)", fontSize: 13, marginTop: 4 }}>
-              {errors.experience_level.message}
-            </p>
-          )}
-        </div>
+      )}
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <Button
-            variant="primary"
-            type="submit"
-            disabled={!isDirty || updateProfile.isPending}
-          >
-            {updateProfile.isPending ? "Saving..." : "Save Changes"}
-          </Button>
-          {saved && (
-            <span style={{ color: "var(--lime)", fontSize: 14, fontWeight: 600 }}>
-              Saved!
-            </span>
-          )}
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <div className="pt-col" style={{ gap: 18 }}>
+          {/* Avatar Upload Section */}
+          <div className="pt-avatar-upload-section">
+            <div
+              className="pt-avatar-upload-preview"
+              onClick={() => fileInputRef.current?.click()}
+              role="button"
+              tabIndex={0}
+            >
+              {displayAvatar ? (
+                <img
+                  src={displayAvatar}
+                  alt="Profile"
+                  className="pt-avatar-upload-img"
+                />
+              ) : (
+                <Avatar
+                  src={null}
+                  name={profile?.display_name ?? "?"}
+                  size="xl"
+                />
+              )}
+              <div className="pt-avatar-upload-overlay">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+              </div>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={handleFileSelect}
+              style={{ display: "none" }}
+            />
+            <div className="pt-avatar-upload-actions">
+              <button
+                type="button"
+                className="pt-avatar-upload-btn"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Change Photo
+              </button>
+              {displayAvatar && (
+                <button
+                  type="button"
+                  className="pt-avatar-upload-remove"
+                  onClick={handleRemoveAvatar}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+
+          <Input
+            label="Display Name"
+            placeholder="Your name"
+            error={errors.display_name?.message}
+            {...register("display_name")}
+          />
+          <Input
+            label="Username"
+            placeholder="username"
+            error={errors.username?.message}
+            {...register("username")}
+          />
+          <Input
+            label="Email"
+            value={session?.user?.email ?? ""}
+            disabled
+            readOnly
+          />
+          <Textarea
+            label="Bio"
+            placeholder="Tell other traders about yourself..."
+            rows={3}
+            error={errors.bio?.message}
+            {...register("bio")}
+          />
+          <div>
+            <label className="pt-input-label">Trading Style</label>
+            <select className="pt-input" {...register("trading_style")}>
+              <option value="">Select...</option>
+              <option value="scalper">Scalper</option>
+              <option value="day-trader">Day Trader</option>
+              <option value="swing">Swing Trader</option>
+              <option value="position">Position Trader</option>
+            </select>
+            {errors.trading_style && (
+              <p style={{ color: "var(--red)", fontSize: 13, marginTop: 4 }}>
+                {errors.trading_style.message}
+              </p>
+            )}
+          </div>
+          <div>
+            <label className="pt-input-label">Experience Level</label>
+            <select className="pt-input" {...register("experience_level")}>
+              <option value="">Select...</option>
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+            </select>
+            {errors.experience_level && (
+              <p style={{ color: "var(--red)", fontSize: 13, marginTop: 4 }}>
+                {errors.experience_level.message}
+              </p>
+            )}
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Button
+              variant="primary"
+              type="submit"
+              disabled={(!isDirty && !pendingBlob) || updateProfile.isPending || uploadAvatar.isPending}
+            >
+              {updateProfile.isPending || uploadAvatar.isPending
+                ? "Saving..."
+                : "Save Changes"}
+            </Button>
+            {saved && (
+              <span style={{ color: "var(--lime)", fontSize: 14, fontWeight: 600 }}>
+                Saved!
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-    </form>
+      </form>
+    </>
   );
 }
 

@@ -169,6 +169,13 @@ export default function RootLayout() {
               name="onboarding"
               options={{ headerShown: false }}
             />
+            <Stack.Screen
+              name="edit-profile"
+              options={{
+                headerShown: false,
+                presentation: "modal",
+              }}
+            />
           </Stack>
         </AuthProvider>
       </QueryProvider>

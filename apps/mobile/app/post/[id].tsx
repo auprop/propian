@@ -108,17 +108,17 @@ export default function PostDetailScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <Card>
           <View style={styles.header}>
-            <Skeleton width={48} height={48} borderRadius={24} />
+            <Skeleton width={48} height={48} radius={24} />
             <View style={{ flex: 1, gap: 6 }}>
-              <Skeleton width={160} height={14} borderRadius={4} />
-              <Skeleton width={120} height={12} borderRadius={4} />
+              <Skeleton width={160} height={14} radius={4} />
+              <Skeleton width={120} height={12} radius={4} />
             </View>
           </View>
-          <Skeleton width="100%" height={14} borderRadius={4} />
+          <Skeleton width="100%" height={14} radius={4} />
           <View style={{ height: 6 }} />
-          <Skeleton width="90%" height={14} borderRadius={4} />
+          <Skeleton width="90%" height={14} radius={4} />
           <View style={{ height: 6 }} />
-          <Skeleton width="70%" height={14} borderRadius={4} />
+          <Skeleton width="70%" height={14} radius={4} />
         </Card>
       </View>
     );
@@ -129,7 +129,7 @@ export default function PostDetailScreen() {
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <EmptyState
           title="Post not found"
-          subtitle="This post may have been deleted or doesn't exist."
+          description="This post may have been deleted or doesn't exist."
         />
       </View>
     );
@@ -311,10 +311,10 @@ export default function PostDetailScreen() {
               <View style={{ gap: 12 }}>
                 {[1, 2].map((i) => (
                   <View key={i} style={styles.commentRow}>
-                    <Skeleton width={32} height={32} borderRadius={16} />
+                    <Skeleton width={32} height={32} radius={16} />
                     <View style={{ flex: 1, gap: 4 }}>
-                      <Skeleton width={100} height={12} borderRadius={4} />
-                      <Skeleton width="80%" height={12} borderRadius={4} />
+                      <Skeleton width={100} height={12} radius={4} />
+                      <Skeleton width="80%" height={12} radius={4} />
                     </View>
                   </View>
                 ))}

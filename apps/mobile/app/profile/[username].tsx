@@ -186,7 +186,7 @@ export default function ProfileScreen() {
               variant="ghost"
               fullWidth
               noIcon
-              onPress={() => router.push("/(tabs)/settings")}
+              onPress={() => router.push("/edit-profile" as any)}
             >
               Edit Profile
             </Button>

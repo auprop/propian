@@ -1,6 +1,62 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Profile } from "../types";
 
+/* ─── Avatar Upload ─── */
+
+export async function uploadAvatar(
+  supabase: SupabaseClient,
+  file: { uri?: string; base64?: string; blob?: Blob; type?: string },
+): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const ext = file.type?.includes("png") ? "png" : file.type?.includes("webp") ? "webp" : "jpg";
+  const filePath = `${user.id}/avatar.${ext}`;
+
+  let uploadBody: Blob | ArrayBuffer;
+
+  if (file.blob) {
+    // Web: already a Blob
+    uploadBody = file.blob;
+  } else if (file.base64) {
+    // Mobile: convert base64 to ArrayBuffer
+    const binaryString = atob(file.base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    uploadBody = bytes.buffer;
+  } else {
+    throw new Error("No file data provided");
+  }
+
+  const { error: uploadError } = await supabase.storage
+    .from("avatars")
+    .upload(filePath, uploadBody, {
+      upsert: true,
+      contentType: file.type || "image/jpeg",
+    });
+
+  if (uploadError) throw uploadError;
+
+  const { data: urlData } = supabase.storage
+    .from("avatars")
+    .getPublicUrl(filePath);
+
+  // Add cache-busting timestamp so browsers/RN reload the new image
+  const publicUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+
+  // Update the profile with the new avatar URL
+  const { error: updateError } = await supabase
+    .from("profiles")
+    .update({ avatar_url: publicUrl })
+    .eq("id", user.id);
+
+  if (updateError) throw updateError;
+
+  return publicUrl;
+}
+
 export async function getProfile(supabase: SupabaseClient, username: string) {
   const { data, error } = await supabase
     .from("profiles")
