@@ -277,7 +277,6 @@ export async function POST(request: Request) {
 
   const today = new Date();
   const todayStr = formatDate(today);
-  const currentMinute = today.getUTCMinutes();
   // Current UTC time as HH:mm:ss for comparing against event_time
   const nowTimeStr = today.toISOString().substring(11, 19);
 
@@ -356,13 +355,10 @@ export async function POST(request: Request) {
   }
 
   // ── Phase 1: Full 8-day event sync ─────────────────────────────────
-  // Only runs when minute is 0-9 (i.e. once per hour) to save API calls.
-  // The every-10-min invocations focus on today's actuals (Phase 0).
-  const runFullSync = currentMinute < 10;
   let totalSynced = 0;
   const syncResults: { date: string; synced: number; error?: string }[] = [];
 
-  if (runFullSync) {
+  {
     const dates: string[] = [];
     for (let i = 0; i < 8; i++) {
       const d = new Date(today);
@@ -545,11 +541,10 @@ export async function POST(request: Request) {
   return NextResponse.json({
     success: true,
     actuals_updated: actualsUpdated,
-    full_sync: runFullSync,
     total_synced: totalSynced,
     analysis_generated: analysisGenerated,
     notes_generated: notesGenerated,
-    dates: runFullSync ? syncResults : [],
+    dates: syncResults,
   });
 }
 
