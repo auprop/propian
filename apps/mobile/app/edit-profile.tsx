@@ -8,11 +8,9 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Animated,
   Image,
-  Dimensions,
   PanResponder,
-  type GestureResponderEvent,
-  type PanResponderGestureState,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -92,102 +90,149 @@ interface ImageCropperProps {
 }
 
 function ImageCropper({ imageUri, imageWidth, imageHeight, onCrop, onCancel }: ImageCropperProps) {
-  const screenWidth = Dimensions.get("window").width;
-
-  // Calculate scale: fit image to screen width, then allow pan within CROP_SIZE circle
-  const displayScale = screenWidth / imageWidth;
-  const displayWidth = screenWidth;
-  const displayHeight = imageHeight * displayScale;
-
-  // Initial offset centers the image in the crop area
-  const initialX = (CROP_SIZE - displayWidth) / 2;
-  const initialY = (CROP_SIZE - displayHeight) / 2;
-
-  const [scale, setScale] = useState(1);
-  const offsetX = useRef(initialX);
-  const offsetY = useRef(initialY);
-  const [renderKey, setRenderKey] = useState(0);
   const [isCropping, setIsCropping] = useState(false);
 
-  // Track pinch distance
-  const lastDistance = useRef(0);
-  const lastScale = useRef(1);
+  // Fit the image so its shortest side fills the crop circle
+  const baseScale = Math.max(CROP_SIZE / imageWidth, CROP_SIZE / imageHeight);
+
+  // zoom is user-controlled (1 = fit, up to 4x)
+  const [zoom, setZoom] = useState(1);
+  const zoomRef = useRef(1);
+
+  // Displayed dimensions at current zoom
+  const imgW = imageWidth * baseScale * zoom;
+  const imgH = imageHeight * baseScale * zoom;
+
+  // --- Pan tracking (plain refs → re-render via Animated) ---
+  const panX = useRef(new Animated.Value(0)).current;
+  const panY = useRef(new Animated.Value(0)).current;
+
+  // Persisted offsets between gestures
+  const offsetXRef = useRef(0);
+  const offsetYRef = useRef(0);
+
+  // Pinch tracking
+  const pinchBaseDistance = useRef(0);
+  const pinchBaseZoom = useRef(1);
+
+  /** Clamp so the image always covers the full circle. */
+  const clamp = useCallback(
+    (x: number, y: number, w: number, h: number) => {
+      // The image top-left relative to crop circle top-left:
+      //   allowed range: from  -(w - CROP_SIZE)  to  0
+      const minX = -(w - CROP_SIZE);
+      const maxX = 0;
+      const minY = -(h - CROP_SIZE);
+      const maxY = 0;
+      return {
+        x: Math.min(maxX, Math.max(minX, x)),
+        y: Math.min(maxY, Math.max(minY, y)),
+      };
+    },
+    [],
+  );
+
+  // Recenter when zoom changes (e.g. via buttons)
+  useEffect(() => {
+    const w = imageWidth * baseScale * zoom;
+    const h = imageHeight * baseScale * zoom;
+    const clamped = clamp(offsetXRef.current, offsetYRef.current, w, h);
+    offsetXRef.current = clamped.x;
+    offsetYRef.current = clamped.y;
+    panX.setValue(clamped.x);
+    panY.setValue(clamped.y);
+    zoomRef.current = zoom;
+  }, [zoom, baseScale, imageWidth, imageHeight, clamp, panX, panY]);
 
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, g) =>
+        Math.abs(g.dx) > 2 || Math.abs(g.dy) > 2,
 
-      onPanResponderGrant: (_e: GestureResponderEvent, _gesture: PanResponderGestureState) => {
-        // Store current values
+      onPanResponderGrant: () => {
+        pinchBaseDistance.current = 0;
       },
 
-      onPanResponderMove: (e: GestureResponderEvent, gesture: PanResponderGestureState) => {
-        const touches = e.nativeEvent.touches;
-        if (touches && touches.length === 2) {
-          // Pinch to zoom
-          const dx = (touches[0] as any).pageX - (touches[1] as any).pageX;
-          const dy = (touches[0] as any).pageY - (touches[1] as any).pageY;
-          const distance = Math.sqrt(dx * dx + dy * dy);
+      onPanResponderMove: (evt, gesture) => {
+        const touches = evt.nativeEvent.touches;
 
-          if (lastDistance.current > 0) {
-            const newScale = lastScale.current * (distance / lastDistance.current);
-            setScale(Math.min(Math.max(newScale, 0.5), 4));
+        if (touches && touches.length >= 2) {
+          // ── Pinch-to-zoom ──
+          const t0 = touches[0] as any;
+          const t1 = touches[1] as any;
+          const dx = t0.pageX - t1.pageX;
+          const dy = t0.pageY - t1.pageY;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (pinchBaseDistance.current === 0) {
+            // First pinch frame: record baseline
+            pinchBaseDistance.current = dist;
+            pinchBaseZoom.current = zoomRef.current;
+          } else {
+            const newZoom = Math.min(
+              4,
+              Math.max(1, pinchBaseZoom.current * (dist / pinchBaseDistance.current)),
+            );
+            zoomRef.current = newZoom;
+            setZoom(newZoom);
           }
-          lastDistance.current = distance;
         } else {
-          // Pan
-          lastDistance.current = 0;
-          offsetX.current += gesture.dx * 0.6;
-          offsetY.current += gesture.dy * 0.6;
-          setRenderKey((k) => k + 1);
+          // ── Single-finger drag ──
+          // gesture.dx/dy are cumulative from grant, so compute absolute position
+          const currentZoom = zoomRef.current;
+          const w = imageWidth * baseScale * currentZoom;
+          const h = imageHeight * baseScale * currentZoom;
+
+          const rawX = offsetXRef.current + gesture.dx;
+          const rawY = offsetYRef.current + gesture.dy;
+          const clamped = {
+            x: Math.min(0, Math.max(-(w - CROP_SIZE), rawX)),
+            y: Math.min(0, Math.max(-(h - CROP_SIZE), rawY)),
+          };
+
+          panX.setValue(clamped.x);
+          panY.setValue(clamped.y);
         }
       },
 
-      onPanResponderRelease: () => {
-        lastScale.current = scale;
-        lastDistance.current = 0;
-      },
-    })
-  ).current;
+      onPanResponderRelease: (_evt, gesture) => {
+        // Persist final pan offset after clamp
+        const currentZoom = zoomRef.current;
+        const w = imageWidth * baseScale * currentZoom;
+        const h = imageHeight * baseScale * currentZoom;
 
-  // Update lastScale when scale changes via state
-  useEffect(() => {
-    lastScale.current = scale;
-  }, [scale]);
+        const rawX = offsetXRef.current + gesture.dx;
+        const rawY = offsetYRef.current + gesture.dy;
+        offsetXRef.current = Math.min(0, Math.max(-(w - CROP_SIZE), rawX));
+        offsetYRef.current = Math.min(0, Math.max(-(h - CROP_SIZE), rawY));
+
+        pinchBaseDistance.current = 0;
+      },
+    }),
+  ).current;
 
   const handleCrop = useCallback(async () => {
     setIsCropping(true);
     try {
-      // Calculate the crop region in original image coordinates
-      const currentDisplayWidth = displayWidth * scale;
-      const currentDisplayHeight = displayHeight * scale;
+      const currentZoom = zoomRef.current;
+      const scale = baseScale * currentZoom;
 
-      // The crop circle is centered at CROP_SIZE/2, CROP_SIZE/2 in the overlay
-      // The image's top-left is at offsetX, offsetY in the overlay coordinate system
-      const cropCenterInImage = {
-        x: (CROP_SIZE / 2 - offsetX.current) / (currentDisplayWidth / imageWidth),
-        y: (CROP_SIZE / 2 - offsetY.current) / (currentDisplayHeight / imageHeight),
-      };
+      // The crop circle covers [0..CROP_SIZE] x [0..CROP_SIZE] in view coords.
+      // The image top-left is at (offsetXRef, offsetYRef) in view coords.
+      // Convert circle region back to original pixel coords:
+      const originX = Math.max(0, Math.round(-offsetXRef.current / scale));
+      const originY = Math.max(0, Math.round(-offsetYRef.current / scale));
+      const cropPx = Math.round(CROP_SIZE / scale);
 
-      const cropRadiusInImage = (CROP_SIZE / 2) / (currentDisplayWidth / imageWidth);
-
-      const originX = Math.max(0, Math.round(cropCenterInImage.x - cropRadiusInImage));
-      const originY = Math.max(0, Math.round(cropCenterInImage.y - cropRadiusInImage));
-      const cropW = Math.min(Math.round(cropRadiusInImage * 2), imageWidth - originX);
-      const cropH = Math.min(Math.round(cropRadiusInImage * 2), imageHeight - originY);
+      const w = Math.min(cropPx, imageWidth - originX);
+      const h = Math.min(cropPx, imageHeight - originY);
+      const side = Math.min(w, h);
 
       const result = await ImageManipulator.manipulateAsync(
         imageUri,
         [
-          {
-            crop: {
-              originX,
-              originY,
-              width: cropW,
-              height: cropH,
-            },
-          },
+          { crop: { originX, originY, width: side, height: side } },
           { resize: { width: 512, height: 512 } },
         ],
         {
@@ -198,17 +243,27 @@ function ImageCropper({ imageUri, imageWidth, imageHeight, onCrop, onCancel }: I
       );
 
       onCrop(result.uri, result.base64 ?? "");
-    } catch (err) {
+    } catch (_err) {
       Alert.alert("Crop failed", "Could not crop the image. Please try again.");
     } finally {
       setIsCropping(false);
     }
-  }, [imageUri, imageWidth, imageHeight, scale, displayWidth, displayHeight, onCrop]);
+  }, [imageUri, imageWidth, imageHeight, baseScale, onCrop]);
+
+  const adjustZoom = useCallback(
+    (delta: number) => {
+      setZoom((z) => {
+        const next = Math.min(4, Math.max(1, +(z + delta).toFixed(2)));
+        return next;
+      });
+    },
+    [],
+  );
 
   return (
     <View style={cropStyles.container}>
       <Text style={cropStyles.title}>Adjust your photo</Text>
-      <Text style={cropStyles.subtitle}>Pinch to zoom, drag to position</Text>
+      <Text style={cropStyles.subtitle}>Drag to position, pinch to zoom</Text>
 
       {/* Crop area */}
       <View style={cropStyles.cropArea}>
@@ -216,18 +271,20 @@ function ImageCropper({ imageUri, imageWidth, imageHeight, onCrop, onCancel }: I
           style={[cropStyles.imageContainer, { width: CROP_SIZE, height: CROP_SIZE }]}
           {...panResponder.panHandlers}
         >
-          <Image
+          <Animated.Image
             source={{ uri: imageUri }}
             style={{
-              width: displayWidth * scale,
-              height: displayHeight * scale,
+              width: imgW,
+              height: imgH,
               position: "absolute",
-              left: offsetX.current,
-              top: offsetY.current,
+              transform: [
+                { translateX: panX },
+                { translateY: panY },
+              ],
             }}
             resizeMode="cover"
           />
-          {/* Circle overlay mask */}
+          {/* Circle overlay */}
           <View style={cropStyles.overlayMask} pointerEvents="none">
             <View style={cropStyles.circleGuide} />
           </View>
@@ -238,14 +295,14 @@ function ImageCropper({ imageUri, imageWidth, imageHeight, onCrop, onCancel }: I
       <View style={cropStyles.zoomRow}>
         <Pressable
           style={cropStyles.zoomButton}
-          onPress={() => setScale((s) => Math.max(0.5, s - 0.25))}
+          onPress={() => adjustZoom(-0.25)}
         >
           <Text style={cropStyles.zoomText}>−</Text>
         </Pressable>
-        <Text style={cropStyles.zoomLabel}>{Math.round(scale * 100)}%</Text>
+        <Text style={cropStyles.zoomLabel}>{Math.round(zoom * 100)}%</Text>
         <Pressable
           style={cropStyles.zoomButton}
-          onPress={() => setScale((s) => Math.min(4, s + 0.25))}
+          onPress={() => adjustZoom(0.25)}
         >
           <Text style={cropStyles.zoomText}>+</Text>
         </Pressable>

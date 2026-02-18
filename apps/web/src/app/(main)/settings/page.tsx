@@ -145,9 +145,18 @@ function AvatarCropper({
       const dx = e.clientX - lastPos.current.x;
       const dy = e.clientY - lastPos.current.y;
       lastPos.current = { x: e.clientX, y: e.clientY };
-      setOffset((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+      setOffset((prev) => {
+        const img = imgRef.current;
+        if (!img) return prev;
+        const w = img.width * scale;
+        const h = img.height * scale;
+        return {
+          x: Math.min(0, Math.max(-(w - CROP_SIZE), prev.x + dx)),
+          y: Math.min(0, Math.max(-(h - CROP_SIZE), prev.y + dy)),
+        };
+      });
     },
-    [],
+    [scale],
   );
 
   const handleMouseUp = useCallback(() => {
@@ -156,8 +165,22 @@ function AvatarCropper({
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
+    const img = imgRef.current;
+    if (!img) return;
     const delta = e.deltaY > 0 ? -0.05 : 0.05;
-    setScale((s) => Math.min(Math.max(s + delta, 0.1), 5));
+    // Minimum scale: shortest side fills crop area
+    const minScale = Math.max(CROP_SIZE / img.width, CROP_SIZE / img.height);
+    setScale((s) => {
+      const next = Math.min(Math.max(s + delta, minScale), 5);
+      // Re-clamp offset at new scale
+      const w = img.width * next;
+      const h = img.height * next;
+      setOffset((prev) => ({
+        x: Math.min(0, Math.max(-(w - CROP_SIZE), prev.x)),
+        y: Math.min(0, Math.max(-(h - CROP_SIZE), prev.y)),
+      }));
+      return next;
+    });
   }, []);
 
   const handleCrop = useCallback(async () => {
@@ -225,7 +248,22 @@ function AvatarCropper({
           <button
             type="button"
             className="pt-avatar-cropper-zoom-btn"
-            onClick={() => setScale((s) => Math.max(0.1, s - 0.1))}
+            onClick={() => {
+              const img = imgRef.current;
+              const minScale = img ? Math.max(CROP_SIZE / img.width, CROP_SIZE / img.height) : 0.1;
+              setScale((s) => {
+                const next = Math.max(minScale, s - 0.1);
+                if (img) {
+                  const w = img.width * next;
+                  const h = img.height * next;
+                  setOffset((prev) => ({
+                    x: Math.min(0, Math.max(-(w - CROP_SIZE), prev.x)),
+                    y: Math.min(0, Math.max(-(h - CROP_SIZE), prev.y)),
+                  }));
+                }
+                return next;
+              });
+            }}
           >
             −
           </button>
@@ -235,7 +273,21 @@ function AvatarCropper({
           <button
             type="button"
             className="pt-avatar-cropper-zoom-btn"
-            onClick={() => setScale((s) => Math.min(5, s + 0.1))}
+            onClick={() => {
+              setScale((s) => {
+                const next = Math.min(5, s + 0.1);
+                const img = imgRef.current;
+                if (img) {
+                  const w = img.width * next;
+                  const h = img.height * next;
+                  setOffset((prev) => ({
+                    x: Math.min(0, Math.max(-(w - CROP_SIZE), prev.x)),
+                    y: Math.min(0, Math.max(-(h - CROP_SIZE), prev.y)),
+                  }));
+                }
+                return next;
+              });
+            }}
           >
             +
           </button>
