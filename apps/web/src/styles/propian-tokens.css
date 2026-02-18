@@ -35,8 +35,8 @@
   --brd-l: 1px solid var(--g200);
   --font: var(--font-outfit, 'Outfit'), sans-serif;
   --mono: var(--font-jetbrains, 'JetBrains Mono'), monospace;
-  --sh-sm: 4px 4px 0 var(--black);
-  --sh-md: 6px 6px 0 var(--black);
+  --sh-sm: 0 2px 8px rgba(0,0,0,0.06);
+  --sh-md: 0 4px 16px rgba(0,0,0,0.08);
   --t: .3s ease;
   --tf: .15s ease;
 }

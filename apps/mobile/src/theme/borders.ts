@@ -17,32 +17,30 @@ export const borders = {
 };
 
 /**
- * Neo-brutalist hard offset shadows.
- * iOS: Uses native shadowOffset + shadowRadius: 0 for hard edges.
- * Android: elevation can't do offsets, so we use a shadow layer View approach.
- *          The elevation here is a fallback only.
+ * Soft, premium shadows.
+ * Clean drop shadows that feel modern without the heavy brutalist look.
  */
 export const shadows = {
   sm: Platform.select<ViewStyle>({
     ios: {
       shadowColor: colors.black,
-      shadowOffset: { width: 4, height: 4 },
-      shadowOpacity: 1,
-      shadowRadius: 0,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.06,
+      shadowRadius: 6,
     },
     android: {
-      elevation: 4,
+      elevation: 2,
     },
   })!,
   md: Platform.select<ViewStyle>({
     ios: {
       shadowColor: colors.black,
-      shadowOffset: { width: 6, height: 6 },
-      shadowOpacity: 1,
-      shadowRadius: 0,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
     },
     android: {
-      elevation: 6,
+      elevation: 4,
     },
   })!,
   none: {
@@ -55,15 +53,15 @@ export const shadows = {
 };
 
 /**
- * For Android, use this as a sibling View behind the card to simulate hard offset shadow.
- * Position it absolute, offset by 4/4, same size, black background, same border radius.
+ * For Android, use this as a sibling View behind the card for extra shadow depth.
+ * Position it absolute with a subtle offset.
  */
 export const androidShadowLayer = (radius: number): ViewStyle => ({
   position: "absolute",
-  top: 4,
-  left: 4,
-  right: -4,
-  bottom: -4,
-  backgroundColor: colors.black,
+  top: 1,
+  left: 0,
+  right: 0,
+  bottom: -2,
+  backgroundColor: "rgba(0,0,0,0.04)",
   borderRadius: radius,
 });
