@@ -80,9 +80,9 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onShare }: PostCa
 
       {/* Action Bar — X/Twitter order: Comment, Repost, Heart, Views, Bookmark, Share */}
       <View style={styles.actionBar}>
-        {/* Comment */}
+        {/* Comment — viewBox 32, dense paths → size 16 */}
         <Pressable style={styles.actionButton}>
-          <IconComment size={18} color={colors.g400} />
+          <IconComment size={16} color={colors.g400} />
           {post.comment_count > 0 && (
             <Text style={styles.actionCount}>
               {formatCompact(post.comment_count)}
@@ -90,7 +90,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onShare }: PostCa
           )}
         </Pressable>
 
-        {/* Repost */}
+        {/* Repost — viewBox 32, medium density → size 18 */}
         <Pressable
           style={styles.actionButton}
           onPress={() => {
@@ -109,7 +109,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onShare }: PostCa
           )}
         </Pressable>
 
-        {/* Like */}
+        {/* Like — viewBox 24, very dense → size 17 */}
         <Pressable
           style={styles.actionButton}
           onPress={() => {
@@ -118,9 +118,9 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onShare }: PostCa
           }}
         >
           {post.is_liked ? (
-            <IconHeart size={18} color={colors.red} />
+            <IconHeart size={17} color={colors.red} />
           ) : (
-            <IconHeartOutline size={18} color={colors.g400} />
+            <IconHeartOutline size={17} color={colors.g400} />
           )}
           {post.like_count > 0 && (
             <Text style={[styles.actionCount, post.is_liked && styles.actionCountLike]}>
@@ -129,7 +129,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onShare }: PostCa
           )}
         </Pressable>
 
-        {/* Views */}
+        {/* Views — viewBox 24, sparse → size 18 */}
         <View style={styles.actionButton}>
           <IconEye size={18} color={colors.g400} />
           {post.view_count > 0 && (
@@ -139,7 +139,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onShare }: PostCa
           )}
         </View>
 
-        {/* Bookmark */}
+        {/* Bookmark — viewBox 24, tall/narrow → size 17 */}
         <Pressable
           style={styles.actionButton}
           onPress={() => {
@@ -148,12 +148,12 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onShare }: PostCa
           }}
         >
           <IconBookmark
-            size={18}
+            size={17}
             color={post.is_bookmarked ? colors.lime : colors.g400}
           />
         </Pressable>
 
-        {/* Share */}
+        {/* Share — viewBox 48, very sparse → size 22 */}
         <Pressable
           style={styles.actionButton}
           onPress={() => {
@@ -161,7 +161,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onShare }: PostCa
             onShare?.(post.id);
           }}
         >
-          <IconShare size={16} color={colors.g400} />
+          <IconShare size={22} color={colors.g400} />
         </Pressable>
       </View>
     </Card>

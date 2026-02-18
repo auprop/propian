@@ -112,9 +112,10 @@ function PostCard({
       )}
 
       {/* Actions bar — X/Twitter order: Comment, Repost, Heart, Views, Bookmark, Share */}
+      {/* Sizes are optically calibrated per viewBox: 32→16, 32→18, 24→17, 24→18, 24→17, 48→22 */}
       <div className="pt-post-actions">
         <button className="pt-post-action">
-          <IconComment size={18} />
+          <IconComment size={16} />
           <span>{post.comment_count > 0 ? formatCompact(post.comment_count) : ""}</span>
         </button>
 
@@ -131,9 +132,9 @@ function PostCard({
           onClick={() => onLike(post.id, !!post.is_liked)}
         >
           {post.is_liked ? (
-            <IconHeart size={18} style={{ color: "var(--red)" }} />
+            <IconHeart size={17} style={{ color: "var(--red)" }} />
           ) : (
-            <IconHeartOutline size={18} />
+            <IconHeartOutline size={17} />
           )}
           <span>{post.like_count > 0 ? formatCompact(post.like_count) : ""}</span>
         </button>
@@ -147,11 +148,11 @@ function PostCard({
           className={`pt-post-action ${post.is_bookmarked ? "bookmarked" : ""}`}
           onClick={() => onBookmark(post.id, !!post.is_bookmarked)}
         >
-          <IconBookmark size={18} style={post.is_bookmarked ? { color: "var(--lime)" } : undefined} />
+          <IconBookmark size={17} style={post.is_bookmarked ? { color: "var(--lime)" } : undefined} />
         </button>
 
         <button className="pt-post-action">
-          <IconShare size={16} />
+          <IconShare size={22} />
         </button>
       </div>
     </article>
