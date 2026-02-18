@@ -95,6 +95,14 @@ export default function RootLayout() {
               }}
             />
             <Stack.Screen
+              name="post/[id]"
+              options={{
+                headerShown: true,
+                headerTitle: "Post",
+                headerBackTitle: "Back",
+              }}
+            />
+            <Stack.Screen
               name="search"
               options={{
                 headerShown: true,
