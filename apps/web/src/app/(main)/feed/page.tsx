@@ -22,6 +22,7 @@ import {
   IconFire,
   IconTrendUp,
   IconQuote,
+  IconReply,
 } from "@propian/shared/icons";
 import {
   useSession,
@@ -33,6 +34,8 @@ import {
   useRepost,
   useComments,
   useCreateComment,
+  useLikeComment,
+  useBookmarkComment,
 } from "@propian/shared/hooks";
 import { createPostSchema } from "@propian/shared/validation";
 import type { CreatePostInput } from "@propian/shared/validation";
@@ -352,8 +355,11 @@ function InlineComments({
   supabase: ReturnType<typeof createBrowserClient>;
 }) {
   const [text, setText] = useState("");
+  const [replyTo, setReplyTo] = useState<{ id: string; authorName: string } | null>(null);
   const { query } = useComments(supabase, postId);
   const createComment = useCreateComment(supabase);
+  const likeComment = useLikeComment(supabase);
+  const bookmarkComment = useBookmarkComment(supabase);
 
   const comments: Comment[] = useMemo(
     () => (query.data?.pages?.flatMap((page: unknown) => (Array.isArray(page) ? page : [])) ?? []) as Comment[],
@@ -364,10 +370,113 @@ function InlineComments({
     const content = text.trim();
     if (!content || createComment.isPending) return;
     createComment.mutate(
-      { postId, content },
-      { onSuccess: () => setText("") },
+      { postId, content, parentId: replyTo?.id ?? null },
+      {
+        onSuccess: () => {
+          setText("");
+          setReplyTo(null);
+        },
+      },
     );
   };
+
+  const handleReply = (comment: Comment) => {
+    setReplyTo({ id: comment.id, authorName: comment.author?.display_name || "Unknown" });
+  };
+
+  const handleLikeComment = (comment: Comment) => {
+    likeComment.mutate({
+      commentId: comment.id,
+      postId,
+      action: comment.is_liked ? "unlike" : "like",
+    });
+  };
+
+  const handleBookmarkComment = (comment: Comment) => {
+    bookmarkComment.mutate({
+      commentId: comment.id,
+      postId,
+      action: comment.is_bookmarked ? "unbookmark" : "bookmark",
+    });
+  };
+
+  const handleShareComment = async (comment: Comment) => {
+    try {
+      await navigator.clipboard.writeText(
+        `${comment.author?.display_name || "Someone"} on Propian: "${comment.content}"`
+      );
+    } catch (_) {}
+  };
+
+  const renderComment = (comment: Comment, isReply = false) => (
+    <div key={comment.id} className={`pt-comment-thread${isReply ? " pt-comment-reply" : ""}`}>
+      <div className="pt-comment">
+        {isReply && <div className="pt-thread-line" />}
+        <Avatar
+          src={comment.author?.avatar_url}
+          name={comment.author?.display_name ?? "User"}
+          size="sm"
+        />
+        <div className="pt-comment-body">
+          <div className="pt-comment-header">
+            <span className="pt-comment-author">
+              {comment.author?.display_name ?? "Unknown"}
+            </span>
+            {comment.author?.is_verified && (
+              <IconVerified size={12} style={{ color: "var(--lime)" }} />
+            )}
+            <span className="pt-comment-time">{timeAgo(comment.created_at)}</span>
+          </div>
+          <p className="pt-comment-text">{comment.content}</p>
+
+          {/* Action bar */}
+          <div className="pt-comment-actions">
+            <button
+              className="pt-comment-action-btn"
+              onClick={() => handleReply(comment)}
+              title="Reply"
+            >
+              <IconReply size={14} />
+              {(comment.reply_count ?? 0) > 0 && (
+                <span>{formatCompact(comment.reply_count ?? 0)}</span>
+              )}
+            </button>
+            <button
+              className={`pt-comment-action-btn${comment.is_liked ? " pt-comment-action-liked" : ""}`}
+              onClick={() => handleLikeComment(comment)}
+              title="Like"
+            >
+              {comment.is_liked ? <IconHeart size={14} /> : <IconHeartOutline size={14} />}
+              {comment.like_count > 0 && (
+                <span>{formatCompact(comment.like_count)}</span>
+              )}
+            </button>
+            <button
+              className={`pt-comment-action-btn${comment.is_bookmarked ? " pt-comment-action-bookmarked" : ""}`}
+              onClick={() => handleBookmarkComment(comment)}
+              title="Bookmark"
+            >
+              <IconBookmark size={14} />
+            </button>
+            <button
+              className="pt-comment-action-btn"
+              onClick={() => handleShareComment(comment)}
+              title="Share"
+            >
+              <IconShare size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Nested replies */}
+      {comment.replies && comment.replies.length > 0 && (
+        <div className="pt-comment-replies">
+          {comment.replies.map((reply) => renderComment(reply, true))}
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="pt-comments">
@@ -384,55 +493,47 @@ function InlineComments({
           ))}
         </div>
       ) : comments.length === 0 ? (
-        <p className="pt-comments-empty">No comments yet. Be the first!</p>
+        <p className="pt-comments-empty">No replies yet. Start the conversation!</p>
       ) : (
         <div className="pt-comments-list">
-          {comments.map((comment) => (
-            <div key={comment.id} className="pt-comment">
-              <Avatar
-                src={comment.author?.avatar_url}
-                name={comment.author?.display_name ?? "User"}
-                size="sm"
-              />
-              <div className="pt-comment-body">
-                <div className="pt-comment-header">
-                  <span className="pt-comment-author">
-                    {comment.author?.display_name ?? "Unknown"}
-                  </span>
-                  {comment.author?.is_verified && (
-                    <IconVerified size={12} style={{ color: "var(--lime)" }} />
-                  )}
-                  <span className="pt-comment-time">{timeAgo(comment.created_at)}</span>
-                </div>
-                <p className="pt-comment-text">{comment.content}</p>
-              </div>
-            </div>
-          ))}
+          {comments.map((comment) => renderComment(comment, false))}
         </div>
       )}
 
       <div className="pt-comment-input">
-        <input
-          type="text"
-          placeholder="Add a comment..."
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
-          maxLength={500}
-        />
-        <Button
-          variant="lime"
-          size="sm"
-          onClick={handleSend}
-          disabled={!text.trim() || createComment.isPending}
-        >
-          {createComment.isPending ? "..." : "Send"}
-        </Button>
+        {replyTo && (
+          <div className="pt-reply-indicator">
+            <span>
+              Replying to <strong>{replyTo.authorName}</strong>
+            </span>
+            <button onClick={() => setReplyTo(null)} className="pt-reply-indicator-close">
+              ✕
+            </button>
+          </div>
+        )}
+        <div className="pt-comment-input-row">
+          <input
+            type="text"
+            placeholder={replyTo ? `Reply to ${replyTo.authorName}...` : "Write a reply..."}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            maxLength={500}
+          />
+          <Button
+            variant="lime"
+            size="sm"
+            onClick={handleSend}
+            disabled={!text.trim() || createComment.isPending}
+          >
+            {createComment.isPending ? "..." : "Send"}
+          </Button>
+        </div>
       </div>
     </div>
   );

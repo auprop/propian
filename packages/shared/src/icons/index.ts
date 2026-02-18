@@ -33,6 +33,7 @@ export { IconPlus } from "./Plus";
 export { IconQuiz } from "./Quiz";
 export { IconQuote } from "./Quote";
 export { IconRepeat } from "./Repeat";
+export { IconReply } from "./Reply";
 export { IconRepost } from "./Repost";
 export { IconSchool } from "./School";
 export { IconSearch } from "./Search";
