@@ -1464,7 +1464,7 @@ const s = StyleSheet.create({
     backgroundColor: colors.white,
   },
   courseThumb: {
-    height: 120,
+    height: 180,
     alignItems: "center",
     justifyContent: "center",
   },

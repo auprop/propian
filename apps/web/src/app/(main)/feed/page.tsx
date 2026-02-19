@@ -23,6 +23,7 @@ import {
   IconTrendUp,
   IconQuote,
   IconReply,
+  IconClose,
 } from "@propian/shared/icons";
 import {
   useSession,
@@ -43,6 +44,9 @@ import type { Post, Comment } from "@propian/shared/types";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { timeAgo } from "@propian/shared/utils";
 import { formatCompact } from "@propian/shared/utils";
+import { parseChartRef, buildChartRef, buildMiniChartUrl, buildFullChartUrl, formatChartLabel } from "@propian/shared/utils";
+import type { ChartInterval } from "@propian/shared/constants";
+import { ChartPickerWeb } from "@/components/feed/ChartPickerWeb";
 
 /* ------------------------------------------------------------------ */
 /*  Mock sidebar data                                                  */
@@ -163,6 +167,8 @@ function PostCard({
   onQuote,
   onComment,
   onShare,
+  onChartExpand,
+  onImageExpand,
   isCommentsOpen,
   isRepostMenuOpen,
   onToggleRepostMenu,
@@ -175,6 +181,8 @@ function PostCard({
   onQuote: (postId: string) => void;
   onComment: (postId: string) => void;
   onShare: (postId: string) => void;
+  onChartExpand?: (url: string) => void;
+  onImageExpand?: (url: string) => void;
   isCommentsOpen: boolean;
   isRepostMenuOpen: boolean;
   onToggleRepostMenu: (postId: string) => void;
@@ -288,7 +296,14 @@ function PostCard({
 
         {/* Quoted post embed */}
         {post.type === "quote" && post.quoted_post && (
-          <div className="pt-quoted-embed pt-quoted-embed--clickable">
+          <div
+            className="pt-quoted-embed pt-quoted-embed--clickable"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              window.location.href = `/post/${post.quoted_post!.id}`;
+            }}
+          >
             <div className="pt-quoted-embed-header">
               <Avatar
                 src={post.quoted_post.author?.avatar_url}
@@ -305,7 +320,40 @@ function PostCard({
                 @{post.quoted_post.author?.username ?? "user"}
               </span>
             </div>
-            <p className="pt-quoted-embed-body">{post.quoted_post.content}</p>
+            {post.quoted_post.content && (
+              <p className="pt-quoted-embed-body">{post.quoted_post.content}</p>
+            )}
+            {/* Quoted post media */}
+            {post.quoted_post.type === "image" && post.quoted_post.media_urls?.[0] && (
+              <div className="pt-quoted-embed-media">
+                <img
+                  src={post.quoted_post.media_urls[0]}
+                  alt="Quoted post image"
+                  loading="lazy"
+                  decoding="async"
+                />
+              </div>
+            )}
+            {post.quoted_post.type === "chart" && post.quoted_post.media_urls?.[0] && (() => {
+              const qRef = parseChartRef(post.quoted_post.media_urls[0]);
+              if (!qRef) return null;
+              return (
+                <div className="pt-quoted-embed-chart">
+                  <iframe
+                    src={buildMiniChartUrl(qRef)}
+                    width="100%"
+                    height="100%"
+                    style={{ border: "none", pointerEvents: "none" }}
+                    loading="lazy"
+                    sandbox="allow-scripts allow-same-origin"
+                  />
+                  <div className="pt-chart-embed-badge">
+                    <IconChart size={12} />
+                    <span>{formatChartLabel(qRef)}</span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -316,16 +364,53 @@ function PostCard({
           </div>
         )}
 
-        {/* Optional chart placeholder */}
+        {/* Image attachment */}
         {post.type === "image" && post.media_urls.length > 0 && (
-          <div className="pt-post-chart">
+          <div
+            className="pt-post-image"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onImageExpand?.(post.media_urls[0]);
+            }}
+          >
             <img
               src={post.media_urls[0]}
-              alt="Trade chart"
-              style={{ width: "100%", borderRadius: 8 }}
+              alt="Trading screenshot"
+              loading="lazy"
+              decoding="async"
             />
           </div>
         )}
+
+        {/* Chart embed (for type='chart') */}
+        {post.type === "chart" && post.media_urls?.[0] && (() => {
+          const chartRef = parseChartRef(post.media_urls[0]);
+          if (!chartRef) return null;
+          return (
+            <div
+              className="pt-chart-embed"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onChartExpand?.(buildFullChartUrl(chartRef));
+              }}
+            >
+              <iframe
+                src={buildMiniChartUrl(chartRef)}
+                width="100%"
+                height="100%"
+                style={{ border: "none", pointerEvents: "none" }}
+                loading="lazy"
+                sandbox="allow-scripts allow-same-origin"
+              />
+              <div className="pt-chart-embed-badge">
+                <IconChart size={12} />
+                <span>{formatChartLabel(chartRef)}</span>
+              </div>
+            </div>
+          );
+        })()}
       </a>
 
       {/* Actions bar */}
@@ -554,6 +639,7 @@ function InlineComments({
               }
             }}
             maxLength={500}
+            dir="auto"
           />
           <Button
             variant="lime"
@@ -628,9 +714,94 @@ export default function FeedPage() {
     defaultValues: { content: "", type: "text", sentiment_tag: null, media_urls: [] },
   });
 
-  const onSubmitPost = handleSubmit((data) => {
-    createPost.mutate(data, { onSuccess: () => reset() });
-  });
+  const onSubmitPost = handleSubmit(
+    async (data) => {
+      const payload = { ...data };
+      if (composerChartRef) {
+        payload.type = "chart";
+        payload.media_urls = [composerChartRef];
+      } else if (composerImageFile) {
+        setIsUploadingImage(true);
+        try {
+          const { uploadPostImage } = await import("@propian/shared/api");
+          const url = await uploadPostImage(supabase, {
+            blob: composerImageFile,
+            type: composerImageFile.type,
+          });
+          payload.type = "image";
+          payload.media_urls = [url];
+        } catch (err) {
+          console.error("[Propian] Image upload error:", err);
+          setIsUploadingImage(false);
+          return;
+        }
+        setIsUploadingImage(false);
+      }
+      createPost.mutate(payload, {
+        onSuccess: () => {
+          reset();
+          setComposerChartRef(null);
+          clearComposerImage();
+        },
+        onError: (err) => {
+          console.error("[Propian] Create post error:", err);
+        },
+      });
+    },
+    (formErrors) => {
+      console.error("[Propian] Form validation errors:", formErrors);
+    },
+  );
+
+  /* Chart picker & composer chart state */
+  const [showChartPicker, setShowChartPicker] = useState(false);
+  const [composerChartRef, setComposerChartRef] = useState<string | null>(null);
+  const [fullscreenChartUrl, setFullscreenChartUrl] = useState<string | null>(null);
+
+  /* Image upload & lightbox state */
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [composerImageFile, setComposerImageFile] = useState<File | null>(null);
+  const [composerImagePreviewUrl, setComposerImagePreviewUrl] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [fullscreenImageUrl, setFullscreenImageUrl] = useState<string | null>(null);
+
+  const handleChartSelect = useCallback(
+    (data: { exchange: string; symbol: string; interval: ChartInterval }) => {
+      const ref = buildChartRef(data.exchange, data.symbol, data.interval);
+      setComposerChartRef(ref);
+      setShowChartPicker(false);
+    },
+    [],
+  );
+
+  const handleImageSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (file.size > 10 * 1024 * 1024) {
+        alert("Image must be under 10MB");
+        return;
+      }
+      setComposerImageFile(file);
+      setComposerImagePreviewUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(file);
+      });
+      // Clear chart — mutually exclusive
+      setComposerChartRef(null);
+      // Reset input so same file can be re-selected
+      e.target.value = "";
+    },
+    [],
+  );
+
+  const clearComposerImage = useCallback(() => {
+    setComposerImageFile(null);
+    setComposerImagePreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+  }, []);
 
   /* Comment, share, repost menu, & quote state */
   const [expandedCommentPostId, setExpandedCommentPostId] = useState<string | null>(null);
@@ -753,6 +924,7 @@ export default function FeedPage() {
                 {...register("content")}
                 placeholder="What's your trade thesis today?"
                 rows={2}
+                dir="auto"
               />
             </div>
 
@@ -762,12 +934,68 @@ export default function FeedPage() {
               </p>
             )}
 
+            {/* Chart preview in composer */}
+            {composerChartRef && (() => {
+              const ref = parseChartRef(composerChartRef);
+              if (!ref) return null;
+              return (
+                <div className="pt-chart-preview">
+                  <div className="pt-chart-preview-badge">
+                    <IconChart size={14} />
+                    <span>{formatChartLabel(ref)}</span>
+                    <button
+                      type="button"
+                      className="pt-chart-preview-remove"
+                      onClick={() => setComposerChartRef(null)}
+                      title="Remove chart"
+                    >
+                      <IconClose size={14} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Image preview in composer */}
+            {composerImagePreviewUrl && (
+              <div className="pt-image-preview">
+                <div className="pt-image-preview-thumb">
+                  <img src={composerImagePreviewUrl} alt="Preview" />
+                  <button
+                    type="button"
+                    className="pt-image-preview-remove"
+                    onClick={clearComposerImage}
+                    title="Remove image"
+                  >
+                    <IconClose size={12} />
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="pt-composer-actions">
               <div className="pt-composer-tools">
-                <button type="button" className="pt-composer-tool" title="Photo">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="pt-file-input"
+                  onChange={handleImageSelect}
+                />
+                <button
+                  type="button"
+                  className={`pt-composer-tool ${composerImageFile ? "active" : ""}`}
+                  title="Photo"
+                  onClick={() => fileInputRef.current?.click()}
+                >
                   <IconPhoto size={20} />
                 </button>
-                <button type="button" className="pt-composer-tool" title="Chart">
+                <button
+                  type="button"
+                  className={`pt-composer-tool ${composerChartRef ? "active" : ""}`}
+                  title="Chart"
+                  onClick={() => setShowChartPicker(true)}
+                >
                   <IconChart size={20} />
                 </button>
                 <button type="button" className="pt-composer-tool" title="Poll">
@@ -778,9 +1006,9 @@ export default function FeedPage() {
                 variant="lime"
                 size="sm"
                 type="submit"
-                disabled={createPost.isPending}
+                disabled={createPost.isPending || isUploadingImage}
               >
-                {createPost.isPending ? "Posting..." : "Post"}
+                {isUploadingImage ? "Uploading..." : createPost.isPending ? "Posting..." : "Post"}
               </Button>
             </div>
           </form>
@@ -819,6 +1047,8 @@ export default function FeedPage() {
                 onQuote={handleQuote}
                 onComment={handleComment}
                 onShare={handleShare}
+                onChartExpand={setFullscreenChartUrl}
+                onImageExpand={setFullscreenImageUrl}
                 isCommentsOpen={expandedCommentPostId === post.id}
                 isRepostMenuOpen={repostMenuPostId === post.id}
                 onToggleRepostMenu={handleToggleRepostMenu}
@@ -895,6 +1125,7 @@ export default function FeedPage() {
                   onChange={(e) => setQuoteContent(e.target.value)}
                   rows={3}
                   autoFocus
+                  dir="auto"
                 />
               </div>
               <div className="pt-quoted-embed" style={{ margin: "0 0 16px 0" }}>
@@ -931,6 +1162,53 @@ export default function FeedPage() {
           </div>
         );
       })()}
+
+      {/* Chart Picker Modal */}
+      <ChartPickerWeb
+        visible={showChartPicker}
+        onClose={() => setShowChartPicker(false)}
+        onSelect={handleChartSelect}
+      />
+
+      {/* Fullscreen Chart Modal */}
+      {fullscreenChartUrl && (
+        <div className="pt-modal-overlay" onClick={() => setFullscreenChartUrl(null)}>
+          <div className="pt-chart-fullscreen" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="pt-chart-fullscreen-close"
+              onClick={() => setFullscreenChartUrl(null)}
+            >
+              <IconClose size={20} />
+            </button>
+            <iframe
+              src={fullscreenChartUrl}
+              width="100%"
+              height="100%"
+              style={{ border: "none", borderRadius: 12 }}
+              sandbox="allow-scripts allow-same-origin"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen Image Lightbox */}
+      {fullscreenImageUrl && (
+        <div className="pt-modal-overlay" onClick={() => setFullscreenImageUrl(null)}>
+          <div className="pt-image-lightbox" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="pt-image-lightbox-close"
+              onClick={() => setFullscreenImageUrl(null)}
+              aria-label="Close image"
+            >
+              <IconClose size={20} />
+            </button>
+            <img
+              src={fullscreenImageUrl}
+              alt="Full size trading screenshot"
+            />
+          </div>
+        </div>
+      )}
     </section>
   );
 }

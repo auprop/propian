@@ -10,12 +10,18 @@ import {
   Platform,
   Animated,
   ScrollView,
+  Image,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
+import * as ImageManipulator from "expo-image-manipulator";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, fontFamily, radii, spacing, shadows } from "@/theme";
 import { triggerHaptic } from "@/hooks/useHaptics";
 import { Avatar } from "@/components/ui";
+import { ChartPicker } from "@/components/feed/ChartPicker";
 import Svg, { Path, Circle } from "react-native-svg";
+import { buildChartRef, formatChartLabel, parseChartRef, isRTLText } from "@propian/shared/utils";
+import type { ChartInterval } from "@propian/shared/constants";
 
 /* ─── Inline Icons ─── */
 function IconX({ size = 22, color = "#000" }: { size?: number; color?: string }) {
@@ -52,6 +58,32 @@ function IconMinus({ size = 18, color = "#a3a3a3" }: { size?: number; color?: st
   );
 }
 
+function IconChart({ size = 20, color = "#a3a3a3" }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M3.5 18.49l6-6.01 4 4L22 6.92l-1.41-1.41-7.09 7.97-4-4L2 16.99z"
+        fill={color}
+      />
+    </Svg>
+  );
+}
+
+function IconPhoto({ size = 20, color = "#a3a3a3" }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <Circle cx={12} cy={13} r={4} stroke={color} strokeWidth={2} />
+    </Svg>
+  );
+}
+
 /* ─── Constants ─── */
 const MAX_CHARS = 2000;
 
@@ -64,14 +96,24 @@ const SENTIMENTS: { value: Sentiment; label: string; color: string; icon: any }[
 ];
 
 /* ─── Props ─── */
+interface ImageAsset {
+  uri: string;
+  base64: string | null;
+  mimeType: string;
+}
+
 interface PostComposerProps {
   visible: boolean;
   onClose: () => void;
   onSubmit: (data: {
     content: string;
     sentiment_tag?: Sentiment;
+    type?: "text" | "chart" | "image";
+    media_urls?: string[];
+    imageAsset?: ImageAsset | null;
   }) => void;
   isPending?: boolean;
+  isUploadingImage?: boolean;
   avatar?: string | null;
   displayName?: string;
 }
@@ -82,6 +124,7 @@ export function PostComposer({
   onClose,
   onSubmit,
   isPending = false,
+  isUploadingImage = false,
   avatar,
   displayName = "",
 }: PostComposerProps) {
@@ -91,6 +134,9 @@ export function PostComposer({
   const [content, setContent] = useState("");
   const [sentiment, setSentiment] = useState<Sentiment>(null);
   const [showSentiments, setShowSentiments] = useState(false);
+  const [chartRef, setChartRef] = useState<{ exchange: string; symbol: string; interval: ChartInterval } | null>(null);
+  const [showChartPicker, setShowChartPicker] = useState(false);
+  const [imageAsset, setImageAsset] = useState<ImageAsset | null>(null);
 
   // Animated progress ring
   const charProgress = content.length / MAX_CHARS;
@@ -104,6 +150,9 @@ export function PostComposer({
       setContent("");
       setSentiment(null);
       setShowSentiments(false);
+      setChartRef(null);
+      setShowChartPicker(false);
+      setImageAsset(null);
       // Small delay to ensure modal is fully rendered
       setTimeout(() => inputRef.current?.focus(), 300);
     }
@@ -111,22 +160,67 @@ export function PostComposer({
 
   const handleSubmit = useCallback(() => {
     const trimmed = content.trim();
-    if (!trimmed || isOverLimit || isPending) return;
+    if ((!trimmed && !chartRef && !imageAsset) || isOverLimit || isPending || isUploadingImage) return;
     triggerHaptic("success");
     onSubmit({
       content: trimmed,
       sentiment_tag: sentiment,
+      ...(chartRef
+        ? {
+            type: "chart" as const,
+            media_urls: [buildChartRef(chartRef.exchange, chartRef.symbol, chartRef.interval)],
+          }
+        : {}),
+      ...(imageAsset
+        ? {
+            type: "image" as const,
+            imageAsset,
+          }
+        : {}),
     });
     setContent("");
     setSentiment(null);
-  }, [content, sentiment, isOverLimit, isPending, onSubmit]);
+    setChartRef(null);
+    setImageAsset(null);
+  }, [content, sentiment, chartRef, imageAsset, isOverLimit, isPending, isUploadingImage, onSubmit]);
 
   const toggleSentiment = useCallback((s: Sentiment) => {
     triggerHaptic("light");
     setSentiment((prev) => (prev === s ? null : s));
   }, []);
 
-  const canPost = content.trim().length > 0 && !isOverLimit && !isPending;
+  const handlePickImage = useCallback(async () => {
+    triggerHaptic("light");
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") return;
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: false,
+      quality: 0.9,
+      base64: false,
+    });
+
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+
+    // Compress: max 1920px wide, 85% JPEG quality
+    const compressed = await ImageManipulator.manipulateAsync(
+      asset.uri,
+      [{ resize: { width: Math.min(asset.width, 1920) } }],
+      { compress: 0.85, format: ImageManipulator.SaveFormat.JPEG, base64: true },
+    );
+
+    setImageAsset({
+      uri: compressed.uri,
+      base64: compressed.base64 ?? null,
+      mimeType: "image/jpeg",
+    });
+    // Clear chart — mutually exclusive
+    setChartRef(null);
+  }, []);
+
+  const canPost = (content.trim().length > 0 || !!chartRef || !!imageAsset) && !isOverLimit && !isPending && !isUploadingImage;
 
   return (
     <Modal
@@ -168,7 +262,7 @@ export function PostComposer({
                   canPost && styles.postBtnTextActive,
                 ]}
               >
-                {isPending ? "Posting..." : "Post"}
+                {isUploadingImage ? "Uploading..." : isPending ? "Posting..." : "Post"}
               </Text>
             </Pressable>
           </View>
@@ -196,7 +290,7 @@ export function PostComposer({
               <View style={styles.inputCol}>
                 <TextInput
                   ref={inputRef}
-                  style={styles.textInput}
+                  style={[styles.textInput, isRTLText(content) && { textAlign: "right" }]}
                   placeholder="What's on your mind, trader?"
                   placeholderTextColor={colors.g400}
                   multiline
@@ -206,6 +300,58 @@ export function PostComposer({
                   textAlignVertical="top"
                   scrollEnabled={false}
                 />
+
+                {/* Chart preview (if attached) */}
+                {chartRef && (
+                  <View style={styles.chartPreview}>
+                    <View style={styles.chartPreviewBadge}>
+                      <View style={styles.chartPreviewIcon}>
+                        <IconChart size={14} color={colors.white} />
+                      </View>
+                      <View style={styles.chartPreviewInfo}>
+                        <Text style={styles.chartPreviewSymbol}>
+                          {chartRef.symbol}
+                        </Text>
+                        <Text style={styles.chartPreviewInterval}>
+                          {formatChartLabel(parseChartRef(buildChartRef(chartRef.exchange, chartRef.symbol, chartRef.interval))!)}
+                        </Text>
+                      </View>
+                      <Pressable
+                        onPress={() => {
+                          triggerHaptic("light");
+                          setChartRef(null);
+                        }}
+                        hitSlop={8}
+                        style={styles.chartPreviewRemove}
+                      >
+                        <IconX size={12} color={colors.g400} />
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
+
+                {/* Image preview (if attached) */}
+                {imageAsset && (
+                  <View style={styles.imagePreview}>
+                    <View style={styles.imagePreviewThumb}>
+                      <Image
+                        source={{ uri: imageAsset.uri }}
+                        style={styles.imagePreviewImg}
+                        resizeMode="cover"
+                      />
+                      <Pressable
+                        onPress={() => {
+                          triggerHaptic("light");
+                          setImageAsset(null);
+                        }}
+                        hitSlop={8}
+                        style={styles.imagePreviewRemove}
+                      >
+                        <IconX size={12} color={colors.white} />
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
 
                 {/* Sentiment tag (if selected) */}
                 {sentiment && (
@@ -261,6 +407,37 @@ export function PostComposer({
                 <IconTrendUp
                   size={20}
                   color={showSentiments ? colors.lime : colors.g400}
+                />
+              </Pressable>
+
+              {/* Image picker toggle */}
+              <Pressable
+                style={[
+                  styles.toolbarBtn,
+                  !!imageAsset && styles.toolbarBtnActive,
+                ]}
+                onPress={handlePickImage}
+              >
+                <IconPhoto
+                  size={20}
+                  color={imageAsset ? colors.lime : colors.g400}
+                />
+              </Pressable>
+
+              {/* Chart picker toggle */}
+              <Pressable
+                style={[
+                  styles.toolbarBtn,
+                  !!chartRef && styles.toolbarBtnActive,
+                ]}
+                onPress={() => {
+                  triggerHaptic("light");
+                  setShowChartPicker(true);
+                }}
+              >
+                <IconChart
+                  size={20}
+                  color={chartRef ? colors.lime : colors.g400}
                 />
               </Pressable>
             </View>
@@ -360,6 +537,16 @@ export function PostComposer({
           )}
         </View>
       </KeyboardAvoidingView>
+
+      {/* ── Chart Picker Modal ── */}
+      <ChartPicker
+        visible={showChartPicker}
+        onClose={() => setShowChartPicker(false)}
+        onSelect={(data) => {
+          setChartRef(data);
+          setShowChartPicker(false);
+        }}
+      />
     </Modal>
   );
 }
@@ -446,6 +633,78 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     minHeight: 120,
     padding: 0,
+  },
+  chartPreview: {
+    marginTop: 14,
+    marginBottom: 4,
+  },
+  chartPreviewBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    backgroundColor: colors.g900,
+    borderRadius: radii.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  chartPreviewIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "rgba(168, 255, 57, 0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  chartPreviewInfo: {
+    flex: 1,
+    gap: 1,
+  },
+  chartPreviewSymbol: {
+    fontFamily: "JetBrainsMono_500Medium",
+    fontSize: 14,
+    color: colors.white,
+    letterSpacing: 0.5,
+  },
+  chartPreviewInterval: {
+    fontFamily: "Outfit_400Regular",
+    fontSize: 12,
+    color: colors.g400,
+  },
+  chartPreviewRemove: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imagePreview: {
+    marginTop: 14,
+    marginBottom: 4,
+  },
+  imagePreviewThumb: {
+    position: "relative",
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 2,
+    borderColor: colors.black,
+    alignSelf: "flex-start",
+    maxWidth: "100%",
+  },
+  imagePreviewImg: {
+    width: 200,
+    height: 150,
+  },
+  imagePreviewRemove: {
+    position: "absolute",
+    top: 6,
+    right: 6,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   selectedSentiment: {
     flexDirection: "row",

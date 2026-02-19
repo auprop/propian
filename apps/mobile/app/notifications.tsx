@@ -3,11 +3,12 @@ import {
   View,
   Text,
   FlatList,
+  ScrollView,
   Pressable,
   StyleSheet,
-  SafeAreaView,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors, fontFamily, radii, spacing } from "@/theme";
 import { supabase } from "@/lib/supabase";
 import {
@@ -56,6 +57,7 @@ function getNotificationIcon(type: NotificationType) {
 
 export default function NotificationsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [filterType, setFilterType] = useState<FilterType>("all");
   const { data: notifications, isLoading, unreadCount } = useNotifications(supabase);
   const markRead = useMarkRead(supabase);
@@ -103,7 +105,7 @@ export default function NotificationsScreen() {
 
   if (isLoading) {
     return (
-      <SafeAreaView style={styles.safe}>
+      <View style={[styles.safe, { paddingTop: insets.top }]}>
         <View style={styles.loadingContainer}>
           {[1, 2, 3, 4, 5].map((i) => (
             <View key={i} style={styles.skeletonRow}>
@@ -116,12 +118,12 @@ export default function NotificationsScreen() {
             </View>
           ))}
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <View style={[styles.safe, { paddingTop: insets.top }]}>
       <FlatList
         data={filteredNotifications}
         keyExtractor={(item) => item.id}
@@ -135,19 +137,31 @@ export default function NotificationsScreen() {
                 <IconArrow size={20} color={colors.black} />
               </Pressable>
               <Text style={styles.headerTitle}>Notifications</Text>
-              {unreadCount > 0 && (
-                <Pressable
-                  style={styles.markAllButton}
-                  onPress={() => markAllRead.mutate()}
-                  disabled={markAllRead.isPending}
+              <Pressable
+                style={[
+                  styles.markAllButton,
+                  (unreadCount === 0 || markAllRead.isPending) && styles.markAllButtonDisabled,
+                ]}
+                onPress={() => markAllRead.mutate()}
+                disabled={markAllRead.isPending || unreadCount === 0}
+              >
+                <Text
+                  style={[
+                    styles.markAllText,
+                    (unreadCount === 0 || markAllRead.isPending) && styles.markAllTextDisabled,
+                  ]}
                 >
-                  <Text style={styles.markAllText}>Mark All Read</Text>
-                </Pressable>
-              )}
+                  Mark All Read
+                </Text>
+              </Pressable>
             </View>
 
             {/* Filter Chips */}
-            <View style={styles.chipRow}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipRow}
+            >
               {FILTERS.map((f) => (
                 <FilterChip
                   key={f.key}
@@ -156,7 +170,7 @@ export default function NotificationsScreen() {
                   onPress={() => setFilterType(f.key)}
                 />
               ))}
-            </View>
+            </ScrollView>
           </>
         }
         ListEmptyComponent={
@@ -167,7 +181,7 @@ export default function NotificationsScreen() {
           />
         }
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -204,6 +218,14 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_600SemiBold",
     fontSize: 12,
     color: colors.black,
+  },
+  markAllButtonDisabled: {
+    backgroundColor: colors.g100,
+    borderColor: colors.g200,
+    opacity: 0.6,
+  },
+  markAllTextDisabled: {
+    color: colors.g400,
   },
   chipRow: {
     flexDirection: "row",

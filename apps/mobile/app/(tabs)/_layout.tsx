@@ -1,20 +1,18 @@
 import { useEffect } from "react";
 import { Tabs } from "expo-router";
-import { View, Text, StyleSheet, Platform } from "react-native";
+import { View, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQueryClient } from "@tanstack/react-query";
 import { colors } from "@/theme";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/providers/AuthProvider";
 import { IconHome } from "@/components/icons/IconHome";
-import { IconChart } from "@/components/icons/IconChart";
-import { IconTrophy } from "@/components/icons/IconTrophy";
+import { IconSchool } from "@/components/icons/IconSchool";
+import { IconNotes } from "@/components/icons/IconNotes";
 import { IconChat } from "@/components/icons/IconChat";
 import { IconMenu } from "@/components/icons/IconMenu";
 import { triggerHaptic } from "@/hooks/useHaptics";
 import {
-  getFirms,
-  getRankings,
   getRooms,
   getProfileById,
   getFeedPosts,
@@ -37,14 +35,6 @@ export default function TabLayout() {
       queryKey: ["feed"],
       queryFn: ({ pageParam }) => getFeedPosts(supabase, pageParam),
       initialPageParam: undefined as string | undefined,
-    });
-    queryClient.prefetchQuery({
-      queryKey: ["firms", undefined],
-      queryFn: () => getFirms(supabase),
-    });
-    queryClient.prefetchQuery({
-      queryKey: ["leaderboard", "weekly"],
-      queryFn: () => getRankings(supabase, "weekly"),
     });
     queryClient.prefetchQuery({
       queryKey: ["chat-rooms"],
@@ -89,28 +79,37 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="firms"
+        name="academy"
         options={{
-          title: "Firms",
+          title: "Academy",
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.iconWrap}>
               {focused && <View style={styles.activeIndicator} />}
-              <IconChart size={22} color={color} />
+              <IconSchool size={22} color={color} />
             </View>
           ),
         }}
       />
       <Tabs.Screen
-        name="leaderboard"
+        name="journal"
         options={{
-          title: "Rank",
+          title: "Journal",
           tabBarIcon: ({ color, focused }) => (
             <View style={styles.iconWrap}>
               {focused && <View style={styles.activeIndicator} />}
-              <IconTrophy size={22} color={color} />
+              <IconNotes size={22} color={color} />
             </View>
           ),
         }}
+      />
+      {/* Hidden tabs — files exist in (tabs)/ but are accessed from the More menu */}
+      <Tabs.Screen
+        name="firms"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="leaderboard"
+        options={{ href: null }}
       />
       <Tabs.Screen
         name="chat"

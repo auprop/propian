@@ -5,9 +5,16 @@ export const createPostSchema = z.object({
     .string()
     .max(2000, "Post must be under 2000 characters")
     .default(""),
-  type: z.enum(["text", "image", "poll", "quote", "repost"]).default("text"),
+  type: z.enum(["text", "image", "poll", "quote", "repost", "chart"]).default("text"),
   sentiment_tag: z.enum(["bullish", "bearish", "neutral"]).nullable().default(null),
-  media_urls: z.array(z.string().url()).default([]),
+  media_urls: z
+    .array(
+      z.string().refine(
+        (val) => val.startsWith("tv://") || z.string().url().safeParse(val).success,
+        { message: "Must be a valid URL or tv:// chart reference" },
+      ),
+    )
+    .default([]),
   quoted_post_id: z.string().uuid().nullable().optional(),
 });
 

@@ -28,7 +28,7 @@ import {
   Skeleton,
   ErrorState,
 } from "@/components/ui";
-import { IconVerified } from "@/components/icons/IconVerified";
+import { IconVerifiedFirm } from "@/components/icons/IconVerifiedFirm";
 import { IconStar } from "@/components/icons/IconStar";
 import { IconThumbUp } from "@/components/icons/IconThumbUp";
 import { IconArrow } from "@/components/icons/IconArrow";
@@ -96,7 +96,7 @@ export default function FirmDetailScreen() {
           <Avatar src={firm.logo_url} name={firm.name} size="xl" />
           <View style={styles.heroNameRow}>
             <Text style={styles.heroName}>{firm.name}</Text>
-            {firm.is_active && <IconVerified size={18} color={colors.lime} />}
+            {firm.is_active && <IconVerifiedFirm size={18} />}
           </View>
           <RatingStars rating={firm.rating_avg} size={18} />
           <Text style={styles.heroReviews}>

@@ -1,5 +1,7 @@
-import { View, Text, Pressable, StyleSheet } from "react-native";
+import { useState, useEffect } from "react";
+import { View, Text, Pressable, Image, StyleSheet, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
+import { WebView } from "react-native-webview";
 import { colors } from "@/theme";
 import { triggerHaptic } from "@/hooks/useHaptics";
 import { Avatar, Badge, Card } from "@/components/ui";
@@ -13,7 +15,110 @@ import { IconEye } from "@/components/icons/IconEye";
 import { IconVerified } from "@/components/icons/IconVerified";
 import { formatCompact } from "@propian/shared/utils";
 import { timeAgo } from "@propian/shared/utils";
+import { parseChartRef, buildMiniChartUrl, formatChartLabel } from "@propian/shared/utils";
+import { isRTLText } from "@propian/shared/utils";
+import Svg, { Path } from "react-native-svg";
 import type { Post } from "@propian/shared/types";
+
+/* ─── Inline chart icon ─── */
+function IconChartLine({ size = 16, color = "#fff" }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path
+        d="M3 12l4-4 4 4 4-8 6 6"
+        stroke={color}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+/* ─── Chart Embed (mini chart thumbnail) ─── */
+function ChartEmbed({ post }: { post: Post }) {
+  const router = useRouter();
+  const chartUrl = post.media_urls?.[0];
+  if (!chartUrl) return null;
+
+  const ref = parseChartRef(chartUrl);
+  if (!ref) return null;
+
+  const label = formatChartLabel(ref);
+  const miniUrl = buildMiniChartUrl(ref);
+
+  return (
+    <Pressable
+      style={styles.chartEmbed}
+      onPress={() => {
+        triggerHaptic("medium");
+        router.push({
+          pathname: "/chart/[symbol]" as any,
+          params: { symbol: encodeURIComponent(chartUrl) },
+        });
+      }}
+    >
+      <WebView
+        source={{ uri: miniUrl }}
+        style={styles.chartWebView}
+        javaScriptEnabled
+        domStorageEnabled
+        scrollEnabled={false}
+        pointerEvents="none"
+      />
+      {/* Badge overlay */}
+      <View style={styles.chartBadge}>
+        <IconChartLine size={12} color={colors.white} />
+        <Text style={styles.chartBadgeText}>{label}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
+/* ─── Image Embed (X-style dynamic aspect ratio) ─── */
+const IMG_MIN_H = 160;
+const IMG_MAX_H = 580;
+const IMG_FALLBACK_H = 280;
+
+function ImageEmbed({ post, onPress }: { post: Post; onPress: (url: string) => void }) {
+  const imageUrl = post.media_urls?.[0];
+  const { width: screenWidth } = useWindowDimensions();
+  const [imgHeight, setImgHeight] = useState(IMG_FALLBACK_H);
+
+  // Card has 16px outer padding + 16px inner padding on each side = 64px total
+  const containerWidth = screenWidth - 64;
+
+  useEffect(() => {
+    if (!imageUrl) return;
+    Image.getSize(
+      imageUrl,
+      (w, h) => {
+        const ratio = w / h;
+        const natural = containerWidth / ratio;
+        setImgHeight(Math.round(Math.min(Math.max(natural, IMG_MIN_H), IMG_MAX_H)));
+      },
+      () => setImgHeight(IMG_FALLBACK_H),
+    );
+  }, [imageUrl, containerWidth]);
+
+  if (!imageUrl) return null;
+
+  return (
+    <Pressable
+      style={[styles.imageEmbed, { height: imgHeight }]}
+      onPress={() => {
+        triggerHaptic("light");
+        onPress(imageUrl);
+      }}
+    >
+      <Image
+        source={{ uri: imageUrl }}
+        style={styles.imageEmbedImg}
+        resizeMode="cover"
+      />
+    </Pressable>
+  );
+}
 
 interface PostCardProps {
   post: Post;
@@ -22,9 +127,10 @@ interface PostCardProps {
   onRepost?: (postId: string) => void;
   onComment?: (postId: string) => void;
   onShare?: (postId: string) => void;
+  onImageExpand?: (url: string) => void;
 }
 
-export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShare }: PostCardProps) {
+export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShare, onImageExpand }: PostCardProps) {
   const router = useRouter();
 
   const navigateToPost = (postId: string) => {
@@ -97,7 +203,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
           )}
 
           {/* Original content */}
-          <Text style={styles.content}>{original.content}</Text>
+          <Text style={[styles.content, isRTLText(original.content) && { textAlign: "right" }]}>{original.content}</Text>
         </Pressable>
 
         {/* Action Bar — actions target the original post */}
@@ -186,8 +292,16 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
 
         {/* Content */}
         {post.content ? (
-          <Text style={styles.content}>{post.content}</Text>
+          <Text style={[styles.content, isRTLText(post.content) && { textAlign: "right" }]}>{post.content}</Text>
         ) : null}
+
+        {/* Chart embed (for type='chart') */}
+        {post.type === "chart" && <ChartEmbed post={post} />}
+
+        {/* Image embed (for type='image') */}
+        {post.type === "image" && post.media_urls?.length > 0 && (
+          <ImageEmbed post={post} onPress={onImageExpand ?? (() => {})} />
+        )}
 
         {/* Quoted post embed (for type='quote') */}
         {post.type === "quote" && post.quoted_post && (
@@ -215,9 +329,43 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
                 </Text>
               </View>
             </View>
-            <Text style={styles.quotedEmbedContent} numberOfLines={3}>
-              {post.quoted_post.content}
-            </Text>
+            {post.quoted_post.content ? (
+              <Text style={[styles.quotedEmbedContent, isRTLText(post.quoted_post.content) && { textAlign: "right" }]} numberOfLines={3}>
+                {post.quoted_post.content}
+              </Text>
+            ) : null}
+            {/* Quoted post media (image or chart) */}
+            {post.quoted_post.type === "image" && post.quoted_post.media_urls?.[0] && (
+              <View style={styles.quotedEmbedMedia}>
+                <Image
+                  source={{ uri: post.quoted_post.media_urls[0] }}
+                  style={styles.quotedEmbedMediaImg}
+                  resizeMode="cover"
+                />
+              </View>
+            )}
+            {post.quoted_post.type === "chart" && post.quoted_post.media_urls?.[0] && (() => {
+              const qRef = parseChartRef(post.quoted_post.media_urls[0]);
+              if (!qRef) return null;
+              const qLabel = formatChartLabel(qRef);
+              const qMiniUrl = buildMiniChartUrl(qRef);
+              return (
+                <View style={styles.quotedEmbedMedia}>
+                  <WebView
+                    source={{ uri: qMiniUrl }}
+                    style={styles.quotedEmbedChartWebView}
+                    javaScriptEnabled
+                    domStorageEnabled
+                    scrollEnabled={false}
+                    pointerEvents="none"
+                  />
+                  <View style={styles.quotedEmbedChartBadge}>
+                    <IconChartLine size={10} color={colors.white} />
+                    <Text style={styles.quotedEmbedChartBadgeText}>{qLabel}</Text>
+                  </View>
+                </View>
+              );
+            })()}
           </Pressable>
         )}
 
@@ -477,6 +625,37 @@ const styles = StyleSheet.create({
     color: colors.g600,
     lineHeight: 20,
   },
+  quotedEmbedMedia: {
+    marginTop: 8,
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: colors.g100,
+    height: 180,
+  },
+  quotedEmbedMediaImg: {
+    width: "100%",
+    height: "100%",
+  },
+  quotedEmbedChartWebView: {
+    flex: 1,
+  },
+  quotedEmbedChartBadge: {
+    position: "absolute",
+    bottom: 6,
+    left: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  quotedEmbedChartBadgeText: {
+    fontFamily: "JetBrainsMono_600SemiBold",
+    fontSize: 10,
+    color: colors.white,
+  },
   quotedEmbedDeleted: {
     borderWidth: 1,
     borderColor: colors.g200,
@@ -490,5 +669,49 @@ const styles = StyleSheet.create({
     fontFamily: "Outfit_400Regular",
     fontSize: 13,
     color: colors.g400,
+  },
+
+  /* Image embed (height set dynamically via style prop) */
+  imageEmbed: {
+    marginBottom: 14,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: colors.g100,
+  },
+  imageEmbedImg: {
+    width: "100%",
+    height: "100%",
+  },
+
+  /* Chart embed */
+  chartEmbed: {
+    height: 180,
+    marginBottom: 14,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: colors.g100,
+    position: "relative",
+  },
+  chartWebView: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
+  chartBadge: {
+    position: "absolute",
+    bottom: 10,
+    left: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  chartBadgeText: {
+    fontFamily: "JetBrainsMono_500Medium",
+    fontSize: 11,
+    color: colors.white,
+    letterSpacing: 0.3,
   },
 });

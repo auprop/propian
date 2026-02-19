@@ -1,6 +1,6 @@
 import { UserPreview } from "./user";
 
-export type PostType = "text" | "image" | "poll" | "quote" | "repost";
+export type PostType = "text" | "image" | "poll" | "quote" | "repost" | "chart";
 export type SentimentTag = "bullish" | "bearish" | "neutral";
 
 export interface Post {

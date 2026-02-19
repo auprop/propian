@@ -24,6 +24,7 @@ import { IconNotes } from "@/components/icons/IconNotes";
 import { IconChallenges } from "@/components/icons/IconChallenges";
 import { IconSuitcase } from "@/components/icons/IconSuitcase";
 import { IconChart } from "@/components/icons/IconChart";
+import { IconTrophy } from "@/components/icons/IconTrophy";
 import { IconStarred } from "@/components/icons/IconStarred";
 import { IconInLove } from "@/components/icons/IconInLove";
 import { IconRadioAntenna } from "@/components/icons/IconRadioAntenna";
@@ -57,13 +58,13 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     label: "Firms",
     items: [
+      { label: "Firms", icon: IconChart, route: "/(tabs)/firms" },
       { label: "Compare", icon: IconCompare, route: "/compare" },
     ],
   },
   {
     label: "Trading",
     items: [
-      { label: "Journal", icon: IconNotes, route: "/journal" },
       { label: "Challenges", icon: IconChallenges, route: "/challenges" },
       { label: "Portfolio", icon: IconSuitcase, route: "/portfolio" },
       { label: "Analytics", icon: IconChart, route: "/analytics" },
@@ -78,9 +79,9 @@ const MENU_GROUPS: MenuGroup[] = [
     ],
   },
   {
-    label: "Learn",
+    label: "Compete",
     items: [
-      { label: "Academy", icon: IconShield, route: "/academy" },
+      { label: "Leaderboard", icon: IconTrophy, route: "/(tabs)/leaderboard" },
     ],
   },
   {

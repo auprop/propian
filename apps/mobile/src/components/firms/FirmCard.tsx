@@ -2,7 +2,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { colors, fontFamily, radii, spacing, shadows } from "@/theme";
 import { Avatar, Card, RatingStars, Badge } from "@/components/ui";
-import { IconVerified } from "@/components/icons/IconVerified";
+import { IconVerifiedFirm } from "@/components/icons/IconVerifiedFirm";
 import type { Firm } from "@propian/shared/types";
 
 interface FirmCardProps {
@@ -27,7 +27,7 @@ export function FirmCard({ firm }: FirmCardProps) {
             {firm.name}
           </Text>
           {firm.is_active && (
-            <IconVerified size={14} color={colors.lime} />
+            <IconVerifiedFirm size={14} />
           )}
         </View>
       </View>

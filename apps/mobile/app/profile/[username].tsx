@@ -33,7 +33,7 @@ import { IconVerified } from "@/components/icons/IconVerified";
 import { IconArrow } from "@/components/icons/IconArrow";
 import { IconSettings } from "@/components/icons/IconSettings";
 import { IconUser } from "@/components/icons/IconUser";
-import { formatCompact } from "@propian/shared/utils";
+import { formatCompact, isRTLText } from "@propian/shared/utils";
 import type { Post } from "@propian/shared/types";
 import { PostCard } from "@/components/feed/PostCard";
 import { useLikePost, useBookmark, useRepost } from "@propian/shared/hooks";
@@ -143,7 +143,7 @@ export default function ProfileScreen() {
           <Text style={styles.handle}>@{profile.username}</Text>
 
           {profile.bio && (
-            <Text style={styles.bio}>{profile.bio}</Text>
+            <Text style={[styles.bio, isRTLText(profile.bio) && { textAlign: "right" }]}>{profile.bio}</Text>
           )}
 
           {/* Stats */}

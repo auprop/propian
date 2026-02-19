@@ -50,4 +50,5 @@ export { IconTrendUp } from "./TrendUp";
 export { IconTrophy } from "./Trophy";
 export { IconUser } from "./User";
 export { IconVerified } from "./Verified";
+export { IconVerifiedFirm } from "./VerifiedFirm";
 export { IconVideo } from "./Video";

@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,9 @@ import {
   Share,
   TextInput,
   ActivityIndicator,
+  Image,
+  Modal,
+  useWindowDimensions,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -37,7 +40,11 @@ import { IconShare } from "@/components/icons/IconShare";
 import { IconBookmark } from "@/components/icons/IconBookmark";
 import { IconVerified } from "@/components/icons/IconVerified";
 import { IconSend } from "@/components/icons/IconSend";
+import { IconClose } from "@/components/icons/IconClose";
 import { formatCompact, timeAgo } from "@propian/shared/utils";
+import { parseChartRef, buildMiniChartUrl, formatChartLabel } from "@propian/shared/utils";
+import { isRTLText } from "@propian/shared/utils";
+import { WebView } from "react-native-webview";
 import Svg, { Path } from "react-native-svg";
 import type { Comment } from "@propian/shared/types";
 
@@ -77,6 +84,39 @@ function IconReply({ size = 16, color = "#a3a3a3" }: { size?: number; color?: st
   );
 }
 
+/* ─── Detail Image Embed (dynamic aspect ratio, higher cap) ─── */
+const DETAIL_IMG_MIN_H = 200;
+const DETAIL_IMG_MAX_H = 520;
+const DETAIL_IMG_FALLBACK_H = 320;
+
+function DetailImageEmbed({ url, onPress }: { url: string; onPress: () => void }) {
+  const { width: screenWidth } = useWindowDimensions();
+  const [imgHeight, setImgHeight] = useState(DETAIL_IMG_FALLBACK_H);
+  const containerWidth = screenWidth - 32; // 16px margin on each side
+
+  useEffect(() => {
+    Image.getSize(
+      url,
+      (w, h) => {
+        const ratio = w / h;
+        const natural = containerWidth / ratio;
+        setImgHeight(Math.round(Math.min(Math.max(natural, DETAIL_IMG_MIN_H), DETAIL_IMG_MAX_H)));
+      },
+      () => setImgHeight(DETAIL_IMG_FALLBACK_H),
+    );
+  }, [url, containerWidth]);
+
+  return (
+    <Pressable style={[styles.imageEmbedDetail, { height: imgHeight }]} onPress={onPress}>
+      <Image
+        source={{ uri: url }}
+        style={styles.imageEmbedDetailImg}
+        resizeMode="cover"
+      />
+    </Pressable>
+  );
+}
+
 export default function PostDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
@@ -100,6 +140,8 @@ export default function PostDetailScreen() {
 
   const [commentText, setCommentText] = useState("");
   const [replyTo, setReplyTo] = useState<{ id: string; authorName: string } | null>(null);
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
+  const [imageLightboxUrl, setImageLightboxUrl] = useState<string | null>(null);
 
   const comments: Comment[] = useMemo(
     () =>
@@ -200,129 +242,171 @@ export default function PostDetailScreen() {
     } catch (_) {}
   }, [post]);
 
-  /* ─── Comment row with actions + threaded replies ─── */
-  const renderCommentRow = (comment: Comment, isReply = false) => (
-    <View key={comment.id}>
-      <View style={[styles.commentCard, isReply && styles.replyCard]}>
-        {/* Thread line for replies */}
-        {isReply && <View style={styles.threadLine} />}
+  /* ─── Flatten all nested replies into a single-level list ─── */
+  const flattenReplies = (replies: Comment[]): Comment[] => {
+    const flat: Comment[] = [];
+    for (const reply of replies) {
+      flat.push(reply);
+      if (reply.replies && reply.replies.length > 0) {
+        flat.push(...flattenReplies(reply.replies));
+      }
+    }
+    return flat;
+  };
 
-        <Pressable
-          onPress={() => {
-            if (comment.author?.username) {
-              router.push({
-                pathname: "/profile/[username]",
-                params: { username: comment.author.username },
-              });
-            }
-          }}
-        >
-          <Avatar
-            src={comment.author?.avatar_url}
-            name={comment.author?.display_name || "User"}
-            size={isReply ? "sm" : "sm"}
-          />
-        </Pressable>
+  /* ─── Render a single comment (no recursion) ─── */
+  const renderSingleComment = (comment: Comment, isReply = false) => (
+    <View key={comment.id} style={[styles.commentCard, isReply && styles.replyCard]}>
+      {/* Thread line for replies */}
+      {isReply && <View style={styles.threadLine} />}
 
-        <View style={styles.commentBody}>
-          {/* Author + time */}
-          <View style={styles.commentMeta}>
-            <Text style={styles.commentAuthor} numberOfLines={1}>
-              {comment.author?.display_name || "Unknown"}
-            </Text>
-            {comment.author?.is_verified && (
-              <IconVerified size={12} color={colors.lime} />
+      <Pressable
+        onPress={() => {
+          if (comment.author?.username) {
+            router.push({
+              pathname: "/profile/[username]",
+              params: { username: comment.author.username },
+            });
+          }
+        }}
+      >
+        <Avatar
+          src={comment.author?.avatar_url}
+          name={comment.author?.display_name || "User"}
+          size="sm"
+        />
+      </Pressable>
+
+      <View style={styles.commentBody}>
+        {/* Author + time */}
+        <View style={styles.commentMeta}>
+          <Text style={styles.commentAuthor} numberOfLines={1}>
+            {comment.author?.display_name || "Unknown"}
+          </Text>
+          {comment.author?.is_verified && (
+            <IconVerified size={12} color={colors.lime} />
+          )}
+          <Text style={styles.commentDot}>·</Text>
+          <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
+        </View>
+
+        {/* Content */}
+        <Text style={[styles.commentText, isRTLText(comment.content) && { textAlign: "right" }]}>{comment.content}</Text>
+
+        {/* Action bar */}
+        <View style={styles.commentActions}>
+          {/* Reply */}
+          <Pressable
+            style={styles.commentAction}
+            onPress={() => handleReply(comment)}
+            hitSlop={8}
+          >
+            <IconReply size={15} color={colors.g400} />
+            {(comment.reply_count ?? 0) > 0 && (
+              <Text style={styles.commentActionCount}>
+                {formatCompact(comment.reply_count ?? 0)}
+              </Text>
             )}
-            <Text style={styles.commentDot}>·</Text>
-            <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
-          </View>
+          </Pressable>
 
-          {/* Content */}
-          <Text style={styles.commentText}>{comment.content}</Text>
+          {/* Like */}
+          <Pressable
+            style={styles.commentAction}
+            onPress={() => handleCommentLike(comment)}
+            hitSlop={8}
+          >
+            {comment.is_liked ? (
+              <IconHeart size={15} color={colors.red} />
+            ) : (
+              <IconHeartOutline size={15} color={colors.g400} />
+            )}
+            {comment.like_count > 0 && (
+              <Text
+                style={[
+                  styles.commentActionCount,
+                  comment.is_liked && { color: colors.red },
+                ]}
+              >
+                {formatCompact(comment.like_count)}
+              </Text>
+            )}
+          </Pressable>
 
-          {/* Action bar */}
-          <View style={styles.commentActions}>
-            {/* Reply */}
-            <Pressable
-              style={styles.commentAction}
-              onPress={() => handleReply(comment)}
-              hitSlop={8}
-            >
-              <IconReply size={15} color={colors.g400} />
-              {(comment.reply_count ?? 0) > 0 && (
-                <Text style={styles.commentActionCount}>
-                  {formatCompact(comment.reply_count ?? 0)}
-                </Text>
-              )}
-            </Pressable>
+          {/* Bookmark */}
+          <Pressable
+            style={styles.commentAction}
+            onPress={() => handleCommentBookmark(comment)}
+            hitSlop={8}
+          >
+            <IconBookmark
+              size={15}
+              color={comment.is_bookmarked ? colors.lime : colors.g400}
+            />
+          </Pressable>
 
-            {/* Like */}
-            <Pressable
-              style={styles.commentAction}
-              onPress={() => handleCommentLike(comment)}
-              hitSlop={8}
-            >
-              {comment.is_liked ? (
-                <IconHeart size={15} color={colors.red} />
-              ) : (
-                <IconHeartOutline size={15} color={colors.g400} />
-              )}
-              {comment.like_count > 0 && (
-                <Text
-                  style={[
-                    styles.commentActionCount,
-                    comment.is_liked && { color: colors.red },
-                  ]}
-                >
-                  {formatCompact(comment.like_count)}
-                </Text>
-              )}
-            </Pressable>
-
-            {/* Bookmark */}
-            <Pressable
-              style={styles.commentAction}
-              onPress={() => handleCommentBookmark(comment)}
-              hitSlop={8}
-            >
-              <IconBookmark
-                size={15}
-                color={comment.is_bookmarked ? colors.lime : colors.g400}
-              />
-            </Pressable>
-
-            {/* Share */}
-            <Pressable
-              style={styles.commentAction}
-              onPress={() => handleCommentShare(comment)}
-              hitSlop={8}
-            >
-              <IconShare size={15} color={colors.g400} />
-            </Pressable>
-          </View>
+          {/* Share */}
+          <Pressable
+            style={styles.commentAction}
+            onPress={() => handleCommentShare(comment)}
+            hitSlop={8}
+          >
+            <IconShare size={15} color={colors.g400} />
+          </Pressable>
         </View>
       </View>
-
-      {/* Threaded replies */}
-      {comment.replies && comment.replies.length > 0 && (
-        <View style={styles.repliesContainer}>
-          {comment.replies.map((reply) => renderCommentRow(reply, true))}
-        </View>
-      )}
     </View>
   );
+
+  /* ─── Render top-level comment + flat replies with "View more" ─── */
+  const renderCommentWithReplies = (comment: Comment) => {
+    const allReplies = comment.replies ? flattenReplies(comment.replies) : [];
+    const isExpanded = expandedThreads.has(comment.id);
+    const visibleReplies = isExpanded ? allReplies : allReplies.slice(0, 1);
+    const hiddenCount = allReplies.length - 1;
+
+    return (
+      <View key={comment.id}>
+        {renderSingleComment(comment, false)}
+
+        {allReplies.length > 0 && (
+          <View style={styles.repliesContainer}>
+            {visibleReplies.map((reply) => renderSingleComment(reply, true))}
+
+            {/* View more / Show less toggle */}
+            {hiddenCount > 0 && (
+              <Pressable
+                style={styles.viewMoreBtn}
+                onPress={() => {
+                  triggerHaptic("light");
+                  setExpandedThreads((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(comment.id)) {
+                      next.delete(comment.id);
+                    } else {
+                      next.add(comment.id);
+                    }
+                    return next;
+                  });
+                }}
+                hitSlop={4}
+              >
+                <Text style={styles.viewMoreText}>
+                  {isExpanded
+                    ? "Show less"
+                    : `View ${hiddenCount} more ${hiddenCount === 1 ? "reply" : "replies"}`}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   /* ── Loading ── */
   if (isLoading) {
     return (
-      <View style={[styles.screen, { paddingTop: insets.top }]}>
-        <View style={styles.navBar}>
-          <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-            <IconChevLeft size={24} color={colors.black} />
-          </Pressable>
-          <Text style={styles.navTitle}>Post</Text>
-          <View style={{ width: 40 }} />
-        </View>
+      <View style={styles.screen}>
         <View style={styles.loadingBody}>
           <View style={styles.loadingRow}>
             <Skeleton width={48} height={48} radius={24} />
@@ -356,14 +440,7 @@ export default function PostDetailScreen() {
 
   if (isError || !post) {
     return (
-      <View style={[styles.screen, { paddingTop: insets.top }]}>
-        <View style={styles.navBar}>
-          <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-            <IconChevLeft size={24} color={colors.black} />
-          </Pressable>
-          <Text style={styles.navTitle}>Post</Text>
-          <View style={{ width: 40 }} />
-        </View>
+      <View style={styles.screen}>
         <View style={styles.errorBody}>
           <Text style={styles.errorEmoji}>🔍</Text>
           <Text style={styles.errorTitle}>Post not found</Text>
@@ -432,8 +509,58 @@ export default function PostDetailScreen() {
 
       {/* Content */}
       {post.content ? (
-        <Text style={styles.content}>{post.content}</Text>
+        <Text style={[styles.content, isRTLText(post.content) && { textAlign: "right" }]}>{post.content}</Text>
       ) : null}
+
+      {/* Chart embed (for type='chart') */}
+      {post.type === "chart" && post.media_urls?.[0] && (() => {
+        const chartRef = parseChartRef(post.media_urls[0]);
+        if (!chartRef) return null;
+        return (
+          <Pressable
+            style={styles.chartEmbed}
+            onPress={() => {
+              triggerHaptic("medium");
+              router.push({
+                pathname: "/chart/[symbol]" as any,
+                params: { symbol: encodeURIComponent(post.media_urls[0]) },
+              });
+            }}
+          >
+            <WebView
+              source={{ uri: buildMiniChartUrl(chartRef) }}
+              style={styles.chartWebView}
+              javaScriptEnabled
+              domStorageEnabled
+              scrollEnabled={false}
+              pointerEvents="none"
+            />
+            <View style={styles.chartBadge}>
+              <Svg width={12} height={12} viewBox="0 0 24 24" fill="none">
+                <Path
+                  d="M3 12l4-4 4 4 4-8 6 6"
+                  stroke={colors.white}
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+              <Text style={styles.chartBadgeText}>{formatChartLabel(chartRef)}</Text>
+            </View>
+          </Pressable>
+        );
+      })()}
+
+      {/* Image embed (for type='image') — dynamic aspect ratio */}
+      {post.type === "image" && post.media_urls?.[0] && (
+        <DetailImageEmbed
+          url={post.media_urls[0]}
+          onPress={() => {
+            triggerHaptic("light");
+            setImageLightboxUrl(post.media_urls[0]);
+          }}
+        />
+      )}
 
       {/* Quoted post embed */}
       {(post.type === "quote" || post.type === "repost") && post.quoted_post && (
@@ -465,9 +592,43 @@ export default function PostDetailScreen() {
               @{post.quoted_post.author?.username || "user"}
             </Text>
           </View>
-          <Text style={styles.quotedContent} numberOfLines={4}>
-            {post.quoted_post.content}
-          </Text>
+          {post.quoted_post.content ? (
+            <Text style={[styles.quotedContent, isRTLText(post.quoted_post.content) && { textAlign: "right" }]} numberOfLines={4}>
+              {post.quoted_post.content}
+            </Text>
+          ) : null}
+          {/* Quoted post media */}
+          {post.quoted_post.type === "image" && post.quoted_post.media_urls?.[0] && (
+            <View style={styles.quotedMedia}>
+              <Image
+                source={{ uri: post.quoted_post.media_urls[0] }}
+                style={styles.quotedMediaImg}
+                resizeMode="cover"
+              />
+            </View>
+          )}
+          {post.quoted_post.type === "chart" && post.quoted_post.media_urls?.[0] && (() => {
+            const qRef = parseChartRef(post.quoted_post.media_urls[0]);
+            if (!qRef) return null;
+            return (
+              <View style={styles.quotedMediaChart}>
+                <WebView
+                  source={{ uri: buildMiniChartUrl(qRef) }}
+                  style={{ flex: 1 }}
+                  javaScriptEnabled
+                  domStorageEnabled
+                  scrollEnabled={false}
+                  pointerEvents="none"
+                />
+                <View style={styles.quotedMediaChartBadge}>
+                  <Svg width={10} height={10} viewBox="0 0 24 24" fill="none">
+                    <Path d="M3 12l4-4 4 4 4-8 6 6" stroke={colors.white} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+                  </Svg>
+                  <Text style={styles.quotedMediaChartBadgeText}>{formatChartLabel(qRef)}</Text>
+                </View>
+              </View>
+            );
+          })()}
         </Pressable>
       )}
 
@@ -578,20 +739,11 @@ export default function PostDetailScreen() {
     </View>
   );
 
-  /* FlatList renderItem — comment with actions + nested replies */
-  const renderItem = ({ item }: { item: Comment }) => renderCommentRow(item, false);
+  /* FlatList renderItem — comment with flat replies + view more */
+  const renderItem = ({ item }: { item: Comment }) => renderCommentWithReplies(item);
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
-      {/* Navigation bar */}
-      <View style={styles.navBar}>
-        <Pressable onPress={() => router.back()} hitSlop={12} style={styles.backBtn}>
-          <IconChevLeft size={24} color={colors.black} />
-        </Pressable>
-        <Text style={styles.navTitle}>Post</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
+    <View style={styles.screen}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -645,7 +797,7 @@ export default function PostDetailScreen() {
             <View style={styles.inputWrapper}>
               <TextInput
                 ref={inputRef}
-                style={styles.input}
+                style={[styles.input, isRTLText(commentText) && { textAlign: "right" }]}
                 placeholder={replyTo ? `Reply to ${replyTo.authorName}...` : "Write a reply..."}
                 placeholderTextColor={colors.g400}
                 value={commentText}
@@ -675,6 +827,35 @@ export default function PostDetailScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Image Lightbox */}
+      <Modal
+        visible={!!imageLightboxUrl}
+        animationType="fade"
+        transparent={false}
+        onRequestClose={() => setImageLightboxUrl(null)}
+        statusBarTranslucent
+      >
+        <View style={styles.lightboxScreen}>
+          <Pressable
+            style={styles.lightboxClose}
+            onPress={() => {
+              triggerHaptic("light");
+              setImageLightboxUrl(null);
+            }}
+            hitSlop={12}
+          >
+            <IconClose size={22} color={colors.white} />
+          </Pressable>
+          {imageLightboxUrl && (
+            <Image
+              source={{ uri: imageLightboxUrl }}
+              style={styles.lightboxImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -851,6 +1032,42 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.g600,
     lineHeight: 20,
+  },
+  quotedMedia: {
+    marginTop: 8,
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: colors.g100,
+    height: 180,
+  },
+  quotedMediaImg: {
+    width: "100%",
+    height: "100%",
+  },
+  quotedMediaChart: {
+    marginTop: 8,
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: colors.g800,
+    height: 140,
+    position: "relative" as const,
+  },
+  quotedMediaChartBadge: {
+    position: "absolute" as const,
+    bottom: 6,
+    left: 6,
+    flexDirection: "row" as const,
+    alignItems: "center" as const,
+    gap: 4,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  quotedMediaChartBadgeText: {
+    fontFamily: "JetBrainsMono_600SemiBold",
+    fontSize: 10,
+    color: colors.white,
   },
   quotedDeleted: {
     marginHorizontal: 16,
@@ -1033,6 +1250,16 @@ const styles = StyleSheet.create({
   repliesContainer: {
     position: "relative",
   },
+  viewMoreBtn: {
+    paddingLeft: 56,
+    paddingVertical: 8,
+    paddingRight: 16,
+  },
+  viewMoreText: {
+    fontFamily: "Outfit_600SemiBold",
+    fontSize: 13,
+    color: colors.lime,
+  },
 
   /* Reply indicator */
   replyIndicator: {
@@ -1102,5 +1329,75 @@ const styles = StyleSheet.create({
   },
   sendBtnActive: {
     backgroundColor: colors.lime,
+  },
+
+  /* Chart embed */
+  chartEmbed: {
+    height: 220,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: colors.g100,
+    position: "relative",
+  },
+  chartWebView: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
+  chartBadge: {
+    position: "absolute",
+    bottom: 10,
+    left: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    backgroundColor: "rgba(0,0,0,0.75)",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  chartBadgeText: {
+    fontFamily: "JetBrainsMono_500Medium",
+    fontSize: 11,
+    color: colors.white,
+    letterSpacing: 0.3,
+  },
+
+  /* Image embed (detail view) */
+  imageEmbedDetail: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: colors.g50,
+  },
+  imageEmbedDetailImg: {
+    width: "100%",
+    height: "100%",
+  },
+
+  /* Image lightbox */
+  lightboxScreen: {
+    flex: 1,
+    backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lightboxClose: {
+    position: "absolute",
+    top: 50,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  lightboxImage: {
+    width: "100%",
+    height: "100%",
   },
 });

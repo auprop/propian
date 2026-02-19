@@ -8,7 +8,8 @@
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "backgroundColor": "#a8ff39",
+      "image": "./assets/propian-logo.png",
+      "backgroundColor": "#ffffff",
       "resizeMode": "contain"
     },
     "ios": {
@@ -29,8 +30,20 @@
       "expo-router",
       "expo-font"
     ],
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "689022f0-e735-498d-81fc-72061fcec162"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/689022f0-e735-498d-81fc-72061fcec162"
     }
   }
 }

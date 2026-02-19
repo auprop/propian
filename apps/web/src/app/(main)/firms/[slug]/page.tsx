@@ -9,7 +9,7 @@ import { reviewSchema, type ReviewInput } from "@propian/shared/validation";
 import { reviewTags } from "@propian/shared/constants";
 import type { FirmReview } from "@propian/shared/types";
 import { timeAgo } from "@propian/shared/utils";
-import { IconVerified, IconThumbUp, IconPlus, IconClose, IconStar } from "@propian/shared/icons";
+import { IconVerifiedFirm, IconThumbUp, IconPlus, IconClose, IconStar } from "@propian/shared/icons";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -142,7 +142,7 @@ export default function FirmDetailPage() {
         <div style={{ flex: 1 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>{firm.name}</h1>
-            {firm.is_active && <IconVerified size={20} style={{ color: "var(--lime)" }} />}
+            {firm.is_active && <IconVerifiedFirm size={20} />}
           </div>
           <div className="pt-firm-rating" style={{ marginTop: 6 }}>
             <span style={{ fontWeight: 700, fontSize: 18 }}>{firm.rating_avg.toFixed(1)}</span>

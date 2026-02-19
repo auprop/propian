@@ -17,6 +17,8 @@ import {
   IconVerified,
   IconQuote,
   IconReply,
+  IconChart,
+  IconClose,
 } from "@propian/shared/icons";
 import {
   usePost,
@@ -33,6 +35,7 @@ import type { Post, Comment } from "@propian/shared/types";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { timeAgo } from "@propian/shared/utils";
 import { formatCompact } from "@propian/shared/utils";
+import { parseChartRef, buildMiniChartUrl, buildFullChartUrl, formatChartLabel } from "@propian/shared/utils";
 
 /* ------------------------------------------------------------------ */
 /*  Post Detail Page                                                   */
@@ -56,6 +59,8 @@ export default function PostDetailPage() {
   const [copiedToast, setCopiedToast] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [quoteContent, setQuoteContent] = useState("");
+  const [chartFullscreen, setChartFullscreen] = useState<string | null>(null);
+  const [imageFullscreen, setImageFullscreen] = useState<string | null>(null);
 
   /* Handlers */
   const handleLike = useCallback(() => {
@@ -217,7 +222,40 @@ export default function PostDetailPage() {
                   @{post.quoted_post.author?.username ?? "user"}
                 </span>
               </div>
-              <p className="pt-quoted-embed-body">{post.quoted_post.content}</p>
+              {post.quoted_post.content && (
+                <p className="pt-quoted-embed-body">{post.quoted_post.content}</p>
+              )}
+              {/* Quoted post media */}
+              {post.quoted_post.type === "image" && post.quoted_post.media_urls?.[0] && (
+                <div className="pt-quoted-embed-media">
+                  <img
+                    src={post.quoted_post.media_urls[0]}
+                    alt="Quoted post image"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                </div>
+              )}
+              {post.quoted_post.type === "chart" && post.quoted_post.media_urls?.[0] && (() => {
+                const qRef = parseChartRef(post.quoted_post.media_urls[0]);
+                if (!qRef) return null;
+                return (
+                  <div className="pt-quoted-embed-chart">
+                    <iframe
+                      src={buildMiniChartUrl(qRef)}
+                      width="100%"
+                      height="100%"
+                      style={{ border: "none", pointerEvents: "none" }}
+                      loading="lazy"
+                      sandbox="allow-scripts allow-same-origin"
+                    />
+                    <div className="pt-chart-embed-badge">
+                      <IconChart size={12} />
+                      <span>{formatChartLabel(qRef)}</span>
+                    </div>
+                  </div>
+                );
+              })()}
             </a>
           )}
 
@@ -230,14 +268,44 @@ export default function PostDetailPage() {
 
           {/* Image */}
           {post.type === "image" && post.media_urls.length > 0 && (
-            <div className="pt-post-chart">
+            <div
+              className="pt-post-image"
+              style={{ cursor: "zoom-in" }}
+              onClick={() => setImageFullscreen(post.media_urls[0])}
+            >
               <img
                 src={post.media_urls[0]}
-                alt="Trade chart"
-                style={{ width: "100%", borderRadius: 8 }}
+                alt="Trading screenshot"
+                loading="eager"
+                decoding="async"
               />
             </div>
           )}
+
+          {/* Chart embed */}
+          {post.type === "chart" && post.media_urls?.[0] && (() => {
+            const chartRef = parseChartRef(post.media_urls[0]);
+            if (!chartRef) return null;
+            return (
+              <div
+                className="pt-chart-embed"
+                onClick={() => setChartFullscreen(buildFullChartUrl(chartRef))}
+              >
+                <iframe
+                  src={buildMiniChartUrl(chartRef)}
+                  width="100%"
+                  height="100%"
+                  style={{ border: "none", pointerEvents: "none" }}
+                  loading="lazy"
+                  sandbox="allow-scripts allow-same-origin"
+                />
+                <div className="pt-chart-embed-badge">
+                  <IconChart size={12} />
+                  <span>{formatChartLabel(chartRef)}</span>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Actions bar */}
           <div className="pt-post-actions">
@@ -319,6 +387,7 @@ export default function PostDetailPage() {
                 onChange={(e) => setQuoteContent(e.target.value)}
                 rows={3}
                 autoFocus
+                dir="auto"
               />
             </div>
             <div className="pt-quoted-embed" style={{ margin: "0 0 16px 0" }}>
@@ -351,6 +420,45 @@ export default function PostDetailPage() {
                 {createPost.isPending ? "Posting..." : "Post"}
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Fullscreen Chart Modal */}
+      {chartFullscreen && (
+        <div className="pt-modal-overlay" onClick={() => setChartFullscreen(null)}>
+          <div className="pt-chart-fullscreen" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="pt-chart-fullscreen-close"
+              onClick={() => setChartFullscreen(null)}
+            >
+              <IconClose size={20} />
+            </button>
+            <iframe
+              src={chartFullscreen}
+              width="100%"
+              height="100%"
+              style={{ border: "none", borderRadius: 12 }}
+              sandbox="allow-scripts allow-same-origin"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Fullscreen Image Lightbox */}
+      {imageFullscreen && (
+        <div className="pt-modal-overlay" onClick={() => setImageFullscreen(null)}>
+          <div className="pt-image-lightbox" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="pt-image-lightbox-close"
+              onClick={() => setImageFullscreen(null)}
+              aria-label="Close image"
+            >
+              <IconClose size={20} />
+            </button>
+            <img
+              src={imageFullscreen}
+              alt="Full size trading screenshot"
+            />
           </div>
         </div>
       )}
@@ -563,6 +671,7 @@ function InlineComments({
               }
             }}
             maxLength={500}
+            dir="auto"
           />
           <Button
             variant="lime"

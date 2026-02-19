@@ -51,6 +51,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Rewrite /@username → /profile/username (after auth checks)
+  const atMatch = request.nextUrl.pathname.match(/^\/@([a-zA-Z0-9_-]+)$/);
+  if (atMatch) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/profile/${atMatch[1]}`;
+    return NextResponse.rewrite(url);
+  }
+
   return supabaseResponse;
 }
 

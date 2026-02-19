@@ -97,7 +97,7 @@ export default function ProfilePage() {
               @{profile.username}
             </div>
             {profile.bio && (
-              <p style={{ fontSize: 14, lineHeight: 1.6, marginTop: 8, opacity: 0.85 }}>
+              <p style={{ fontSize: 14, lineHeight: 1.6, marginTop: 8, opacity: 0.85 }} dir="auto">
                 {profile.bio}
               </p>
             )}

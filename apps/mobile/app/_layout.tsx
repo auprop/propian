@@ -113,9 +113,7 @@ export default function RootLayout() {
             <Stack.Screen
               name="notifications"
               options={{
-                headerShown: true,
-                headerTitle: "Notifications",
-                headerBackTitle: "Back",
+                headerShown: false,
               }}
             />
             <Stack.Screen
@@ -175,6 +173,10 @@ export default function RootLayout() {
                 headerShown: false,
                 presentation: "modal",
               }}
+            />
+            <Stack.Screen
+              name="chart/[symbol]"
+              options={{ headerShown: false }}
             />
           </Stack>
         </AuthProvider>

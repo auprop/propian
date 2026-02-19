@@ -7,6 +7,8 @@ import {
   Pressable,
   Text,
   Share,
+  Modal,
+  Image,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -20,13 +22,13 @@ import { CommentSheet } from "@/components/feed/CommentSheet";
 import { RepostMenu } from "@/components/feed/RepostMenu";
 import { QuoteComposer } from "@/components/feed/QuoteComposer";
 import { PostComposer } from "@/components/feed/PostComposer";
-import { TrendingBar } from "@/components/feed/TrendingBar";
-import { EmptyState, Skeleton } from "@/components/ui";
+import { EmptyState, Skeleton, Avatar } from "@/components/ui";
 import { IconPlus } from "@/components/icons/IconPlus";
 import { IconHome } from "@/components/icons/IconHome";
 import { IconSearch } from "@/components/icons/IconSearch";
 import { IconBell } from "@/components/icons/IconBell";
-import { IconPropianLogo } from "@/components/icons/IconPropianLogo";
+import { IconPropianIcon } from "@/components/icons/IconPropianIcon";
+import { IconClose } from "@/components/icons/IconClose";
 import type { Post } from "@propian/shared/types";
 
 export default function FeedScreen() {
@@ -52,6 +54,8 @@ export default function FeedScreen() {
   const [commentPostId, setCommentPostId] = useState<string | null>(null);
   const [repostMenuPostId, setRepostMenuPostId] = useState<string | null>(null);
   const [quotePostId, setQuotePostId] = useState<string | null>(null);
+  const [imageLightboxUrl, setImageLightboxUrl] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   const posts = useMemo(
     () => data?.pages.flatMap((page) => page.data ?? page) ?? [],
@@ -119,9 +123,42 @@ export default function FeedScreen() {
   }, []);
 
   const handleCreatePost = useCallback(
-    (data: { content: string; sentiment_tag?: "bullish" | "bearish" | "neutral" | null }) => {
+    async (data: {
+      content: string;
+      sentiment_tag?: "bullish" | "bearish" | "neutral" | null;
+      type?: "text" | "chart" | "image";
+      media_urls?: string[];
+      imageAsset?: { uri: string; base64: string | null; mimeType: string } | null;
+    }) => {
+      let finalType = data.type;
+      let finalMediaUrls = data.media_urls;
+
+      // Handle image upload before creating post
+      if (data.imageAsset) {
+        setIsUploadingImage(true);
+        try {
+          const { uploadPostImage } = await import("@propian/shared/api");
+          const url = await uploadPostImage(supabase, {
+            base64: data.imageAsset.base64 ?? undefined,
+            type: data.imageAsset.mimeType,
+          });
+          finalType = "image";
+          finalMediaUrls = [url];
+        } catch (err) {
+          console.error("[Propian] Image upload error:", err);
+          setIsUploadingImage(false);
+          return;
+        }
+        setIsUploadingImage(false);
+      }
+
       createPostMutation.mutate(
-        { content: data.content, sentiment_tag: data.sentiment_tag },
+        {
+          content: data.content,
+          sentiment_tag: data.sentiment_tag,
+          ...(finalType ? { type: finalType } : {}),
+          ...(finalMediaUrls ? { media_urls: finalMediaUrls } : {}),
+        },
         {
           onSuccess: () => {
             setComposerVisible(false);
@@ -129,7 +166,7 @@ export default function FeedScreen() {
         }
       );
     },
-    [createPostMutation]
+    [createPostMutation, supabase]
   );
 
   const handleEndReached = () => {
@@ -137,6 +174,10 @@ export default function FeedScreen() {
       fetchNextPage();
     }
   };
+
+  const handleImageExpand = useCallback((url: string) => {
+    setImageLightboxUrl(url);
+  }, []);
 
   const renderPost = useCallback(
     ({ item }: { item: Post }) => (
@@ -148,22 +189,38 @@ export default function FeedScreen() {
           onRepost={handleRepostPress}
           onComment={handleComment}
           onShare={handleShare}
+          onImageExpand={handleImageExpand}
         />
       </View>
     ),
-    [handleLike, handleBookmark, handleRepostPress, handleComment, handleShare]
+    [handleLike, handleBookmark, handleRepostPress, handleComment, handleShare, handleImageExpand]
   );
 
   if (isLoading) {
     return (
       <View style={[styles.safe, { paddingTop: insets.top }]}>
         <View style={styles.feedHeader}>
-          <IconPropianLogo height={22} />
+          <Pressable
+            onPress={() => {
+              if (profile?.username) {
+                router.push({ pathname: "/profile/[username]", params: { username: profile.username } });
+              }
+            }}
+            style={styles.feedHeaderLeft}
+            hitSlop={8}
+          >
+            <Avatar
+              src={profile?.avatar_url}
+              name={profile?.display_name || ""}
+              size="sm"
+            />
+          </Pressable>
+          <IconPropianIcon size={32} />
           <View style={styles.feedHeaderActions}>
-            <Pressable onPress={() => router.push("/search")}>
+            <Pressable onPress={() => router.push("/search")} hitSlop={8}>
               <IconSearch size={22} color={colors.black} />
             </Pressable>
-            <Pressable onPress={() => router.push("/notifications")}>
+            <Pressable onPress={() => router.push("/notifications")} hitSlop={8}>
               <IconBell size={22} color={colors.black} />
             </Pressable>
           </View>
@@ -191,12 +248,27 @@ export default function FeedScreen() {
     <View style={[styles.safe, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.feedHeader}>
-        <Text style={styles.feedHeaderTitle}>Propian</Text>
+        <Pressable
+          onPress={() => {
+            if (profile?.username) {
+              router.push({ pathname: "/profile/[username]", params: { username: profile.username } });
+            }
+          }}
+          style={styles.feedHeaderLeft}
+          hitSlop={8}
+        >
+          <Avatar
+            src={profile?.avatar_url}
+            name={profile?.display_name || ""}
+            size="sm"
+          />
+        </Pressable>
+        <IconPropianIcon size={32} />
         <View style={styles.feedHeaderActions}>
-          <Pressable onPress={() => router.push("/search")}>
+          <Pressable onPress={() => router.push("/search")} hitSlop={8}>
             <IconSearch size={22} color={colors.black} />
           </Pressable>
-          <Pressable onPress={() => router.push("/notifications")}>
+          <Pressable onPress={() => router.push("/notifications")} hitSlop={8}>
             <IconBell size={22} color={colors.black} />
           </Pressable>
         </View>
@@ -206,7 +278,6 @@ export default function FeedScreen() {
         data={posts}
         keyExtractor={(item) => item.id}
         renderItem={renderPost}
-        ListHeaderComponent={<TrendingBar />}
         ListEmptyComponent={
           <EmptyState
             icon={<IconHome size={40} color={colors.g300} />}
@@ -278,9 +349,39 @@ export default function FeedScreen() {
         onClose={() => setComposerVisible(false)}
         onSubmit={handleCreatePost}
         isPending={createPostMutation.isPending}
+        isUploadingImage={isUploadingImage}
         avatar={profile?.avatar_url}
         displayName={profile?.display_name}
       />
+
+      {/* Image Lightbox */}
+      <Modal
+        visible={!!imageLightboxUrl}
+        animationType="fade"
+        transparent={false}
+        onRequestClose={() => setImageLightboxUrl(null)}
+        statusBarTranslucent
+      >
+        <View style={styles.lightboxScreen}>
+          <Pressable
+            style={styles.lightboxClose}
+            onPress={() => {
+              triggerHaptic("light");
+              setImageLightboxUrl(null);
+            }}
+            hitSlop={12}
+          >
+            <IconClose size={22} color={colors.white} />
+          </Pressable>
+          {imageLightboxUrl && (
+            <Image
+              source={{ uri: imageLightboxUrl }}
+              style={styles.lightboxImage}
+              resizeMode="contain"
+            />
+          )}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -294,23 +395,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 14,
+    paddingBottom: 12,
     backgroundColor: colors.white,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.black,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.g100,
   },
-  feedHeaderTitle: {
-    fontFamily: "Outfit_800ExtraBold",
-    fontSize: 24,
-    color: colors.black,
-    letterSpacing: -0.5,
+  feedHeaderLeft: {
+    width: 64,
   },
   feedHeaderActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 20,
+    justifyContent: "flex-end",
+    gap: 18,
+    width: 64,
   },
   listContent: {
     paddingBottom: 100,
@@ -359,5 +459,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     ...shadows.md,
+  },
+  lightboxScreen: {
+    flex: 1,
+    backgroundColor: "#000",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  lightboxClose: {
+    position: "absolute",
+    top: 50,
+    right: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  lightboxImage: {
+    width: "100%",
+    height: "100%",
   },
 });

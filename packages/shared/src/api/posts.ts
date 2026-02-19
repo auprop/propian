@@ -334,3 +334,56 @@ export async function incrementShareCount(supabase: SupabaseClient, postId: stri
   const { error } = await supabase.rpc("increment_share_count", { post_id: postId });
   if (error) throw error;
 }
+
+/* ------------------------------------------------------------------ */
+/*  Post image upload                                                  */
+/* ------------------------------------------------------------------ */
+
+export async function uploadPostImage(
+  supabase: SupabaseClient,
+  file: { uri?: string; base64?: string; blob?: Blob; type?: string },
+): Promise<string> {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const ext = file.type?.includes("png")
+    ? "png"
+    : file.type?.includes("webp")
+      ? "webp"
+      : "jpg";
+  const filePath = `${user.id}/${Date.now()}.${ext}`;
+
+  let uploadBody: Blob | ArrayBuffer;
+
+  if (file.blob) {
+    // Web: already a Blob / File
+    uploadBody = file.blob;
+  } else if (file.base64) {
+    // Mobile: convert base64 to ArrayBuffer
+    const binaryString = atob(file.base64);
+    const bytes = new Uint8Array(binaryString.length);
+    for (let i = 0; i < binaryString.length; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+    uploadBody = bytes.buffer;
+  } else {
+    throw new Error("No file data provided");
+  }
+
+  const { error: uploadError } = await supabase.storage
+    .from("post-images")
+    .upload(filePath, uploadBody, {
+      upsert: false,
+      contentType: file.type || "image/jpeg",
+    });
+
+  if (uploadError) throw uploadError;
+
+  const { data: urlData } = supabase.storage
+    .from("post-images")
+    .getPublicUrl(filePath);
+
+  return urlData.publicUrl;
+}

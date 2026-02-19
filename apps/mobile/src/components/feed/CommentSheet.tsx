@@ -34,7 +34,7 @@ import { IconHeart } from "@/components/icons/IconHeart";
 import { IconHeartOutline } from "@/components/icons/IconHeartOutline";
 import { IconBookmark } from "@/components/icons/IconBookmark";
 import { IconShare } from "@/components/icons/IconShare";
-import { timeAgo, formatCompact } from "@propian/shared/utils";
+import { timeAgo, formatCompact, isRTLText } from "@propian/shared/utils";
 import Svg, { Path } from "react-native-svg";
 import type { Comment } from "@propian/shared/types";
 
@@ -72,6 +72,7 @@ export function CommentSheet({ visible, postId, onClose }: CommentSheetProps) {
   const inputRef = useRef<TextInput>(null);
   const [text, setText] = useState("");
   const [replyTo, setReplyTo] = useState<{ id: string; authorName: string } | null>(null);
+  const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
 
   const { user } = useAuth();
   const { data: myProfile } = useCurrentProfile(supabase, user?.id);
@@ -140,120 +141,169 @@ export function CommentSheet({ visible, postId, onClose }: CommentSheetProps) {
     } catch (_) {}
   }, []);
 
-  /* ─── Threaded comment row ─── */
-  const renderCommentRow = (comment: Comment, isReply = false) => (
-    <View key={comment.id}>
-      <View style={[styles.commentCard, isReply && styles.replyCard]}>
-        {/* Thread line for replies */}
-        {isReply && <View style={styles.threadLine} />}
+  /* ─── Flatten all nested replies into a single-level list ─── */
+  const flattenReplies = (replies: Comment[]): Comment[] => {
+    const flat: Comment[] = [];
+    for (const reply of replies) {
+      flat.push(reply);
+      if (reply.replies && reply.replies.length > 0) {
+        flat.push(...flattenReplies(reply.replies));
+      }
+    }
+    return flat;
+  };
 
-        <Pressable
-          onPress={() => {
-            if (comment.author?.username) {
-              onClose();
-              router.push({
-                pathname: "/profile/[username]",
-                params: { username: comment.author.username },
-              });
-            }
-          }}
-        >
-          <Avatar
-            src={comment.author?.avatar_url}
-            name={comment.author?.display_name || "User"}
-            size="sm"
-          />
-        </Pressable>
+  /* ─── Render a single comment (no recursion) ─── */
+  const renderSingleComment = (comment: Comment, isReply = false) => (
+    <View key={comment.id} style={[styles.commentCard, isReply && styles.replyCard]}>
+      {/* Thread line for replies */}
+      {isReply && <View style={styles.threadLine} />}
 
-        <View style={styles.commentBody}>
-          {/* Author + time */}
-          <View style={styles.commentMeta}>
-            <Text style={styles.commentAuthor} numberOfLines={1}>
-              {comment.author?.display_name || "Unknown"}
-            </Text>
-            {comment.author?.is_verified && (
-              <IconVerified size={12} color={colors.lime} />
+      <Pressable
+        onPress={() => {
+          if (comment.author?.username) {
+            onClose();
+            router.push({
+              pathname: "/profile/[username]",
+              params: { username: comment.author.username },
+            });
+          }
+        }}
+      >
+        <Avatar
+          src={comment.author?.avatar_url}
+          name={comment.author?.display_name || "User"}
+          size="sm"
+        />
+      </Pressable>
+
+      <View style={styles.commentBody}>
+        {/* Author + time */}
+        <View style={styles.commentMeta}>
+          <Text style={styles.commentAuthor} numberOfLines={1}>
+            {comment.author?.display_name || "Unknown"}
+          </Text>
+          {comment.author?.is_verified && (
+            <IconVerified size={12} color={colors.lime} />
+          )}
+          <Text style={styles.commentDot}>·</Text>
+          <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
+        </View>
+
+        {/* Content */}
+        <Text style={[styles.commentText, isRTLText(comment.content) && { textAlign: "right" }]}>{comment.content}</Text>
+
+        {/* Action bar */}
+        <View style={styles.commentActions}>
+          {/* Reply */}
+          <Pressable
+            style={styles.commentAction}
+            onPress={() => handleReply(comment)}
+            hitSlop={8}
+          >
+            <IconReply size={15} color={colors.g400} />
+            {(comment.reply_count ?? 0) > 0 && (
+              <Text style={styles.commentActionCount}>
+                {formatCompact(comment.reply_count ?? 0)}
+              </Text>
             )}
-            <Text style={styles.commentDot}>·</Text>
-            <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
-          </View>
+          </Pressable>
 
-          {/* Content */}
-          <Text style={styles.commentText}>{comment.content}</Text>
+          {/* Like */}
+          <Pressable
+            style={styles.commentAction}
+            onPress={() => handleCommentLike(comment)}
+            hitSlop={8}
+          >
+            {comment.is_liked ? (
+              <IconHeart size={15} color={colors.red} />
+            ) : (
+              <IconHeartOutline size={15} color={colors.g400} />
+            )}
+            {comment.like_count > 0 && (
+              <Text
+                style={[
+                  styles.commentActionCount,
+                  comment.is_liked && { color: colors.red },
+                ]}
+              >
+                {formatCompact(comment.like_count)}
+              </Text>
+            )}
+          </Pressable>
 
-          {/* Action bar */}
-          <View style={styles.commentActions}>
-            {/* Reply */}
-            <Pressable
-              style={styles.commentAction}
-              onPress={() => handleReply(comment)}
-              hitSlop={8}
-            >
-              <IconReply size={15} color={colors.g400} />
-              {(comment.reply_count ?? 0) > 0 && (
-                <Text style={styles.commentActionCount}>
-                  {formatCompact(comment.reply_count ?? 0)}
-                </Text>
-              )}
-            </Pressable>
+          {/* Bookmark */}
+          <Pressable
+            style={styles.commentAction}
+            onPress={() => handleCommentBookmark(comment)}
+            hitSlop={8}
+          >
+            <IconBookmark
+              size={15}
+              color={comment.is_bookmarked ? colors.lime : colors.g400}
+            />
+          </Pressable>
 
-            {/* Like */}
-            <Pressable
-              style={styles.commentAction}
-              onPress={() => handleCommentLike(comment)}
-              hitSlop={8}
-            >
-              {comment.is_liked ? (
-                <IconHeart size={15} color={colors.red} />
-              ) : (
-                <IconHeartOutline size={15} color={colors.g400} />
-              )}
-              {comment.like_count > 0 && (
-                <Text
-                  style={[
-                    styles.commentActionCount,
-                    comment.is_liked && { color: colors.red },
-                  ]}
-                >
-                  {formatCompact(comment.like_count)}
-                </Text>
-              )}
-            </Pressable>
-
-            {/* Bookmark */}
-            <Pressable
-              style={styles.commentAction}
-              onPress={() => handleCommentBookmark(comment)}
-              hitSlop={8}
-            >
-              <IconBookmark
-                size={15}
-                color={comment.is_bookmarked ? colors.lime : colors.g400}
-              />
-            </Pressable>
-
-            {/* Share */}
-            <Pressable
-              style={styles.commentAction}
-              onPress={() => handleCommentShare(comment)}
-              hitSlop={8}
-            >
-              <IconShare size={15} color={colors.g400} />
-            </Pressable>
-          </View>
+          {/* Share */}
+          <Pressable
+            style={styles.commentAction}
+            onPress={() => handleCommentShare(comment)}
+            hitSlop={8}
+          >
+            <IconShare size={15} color={colors.g400} />
+          </Pressable>
         </View>
       </View>
-
-      {/* Threaded replies */}
-      {comment.replies && comment.replies.length > 0 && (
-        <View style={styles.repliesContainer}>
-          {comment.replies.map((reply) => renderCommentRow(reply, true))}
-        </View>
-      )}
     </View>
   );
 
-  const renderItem = ({ item }: { item: Comment }) => renderCommentRow(item, false);
+  /* ─── Render top-level comment + flat replies with "View more" ─── */
+  const renderCommentWithReplies = (comment: Comment) => {
+    const allReplies = comment.replies ? flattenReplies(comment.replies) : [];
+    const isExpanded = expandedThreads.has(comment.id);
+    const visibleReplies = isExpanded ? allReplies : allReplies.slice(0, 1);
+    const hiddenCount = allReplies.length - 1;
+
+    return (
+      <View key={comment.id}>
+        {renderSingleComment(comment, false)}
+
+        {allReplies.length > 0 && (
+          <View style={styles.repliesContainer}>
+            {visibleReplies.map((reply) => renderSingleComment(reply, true))}
+
+            {/* View more / Show less toggle */}
+            {hiddenCount > 0 && (
+              <Pressable
+                style={styles.viewMoreBtn}
+                onPress={() => {
+                  triggerHaptic("light");
+                  setExpandedThreads((prev) => {
+                    const next = new Set(prev);
+                    if (next.has(comment.id)) {
+                      next.delete(comment.id);
+                    } else {
+                      next.add(comment.id);
+                    }
+                    return next;
+                  });
+                }}
+                hitSlop={4}
+              >
+                <Text style={styles.viewMoreText}>
+                  {isExpanded
+                    ? "Show less"
+                    : `View ${hiddenCount} more ${hiddenCount === 1 ? "reply" : "replies"}`}
+                </Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+      </View>
+    );
+  };
+
+  const renderItem = ({ item }: { item: Comment }) => renderCommentWithReplies(item);
 
   return (
     <Modal
@@ -339,7 +389,7 @@ export function CommentSheet({ visible, postId, onClose }: CommentSheetProps) {
               <View style={styles.inputWrapper}>
                 <TextInput
                   ref={inputRef}
-                  style={styles.input}
+                  style={[styles.input, isRTLText(text) && { textAlign: "right" }]}
                   placeholder={replyTo ? `Reply to ${replyTo.authorName}...` : "Write a reply..."}
                   placeholderTextColor={colors.g400}
                   value={text}
@@ -526,6 +576,16 @@ const styles = StyleSheet.create({
   /* Replies container */
   repliesContainer: {
     position: "relative",
+  },
+  viewMoreBtn: {
+    paddingLeft: 56,
+    paddingVertical: 8,
+    paddingRight: 16,
+  },
+  viewMoreText: {
+    fontFamily: "Outfit_600SemiBold",
+    fontSize: 13,
+    color: colors.lime,
   },
 
   /* Reply indicator */

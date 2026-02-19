@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useFirms } from "@propian/shared/hooks";
 import { firmCategories, type FirmCategory } from "@propian/shared/constants";
 import type { Firm, FirmFilter } from "@propian/shared/types";
-import { IconSearch, IconVerified } from "@propian/shared/icons";
+import { IconSearch, IconVerifiedFirm } from "@propian/shared/icons";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { RatingStars } from "@/components/ui/RatingStars";
@@ -115,7 +115,7 @@ export default function FirmsPage() {
                 <div className="pt-firm-name">
                   {firm.name}
                   {firm.is_active && (
-                    <IconVerified size={16} style={{ marginLeft: 4, color: "var(--lime)" }} />
+                    <IconVerifiedFirm size={16} style={{ marginLeft: 4 }} />
                   )}
                 </div>
 
