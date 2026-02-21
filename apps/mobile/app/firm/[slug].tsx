@@ -31,7 +31,7 @@ import {
 import { IconVerifiedFirm } from "@/components/icons/IconVerifiedFirm";
 import { IconStar } from "@/components/icons/IconStar";
 import { IconThumbUp } from "@/components/icons/IconThumbUp";
-import { IconArrow } from "@/components/icons/IconArrow";
+import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import { IconGlobe } from "@/components/icons/IconGlobe";
 import { formatCurrency } from "@propian/shared/utils";
 import { timeAgo } from "@propian/shared/utils";
@@ -87,7 +87,7 @@ export default function FirmDetailScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Back button */}
         <Pressable style={styles.backButton} onPress={() => router.back()}>
-          <IconArrow size={20} color={colors.black} />
+          <IconChevLeft size={20} color={colors.black} />
           <Text style={styles.backText}>Back</Text>
         </Pressable>
 

@@ -20,7 +20,7 @@ import {
 import type { ReferralTier, ReferralTierMeta } from "@propian/shared/types";
 import { Avatar } from "@/components/ui/Avatar";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { IconArrow } from "@/components/icons/IconArrow";
+import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import { colors, fontFamily, radii } from "@/theme";
 import { supabase } from "@/lib/supabase";
 
@@ -108,9 +108,7 @@ export default function ReferralsScreen() {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} style={s.backBtn}>
-          <View style={{ transform: [{ rotate: "180deg" }] }}>
-            <IconArrow size={20} color={colors.g900} />
-          </View>
+          <IconChevLeft size={20} color={colors.g900} />
         </TouchableOpacity>
         <Text style={s.headerTitle}>Referrals</Text>
         <View style={{ width: 36 }} />

@@ -46,3 +46,20 @@ export function useResetPassword(supabase: SupabaseClient) {
     mutationFn: (email: string) => authApi.resetPassword(supabase, email),
   });
 }
+
+export function useVerifyOtp(supabase: SupabaseClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ email, token }: { email: string; token: string }) =>
+      authApi.verifyOtp(supabase, email, token),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["session"] });
+    },
+  });
+}
+
+export function useResendVerification(supabase: SupabaseClient) {
+  return useMutation({
+    mutationFn: (email: string) => authApi.resendVerification(supabase, email),
+  });
+}

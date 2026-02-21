@@ -1,8 +1,10 @@
 export { IconArrow } from "./IconArrow";
+export { IconEdit } from "./IconEdit";
 export { IconCheck } from "./IconCheck";
 export { IconClose } from "./IconClose";
 export { IconPlus } from "./IconPlus";
 export { IconChevDown } from "./IconChevDown";
+export { IconChevLeft } from "./IconChevLeft";
 export { IconStar } from "./IconStar";
 export { IconStarHalf } from "./IconStarHalf";
 export { IconBell } from "./IconBell";

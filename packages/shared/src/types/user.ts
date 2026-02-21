@@ -4,9 +4,12 @@ export interface Profile {
   display_name: string;
   avatar_url: string | null;
   bio: string | null;
+  website: string | null;
+  location: string | null;
   trading_style: "scalper" | "day-trader" | "swing" | "position" | null;
   experience_level: "beginner" | "intermediate" | "advanced" | null;
   is_verified: boolean;
+  is_admin: boolean;
   follower_count: number;
   following_count: number;
   post_count: number;

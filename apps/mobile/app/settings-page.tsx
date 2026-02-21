@@ -3,6 +3,7 @@ import {
   View,
   Text,
   ScrollView,
+  TouchableOpacity,
   StyleSheet,
   Alert,
 } from "react-native";
@@ -22,6 +23,7 @@ import { Input, Textarea, Toggle, Button, Card, Avatar, Skeleton } from "@/compo
 import { IconUser } from "@/components/icons/IconUser";
 import { IconBell } from "@/components/icons/IconBell";
 import { IconLock } from "@/components/icons/IconLock";
+import { IconChevLeft } from "@/components/icons/IconChevLeft";
 
 export default function SettingsPageScreen() {
   const insets = useSafeAreaInsets();
@@ -35,8 +37,8 @@ export default function SettingsPageScreen() {
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
-
+  const [website, setWebsite] = useState("");
+  const [location, setLocation] = useState("");
   // Preferences (persisted)
   const { data: prefs } = usePreferences(supabase);
   const updatePrefs = useUpdatePreferences(supabase);
@@ -47,7 +49,8 @@ export default function SettingsPageScreen() {
       setDisplayName(profile.display_name || "");
       setUsername(profile.username || "");
       setBio(profile.bio || "");
-      setAvatarUrl(profile.avatar_url || "");
+      setWebsite(profile.website || "");
+      setLocation(profile.location || "");
     }
   }, [profile]);
 
@@ -57,7 +60,8 @@ export default function SettingsPageScreen() {
         display_name: displayName,
         username,
         bio,
-        avatar_url: avatarUrl || undefined,
+        website: website || null,
+        location: location || null,
       },
       {
         onSuccess: () => {
@@ -107,6 +111,13 @@ export default function SettingsPageScreen() {
   if (isLoading) {
     return (
       <View style={[styles.safe, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <IconChevLeft size={20} color={colors.black} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Settings</Text>
+          <View style={{ width: 40 }} />
+        </View>
         <View style={styles.loadingContainer}>
           <Skeleton height={48} />
           <Skeleton height={200} />
@@ -118,6 +129,15 @@ export default function SettingsPageScreen() {
 
   return (
     <View style={[styles.safe, { paddingTop: insets.top }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <IconChevLeft size={20} color={colors.black} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Settings</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
@@ -132,7 +152,7 @@ export default function SettingsPageScreen() {
           <Card>
             <View style={styles.avatarRow}>
               <Avatar
-                src={avatarUrl || undefined}
+                src={profile?.avatar_url || undefined}
                 name={displayName}
                 size="lg"
               />
@@ -164,12 +184,18 @@ export default function SettingsPageScreen() {
                 style={styles.bioInput}
               />
               <Input
-                label="Avatar URL"
-                placeholder="https://example.com/avatar.jpg"
-                value={avatarUrl}
-                onChangeText={setAvatarUrl}
+                label="Website"
+                placeholder="https://yoursite.com"
+                value={website}
+                onChangeText={setWebsite}
                 autoCapitalize="none"
                 keyboardType="url"
+              />
+              <Input
+                label="Location"
+                placeholder="e.g. New York, US"
+                value={location}
+                onChangeText={setLocation}
               />
             </View>
 
@@ -286,6 +312,27 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: colors.g50,
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.g200,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontFamily: fontFamily.sans.bold,
+    fontSize: 18,
+    color: colors.black,
   },
   scrollContent: {
     paddingBottom: 100,

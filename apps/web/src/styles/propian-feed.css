@@ -22,12 +22,18 @@
 }
 
 .pt-composer {
-  border: var(--brd);
+  border: var(--brd-strong);
   border-radius: var(--r-lg);
   background: var(--white);
   padding: 20px;
   margin-bottom: 20px;
   box-shadow: var(--sh-sm);
+  transition: border-color var(--t), box-shadow var(--t);
+}
+
+.pt-composer:focus-within {
+  border-color: var(--lime);
+  box-shadow: var(--sh-sm), var(--sh-focus);
 }
 
 .pt-composer-top {
@@ -79,17 +85,17 @@
 }
 
 .pt-post {
-  border: var(--brd);
+  border: var(--brd-strong);
   border-radius: var(--r-lg);
   background: var(--white);
   margin-bottom: 16px;
   overflow: hidden;
-  transition: box-shadow var(--t), transform var(--tf);
+  box-shadow: var(--sh-xs);
+  transition: box-shadow var(--t);
 }
 
 .pt-post:hover {
-  box-shadow: var(--sh-sm);
-  transform: translateY(-2px);
+  box-shadow: var(--sh-md);
 }
 
 /* Clickable post content link */
@@ -112,27 +118,53 @@
   padding: 16px 20px;
 }
 
+.pt-post-author-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+  position: relative;
+  z-index: 1;
+}
+
+.pt-post-author-link:hover .pt-post-author > div:first-child > span:first-child {
+  text-decoration: underline;
+}
+
+.pt-comment-author-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.pt-comment-author-link:hover .pt-comment-author {
+  text-decoration: underline;
+}
+
 .pt-post-author {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 17px;
 }
 
 .pt-post-handle {
   color: var(--g400);
   font-size: 13px;
+  font-weight: 500;
 }
 
 .pt-post-time {
   color: var(--g400);
   font-size: 12px;
+  font-weight: 500;
   margin-left: auto;
 }
 
 .pt-post-body {
   padding: 0 20px 16px;
-  font-size: 14px;
-  line-height: 1.6;
-  color: var(--g700);
+  font-size: 17px;
+  line-height: 1.65;
+  color: var(--g800);
   direction: auto;
   unicode-bidi: plaintext;
 }
@@ -305,7 +337,8 @@
 .pt-post-actions {
   display: flex;
   border-top: var(--brd-l);
-  padding: 0;
+  padding: 4px 8px;
+  gap: 2px;
 }
 
 .pt-post-action {
@@ -314,7 +347,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 12px;
+  padding: 10px 8px;
   border: none;
   background: none;
   cursor: pointer;
@@ -322,20 +355,21 @@
   font-size: 13px;
   font-weight: 500;
   color: var(--g500);
-  transition: all var(--tf);
+  border-radius: var(--r-sm);
+  transition: background var(--tf), color var(--tf);
+}
+
+.pt-post-action span {
+  font-weight: 600;
 }
 
 .pt-post-action:hover {
-  background: var(--g50);
-  color: var(--black);
+  background: var(--g100);
+  color: var(--g700);
 }
 
 .pt-post-action.liked {
   color: var(--red);
-}
-
-.pt-post-action:not(:last-child) {
-  border-right: var(--brd-l);
 }
 
 .pt-trending {
@@ -343,12 +377,12 @@
   border-radius: var(--r-lg);
   background: var(--white);
   padding: 20px;
-  transition: box-shadow var(--t), transform var(--tf);
+  box-shadow: var(--sh-xs);
+  transition: box-shadow var(--t);
 }
 
 .pt-trending:hover {
   box-shadow: var(--sh-sm);
-  transform: translateY(-2px);
 }
 
 .pt-trending-title {
@@ -361,8 +395,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 0;
+  padding: 10px 8px;
+  margin: 0 -8px;
   border-bottom: var(--brd-l);
+  border-radius: var(--r-sm);
+  transition: background var(--tf);
+}
+
+.pt-trend-item:hover {
+  background: var(--g50);
 }
 
 .pt-trend-item:last-child {
@@ -371,7 +412,7 @@
 
 .pt-trend-tag {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .pt-trend-count {
@@ -384,8 +425,15 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 0;
+  padding: 10px 8px;
+  margin: 0 -8px;
   border-bottom: var(--brd-l);
+  border-radius: var(--r-sm);
+  transition: background var(--tf);
+}
+
+.pt-suggest-card:hover {
+  background: var(--g50);
 }
 
 .pt-suggest-card:last-child {
@@ -425,7 +473,7 @@
 /* Thread wrapper */
 .pt-comment-thread {
   border-bottom: 1px solid var(--g100);
-  padding: 12px 0;
+  padding: 14px 0;
 }
 
 .pt-comment-thread:last-child {
@@ -486,16 +534,18 @@
   background: none;
   border: none;
   cursor: pointer;
-  padding: 4px 0;
+  padding: 4px 8px;
   color: var(--g400);
   font-family: var(--font);
   font-size: 12px;
   font-weight: 500;
-  transition: color 0.15s ease;
+  border-radius: var(--r-sm);
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
 .pt-comment-action-btn:hover {
   color: var(--g600);
+  background: var(--g100);
 }
 
 .pt-comment-action-btn.pt-comment-action-liked {
@@ -661,7 +711,7 @@
 }
 
 .pt-post-action.bookmarked {
-  color: var(--lime);
+  color: var(--lime-dim);
 }
 
 /* ─── Repost Banner (for simple reposts) ─── */
@@ -719,9 +769,10 @@
 .pt-quoted-embed {
   margin: 0 20px 16px;
   border: 1px solid var(--g200);
+  border-left: 3px solid var(--lime);
   border-radius: var(--r-md);
   padding: 12px 16px;
-  background: var(--g50);
+  background: var(--white);
 }
 
 .pt-quoted-embed-header {
@@ -732,7 +783,7 @@
 }
 
 .pt-quoted-embed-name {
-  font-weight: 600;
+  font-weight: 700;
   font-size: 13px;
 }
 

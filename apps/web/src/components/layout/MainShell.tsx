@@ -29,6 +29,7 @@ export function MainShell({ children }: { children: React.ReactNode }) {
         collapsed={sidebarCollapsed}
         mobileOpen={mobileOpen}
         onCloseMobile={handleCloseMobile}
+        onToggle={handleToggleSidebar}
       />
       <main className={`pt-app-content ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
         {children}

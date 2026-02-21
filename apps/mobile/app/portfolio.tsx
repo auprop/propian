@@ -5,12 +5,14 @@ import {
   FlatList,
   ScrollView,
   RefreshControl,
+  TouchableOpacity,
   StyleSheet,
   Dimensions,
   type ViewStyle,
   type TextStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import Svg, { Polyline, Line, Polygon, Defs, LinearGradient, Stop, Circle } from "react-native-svg";
 import { supabase } from "@/lib/supabase";
 import {
@@ -31,7 +33,7 @@ import type {
 import { formatCurrency } from "@propian/shared/utils";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { IconSuitcase } from "@/components/icons/IconSuitcase";
+import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import { colors, fontFamily, radii, spacing } from "@/theme";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -289,7 +291,7 @@ function QuickStatsCard({ summary, stats }: { summary: PortfolioSummary; stats?:
 
 export default function PortfolioScreen() {
   const insets = useSafeAreaInsets();
-
+  const router = useRouter();
 
   const { data: summary, isLoading: summaryLoading, refetch: refetchSummary, isRefetching } = usePortfolioSummary(supabase);
   const { data: stats } = useTradeStats(supabase);
@@ -304,14 +306,16 @@ export default function PortfolioScreen() {
     <View style={[styles.container as ViewStyle, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header as ViewStyle}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <IconSuitcase size={20} color={colors.lime} />
-          <Text style={styles.title as TextStyle}>Portfolio</Text>
-        </View>
-        {summary && !isEmpty && summary.first_trade_date && (
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn as ViewStyle}>
+          <IconChevLeft size={20} color={colors.black} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle as TextStyle}>Portfolio</Text>
+        {summary && !isEmpty && summary.first_trade_date ? (
           <Text style={styles.headerSub as TextStyle}>
             {`Since ${new Date(summary.first_trade_date).toLocaleDateString("en-US", { month: "short", year: "numeric" })}`}
           </Text>
+        ) : (
+          <View style={{ width: 40 }} />
         )}
       </View>
 
@@ -399,19 +403,23 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.black,
-    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.g200,
   },
-  title: {
-    fontSize: 20,
-    fontFamily: fontFamily.sans.extrabold,
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontFamily: fontFamily.sans.bold,
     color: colors.black,
-    letterSpacing: -0.3,
   },
   headerSub: {
     fontSize: 11,

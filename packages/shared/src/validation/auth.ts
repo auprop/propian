@@ -26,7 +26,7 @@ export const forgotPasswordSchema = z.object({
 });
 
 export const verifyCodeSchema = z.object({
-  code: z.string().length(6, "Code must be 6 digits").regex(/^\d+$/, "Code must be numeric"),
+  code: z.string().length(8, "Code must be 8 digits").regex(/^\d+$/, "Code must be numeric"),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;

@@ -26,7 +26,7 @@ export function useCurrentProfile(supabase: SupabaseClient, userId?: string) {
 export function useUpdateProfile(supabase: SupabaseClient) {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (updates: Partial<Pick<Profile, "display_name" | "username" | "bio" | "trading_style" | "experience_level" | "avatar_url">>) =>
+    mutationFn: (updates: Partial<Pick<Profile, "display_name" | "username" | "bio" | "website" | "location" | "trading_style" | "experience_level" | "avatar_url">>) =>
       profilesApi.updateProfile(supabase, updates),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });

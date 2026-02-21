@@ -11,6 +11,7 @@ import {
   type TextStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import {
   useEconomicEvents,
   useWeekDays,
@@ -23,7 +24,7 @@ import type {
   CalendarWeekDay,
 } from "@propian/shared/types";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { IconGlobe } from "@/components/icons/IconGlobe";
+import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import { colors, fontFamily, radii } from "@/theme";
 import { supabase } from "@/lib/supabase";
 
@@ -599,6 +600,7 @@ function MonthlyGrid({
 
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const now = new Date();
   const [calView, setCalView] = useState<CalView>("timeline");
   const [calImpact, setCalImpact] = useState("all");
@@ -665,10 +667,11 @@ export default function CalendarScreen() {
     <View style={[s.container as ViewStyle, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={s.header as ViewStyle}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <IconGlobe size={20} color={colors.lime} />
-          <Text style={s.title as TextStyle}>Economic Calendar</Text>
-        </View>
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn as ViewStyle}>
+          <IconChevLeft size={20} color={colors.black} />
+        </TouchableOpacity>
+        <Text style={s.headerTitle as TextStyle}>Economic Calendar</Text>
+        <View style={{ width: 40 }} />
       </View>
 
       <ScrollView
@@ -833,19 +836,23 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.black,
-    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.g200,
   },
-  title: {
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
     fontSize: 18,
-    fontFamily: fontFamily.sans.extrabold,
+    fontFamily: fontFamily.sans.bold,
     color: colors.black,
-    letterSpacing: -0.3,
   },
   scrollContent: { paddingBottom: 100 },
 

@@ -7,11 +7,15 @@
   justify-content: center;
   font-weight: 700;
   flex-shrink: 0;
-  border: 2px solid var(--white);
-  background: var(--g600);
-  color: var(--white);
+  border: 2px solid var(--black);
+  background: var(--lime);
+  color: var(--black);
   overflow: hidden;
   position: relative;
+}
+
+.pt-av.has-img {
+  background: var(--black);
 }
 
 .pt-av img,
@@ -51,6 +55,12 @@
   width: 72px;
   height: 72px;
   font-size: 24px;
+}
+
+.pt-av.chat {
+  width: 38px;
+  height: 38px;
+  font-size: 13px;
 }
 
 .pt-av-status {

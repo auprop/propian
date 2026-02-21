@@ -177,23 +177,25 @@ export default function PostDetailPage() {
         <article className="pt-post pt-post-detail" style={{ position: "relative" }}>
           {/* Header */}
           <div className="pt-post-header">
-            <Avatar
-              src={author?.avatar_url}
-              name={author?.display_name ?? "User"}
-              size="lg"
-            />
-            <div className="pt-post-author">
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ fontWeight: 600, fontSize: 16 }}>{author?.display_name ?? "User"}</span>
-                {author?.is_verified && (
-                  <IconVerified size={16} style={{ color: "var(--lime)" }} />
-                )}
+            <a href={`/@${author?.username}`} className="pt-post-author-link">
+              <Avatar
+                src={author?.avatar_url}
+                name={author?.display_name ?? "User"}
+                size="lg"
+              />
+              <div className="pt-post-author">
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span style={{ fontWeight: 600, fontSize: 16 }}>{author?.display_name ?? "User"}</span>
+                  {author?.is_verified && (
+                    <IconVerified size={16} style={{ color: "var(--lime)" }} />
+                  )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span className="pt-post-handle">@{author?.username ?? "user"}</span>
+                  <span className="pt-post-time">{timeAgo(post.created_at)}</span>
+                </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span className="pt-post-handle">@{author?.username ?? "user"}</span>
-                <span className="pt-post-time">{timeAgo(post.created_at)}</span>
-              </div>
-            </div>
+            </a>
           </div>
 
           {/* Body — larger text for detail view */}

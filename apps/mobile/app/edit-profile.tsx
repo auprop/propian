@@ -347,6 +347,8 @@ export default function EditProfileScreen() {
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [bio, setBio] = useState("");
+  const [website, setWebsite] = useState("");
+  const [location, setLocation] = useState("");
   const [tradingStyle, setTradingStyle] = useState<string>("");
   const [experienceLevel, setExperienceLevel] = useState<string>("");
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -369,6 +371,8 @@ export default function EditProfileScreen() {
       setDisplayName(profile.display_name || "");
       setUsername(profile.username || "");
       setBio(profile.bio || "");
+      setWebsite(profile.website || "");
+      setLocation(profile.location || "");
       setTradingStyle(profile.trading_style || "");
       setExperienceLevel(profile.experience_level || "");
       if (!avatarPreview) setAvatarPreview(profile.avatar_url);
@@ -460,6 +464,8 @@ export default function EditProfileScreen() {
       if (displayName !== profile?.display_name) updates.display_name = displayName;
       if (username !== profile?.username) updates.username = username;
       if (bio !== (profile?.bio ?? "")) updates.bio = bio || null;
+      if (website !== (profile?.website ?? "")) updates.website = website || null;
+      if (location !== (profile?.location ?? "")) updates.location = location || null;
       if (tradingStyle !== (profile?.trading_style ?? ""))
         updates.trading_style = tradingStyle || null;
       if (experienceLevel !== (profile?.experience_level ?? ""))
@@ -487,6 +493,8 @@ export default function EditProfileScreen() {
     displayName,
     username,
     bio,
+    website,
+    location,
     tradingStyle,
     experienceLevel,
     avatarPreview,
@@ -612,6 +620,32 @@ export default function EditProfileScreen() {
               textAlignVertical="top"
             />
             <Text style={styles.charCount}>{bio.length}/300</Text>
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Website</Text>
+            <TextInput
+              style={styles.input}
+              value={website}
+              onChangeText={setWebsite}
+              placeholder="https://yoursite.com"
+              placeholderTextColor={colors.g400}
+              autoCapitalize="none"
+              keyboardType="url"
+              maxLength={200}
+            />
+          </View>
+
+          <View style={styles.field}>
+            <Text style={styles.label}>Location</Text>
+            <TextInput
+              style={styles.input}
+              value={location}
+              onChangeText={setLocation}
+              placeholder="e.g. New York, US"
+              placeholderTextColor={colors.g400}
+              maxLength={100}
+            />
           </View>
 
           <View style={styles.field}>

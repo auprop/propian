@@ -21,7 +21,7 @@ import type { Trade, TradeFilter } from "@propian/shared/types";
 import { formatCurrency } from "@propian/shared/utils";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { IconNotes } from "@/components/icons/IconNotes";
+import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import { IconPlus } from "@/components/icons/IconPlus";
 import { IconChevDown } from "@/components/icons/IconChevDown";
 import { colors, fontFamily, radii, spacing } from "@/theme";
@@ -385,10 +385,11 @@ export default function JournalScreen() {
   return (
     <View style={[styles.container as ViewStyle, { paddingTop: insets.top }]}>
       <View style={styles.header as ViewStyle}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <IconNotes size={20} color={colors.lime} />
-          <Text style={styles.title as TextStyle}>Journal</Text>
-        </View>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn as ViewStyle}>
+          <IconChevLeft size={20} color={colors.black} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle as TextStyle}>Journal</Text>
+        <View style={{ width: 40 }} />
       </View>
 
       <FlatList
@@ -452,19 +453,23 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.black,
-    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.g200,
   },
-  title: {
-    fontSize: 20,
-    fontFamily: fontFamily.sans.extrabold,
+  headerTitle: {
+    fontSize: 18,
+    fontFamily: fontFamily.sans.bold,
     color: colors.black,
-    letterSpacing: -0.3,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
   listContent: {
     padding: 16,

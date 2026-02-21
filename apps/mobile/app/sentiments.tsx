@@ -35,7 +35,7 @@ import {
   type Instrument,
 } from "@propian/shared/constants";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { IconArrow } from "@/components/icons/IconArrow";
+import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import { colors, fontFamily, radii } from "@/theme";
 import { supabase } from "@/lib/supabase";
 
@@ -317,9 +317,7 @@ export default function SentimentsScreen() {
       {/* Header */}
       <View style={s.header}>
         <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7} style={s.backBtn}>
-          <View style={{ transform: [{ rotate: "180deg" }] }}>
-            <IconArrow size={16} color={colors.black} />
-          </View>
+          <IconChevLeft size={16} color={colors.black} />
         </TouchableOpacity>
         <Text style={s.title}>Market Sentiments</Text>
         <View style={{ width: 36 }} />

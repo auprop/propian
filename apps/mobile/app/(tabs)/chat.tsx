@@ -4,6 +4,7 @@ import {
   Text,
   FlatList,
   StyleSheet,
+  TouchableOpacity,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -13,6 +14,7 @@ import { useChatRooms } from "@propian/shared/hooks";
 import { Input, EmptyState, Skeleton } from "@/components/ui";
 import { RoomItem } from "@/components/chat/RoomItem";
 import { IconChat } from "@/components/icons/IconChat";
+import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import { IconSearch } from "@/components/icons/IconSearch";
 import type { ChatRoom } from "@propian/shared/types";
 
@@ -55,7 +57,11 @@ export default function ChatRoomsScreen() {
     return (
       <View style={[styles.safe, { paddingTop: insets.top }]}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Messages</Text>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <IconChevLeft size={20} color={colors.black} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Chatroom</Text>
+          <View style={{ width: 40 }} />
         </View>
         <View style={styles.loadingContainer}>
           <Skeleton height={48} />
@@ -77,7 +83,11 @@ export default function ChatRoomsScreen() {
     <View style={[styles.safe, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Messages</Text>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <IconChevLeft size={20} color={colors.black} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Chatroom</Text>
+        <View style={{ width: 40 }} />
       </View>
 
       <FlatList
@@ -104,18 +114,24 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 14,
-    backgroundColor: colors.white,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.black,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.g200,
   },
   headerTitle: {
-    fontFamily: "Outfit_800ExtraBold",
-    fontSize: 24,
+    fontSize: 18,
+    fontFamily: fontFamily.sans.bold,
     color: colors.black,
-    letterSpacing: -0.5,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
   searchContainer: {
     paddingHorizontal: 16,

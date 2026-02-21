@@ -89,9 +89,7 @@ export default function RootLayout() {
             <Stack.Screen
               name="profile/[username]"
               options={{
-                headerShown: true,
-                headerTitle: "Profile",
-                headerBackTitle: "Back",
+                headerShown: false,
               }}
             />
             <Stack.Screen
@@ -118,11 +116,7 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="settings-page"
-              options={{
-                headerShown: true,
-                headerTitle: "Settings",
-                headerBackTitle: "Back",
-              }}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="portfolio"
@@ -130,10 +124,6 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="analytics"
-              options={{ headerShown: false }}
-            />
-            <Stack.Screen
-              name="calendar"
               options={{ headerShown: false }}
             />
             <Stack.Screen

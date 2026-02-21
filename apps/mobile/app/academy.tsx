@@ -47,6 +47,7 @@ import type {
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Avatar } from "@/components/ui/Avatar";
 import { IconArrow } from "@/components/icons/IconArrow";
+import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import { colors, fontFamily, radii } from "@/theme";
 import { supabase } from "@/lib/supabase";
 
@@ -189,11 +190,11 @@ export default function AcademyScreen() {
       <View style={s.header as ViewStyle}>
         {drill !== "none" ? (
           <TouchableOpacity onPress={goBack} style={s.backBtn as ViewStyle}>
-            <IconArrow size={20} color={colors.black} />
+            <IconChevLeft size={20} color={colors.black} />
           </TouchableOpacity>
         ) : (
           <TouchableOpacity onPress={() => router.back()} style={s.backBtn as ViewStyle}>
-            <IconArrow size={20} color={colors.black} />
+            <IconChevLeft size={20} color={colors.black} />
           </TouchableOpacity>
         )}
         <Text style={s.headerTitle as TextStyle}>

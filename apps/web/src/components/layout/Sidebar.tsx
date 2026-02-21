@@ -2,7 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type ReactNode } from "react";
+import { type ReactNode, useMemo, useState, useEffect } from "react";
+import { useSession, useCurrentProfile } from "@propian/shared/hooks";
+import { createBrowserClient } from "@/lib/supabase/client";
+import { Avatar } from "@/components/ui/Avatar";
 
 /* ─── SVG Icons ─── */
 
@@ -302,6 +305,7 @@ interface SidebarItem {
 
 interface SidebarGroup {
   label: string;
+  abbr: string;
   items: SidebarItem[];
 }
 
@@ -310,15 +314,16 @@ interface SidebarGroup {
 const SIDEBAR_GROUPS: SidebarGroup[] = [
   {
     label: "Social",
+    abbr: "SOC",
     items: [
       { href: "/feed", label: "Feed", icon: IconHouse },
       { href: "/chat", label: "Chat", icon: IconChat },
       { href: "/leaderboard", label: "Leaderboard", icon: IconCup },
-      { href: "/search", label: "Search", icon: IconSearch },
     ],
   },
   {
     label: "Firms",
+    abbr: "FRM",
     items: [
       { href: "/firms", label: "Directory", icon: IconServers },
       { href: "/compare", label: "Compare", icon: IconBalance },
@@ -326,6 +331,7 @@ const SIDEBAR_GROUPS: SidebarGroup[] = [
   },
   {
     label: "Trading",
+    abbr: "TRD",
     items: [
       { href: "/journal", label: "Journal", icon: IconNotes },
       { href: "/challenges", label: "Challenges", icon: IconArrow },
@@ -336,6 +342,7 @@ const SIDEBAR_GROUPS: SidebarGroup[] = [
   },
   {
     label: "Markets",
+    abbr: "MKT",
     items: [
       { href: "/sentiments", label: "Sentiments", icon: IconInLove },
       { href: "/news", label: "News", icon: IconRadioAntenna },
@@ -343,16 +350,17 @@ const SIDEBAR_GROUPS: SidebarGroup[] = [
   },
   {
     label: "Learn",
+    abbr: "LRN",
     items: [
       { href: "/academy", label: "Academy", icon: IconInsurance },
     ],
   },
   {
     label: "Account",
+    abbr: "ACC",
     items: [
       { href: "/profile", label: "Profile", icon: IconSingle },
-      { href: "/notifications", label: "Notifications", icon: IconNotification },
-      { href: "/referrals", label: "Referrals", icon: IconRefer },
+{ href: "/referrals", label: "Referrals", icon: IconRefer },
       { href: "/settings", label: "Settings", icon: IconSettings },
     ],
   },
@@ -364,10 +372,23 @@ interface SidebarProps {
   collapsed?: boolean;
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
+  onToggle?: () => void;
 }
 
-export function Sidebar({ collapsed = false, mobileOpen = false, onCloseMobile }: SidebarProps) {
+export function Sidebar({ collapsed = false, mobileOpen = false, onCloseMobile, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const supabase = useMemo(() => createBrowserClient(), []);
+
+  const { data: session } = useSession(supabase);
+  const { data: profile } = useCurrentProfile(supabase, session?.user?.id);
+  const displayName = profile?.display_name ?? "Trader";
+  const [greeting, setGreeting] = useState("");
+  useEffect(() => {
+    const h = new Date().getHours();
+    if (h < 12) setGreeting("Good Morning 👋");
+    else if (h < 18) setGreeting("Good Afternoon 👋");
+    else setGreeting("Good Evening 👋");
+  }, []);
 
   const isActive = (href: string) => {
     if (href === "/feed") return pathname === "/" || pathname === "/feed" || pathname.startsWith("/feed");
@@ -389,26 +410,70 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onCloseMobile }
         role="navigation"
         aria-label="Main navigation"
       >
-        {SIDEBAR_GROUPS.map((group) => (
-          <div key={group.label} className="pt-sidebar-group">
-            <div className="pt-sidebar-group-label">{group.label}</div>
-            {group.items.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`pt-sidebar-link ${isActive(item.href) ? "active" : ""}`}
-                onClick={onCloseMobile}
-              >
-                {item.icon ? (
-                  <item.icon />
-                ) : (
-                  <span className="pt-sidebar-emoji">{item.emoji}</span>
-                )}
-                <span>{item.label}</span>
-              </Link>
-            ))}
-          </div>
-        ))}
+        {/* Profile header */}
+        <div
+          className="pt-sidebar-profile"
+          onClick={collapsed ? onToggle : undefined}
+          style={collapsed ? { cursor: "pointer" } : undefined}
+        >
+          <Avatar
+            src={profile?.avatar_url}
+            name={displayName}
+            size={collapsed ? "md" : "lg"}
+          />
+          {!collapsed && (
+            <div className="pt-sidebar-profile-info">
+              <span className="pt-sidebar-profile-greeting" suppressHydrationWarning>{greeting}</span>
+              <span className="pt-sidebar-profile-handle">{displayName}</span>
+            </div>
+          )}
+          <button
+            className="pt-sidebar-toggle"
+            onClick={onToggle}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              {collapsed ? (
+                <polyline points="9 18 15 12 9 6" />
+              ) : (
+                <polyline points="15 18 9 12 15 6" />
+              )}
+            </svg>
+          </button>
+        </div>
+
+        {/* Scrollable navigation groups */}
+        <div className="pt-sidebar-scroll">
+          {SIDEBAR_GROUPS.map((group) => (
+            <div key={group.label} className="pt-sidebar-group">
+              <div className="pt-sidebar-group-label">
+                {collapsed ? group.abbr : group.label}
+              </div>
+              {group.items.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`pt-sidebar-link ${isActive(item.href) ? "active" : ""}`}
+                  onClick={onCloseMobile}
+                >
+                  {item.icon ? (
+                    <item.icon />
+                  ) : (
+                    <span className="pt-sidebar-emoji">{item.emoji}</span>
+                  )}
+                  <span>{item.label}</span>
+                  <span className="pt-sidebar-tooltip">{item.label}</span>
+                </Link>
+              ))}
+            </div>
+          ))}
+        </div>
+
+        {/* CTA button */}
+        <Link href="/compose" className="pt-sidebar-cta" onClick={onCloseMobile}>
+          <span className="pt-sidebar-cta-icon">+</span>
+          {!collapsed && <span>Share Trade Idea</span>}
+        </Link>
       </nav>
     </>
   );

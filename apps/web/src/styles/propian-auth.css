@@ -118,18 +118,18 @@
 
 .pt-code-input {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   justify-content: center;
   margin: 24px 0;
 }
 
 .pt-code-digit {
-  width: 48px;
-  height: 56px;
+  width: 42px;
+  height: 50px;
   border: var(--brd);
   border-radius: var(--r-md);
   text-align: center;
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   font-family: var(--mono);
   outline: none;

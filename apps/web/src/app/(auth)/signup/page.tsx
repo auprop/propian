@@ -29,7 +29,7 @@ export default function SignupPage() {
     setError("");
     try {
       await signUp(supabase, data);
-      router.push("/verify");
+      router.push(`/verify?email=${encodeURIComponent(data.email)}`);
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {

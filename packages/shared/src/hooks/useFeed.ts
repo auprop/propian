@@ -42,6 +42,20 @@ export function useFeed(supabase: SupabaseClient) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  User posts                                                         */
+/* ------------------------------------------------------------------ */
+
+export function useUserPosts(supabase: SupabaseClient, userId: string | undefined) {
+  return useInfiniteQuery({
+    queryKey: ["userPosts", userId],
+    queryFn: ({ pageParam }) => postsApi.getUserPosts(supabase, userId!, pageParam),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled: !!userId,
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /*  Single post                                                        */
 /* ------------------------------------------------------------------ */
 

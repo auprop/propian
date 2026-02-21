@@ -4,12 +4,14 @@ import {
   Text,
   ScrollView,
   RefreshControl,
+  TouchableOpacity,
   StyleSheet,
   Dimensions,
   type ViewStyle,
   type TextStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
 import Svg, { Polyline, Line, Polygon, Defs, LinearGradient, Stop } from "react-native-svg";
 import { supabase } from "@/lib/supabase";
 import {
@@ -41,7 +43,7 @@ import type {
 import { formatCurrency } from "@propian/shared/utils";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Skeleton } from "@/components/ui/Skeleton";
-import { IconBarChart } from "@/components/icons/IconBarChart";
+import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import { colors, fontFamily, radii } from "@/theme";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -499,7 +501,7 @@ function MistakeCard({ data }: { data: MistakeStats[] }) {
 
 export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets();
-
+  const router = useRouter();
 
   const { data: stats, isLoading: statsLoading, refetch, isRefetching } = useTradeStats(supabase);
   const { data: summary } = usePortfolioSummary(supabase);
@@ -520,12 +522,14 @@ export default function AnalyticsScreen() {
     <View style={[s.container as ViewStyle, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={s.header as ViewStyle}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <IconBarChart size={20} color={colors.lime} />
-          <Text style={s.title as TextStyle}>Analytics</Text>
-        </View>
-        {stats && !isEmpty && (
+        <TouchableOpacity onPress={() => router.back()} style={s.backBtn as ViewStyle}>
+          <IconChevLeft size={20} color={colors.black} />
+        </TouchableOpacity>
+        <Text style={s.headerTitle as TextStyle}>Analytics</Text>
+        {stats && !isEmpty ? (
           <Text style={s.headerSub as TextStyle}>{stats.total_trades} trades</Text>
+        ) : (
+          <View style={{ width: 40 }} />
         )}
       </View>
 
@@ -579,19 +583,23 @@ const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.white },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.black,
-    backgroundColor: colors.white,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.g200,
   },
-  title: {
-    fontSize: 20,
-    fontFamily: fontFamily.sans.extrabold,
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontFamily: fontFamily.sans.bold,
     color: colors.black,
-    letterSpacing: -0.3,
   },
   headerSub: {
     fontSize: 11,

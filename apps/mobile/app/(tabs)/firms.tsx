@@ -5,7 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  Pressable,
+  TouchableOpacity,
   RefreshControl,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -16,9 +16,8 @@ import { useFirms } from "@propian/shared/hooks";
 import { firmCategories } from "@propian/shared/constants";
 import { Input, FilterChip, EmptyState, Skeleton } from "@/components/ui";
 import { FirmCard } from "@/components/firms/FirmCard";
-import { IconSearch } from "@/components/icons/IconSearch";
 import { IconChart } from "@/components/icons/IconChart";
-import { IconCompare } from "@/components/icons/IconCompare";
+import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import type { Firm, FirmFilter } from "@propian/shared/types";
 
 export default function FirmsScreen() {
@@ -98,13 +97,11 @@ export default function FirmsScreen() {
     return (
       <View style={[styles.safe, { paddingTop: insets.top }]}>
         <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <IconChevLeft size={20} color={colors.black} />
+          </TouchableOpacity>
           <Text style={styles.headerTitle}>Prop Firms</Text>
-          <Pressable
-            style={styles.compareButton}
-            onPress={() => router.push("/compare")}
-          >
-            <IconCompare size={18} color={colors.black} />
-          </Pressable>
+          <View style={{ width: 40 }} />
         </View>
         <View style={styles.loadingContainer}>
           <Skeleton height={48} />
@@ -129,7 +126,11 @@ export default function FirmsScreen() {
     <View style={[styles.safe, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <IconChevLeft size={20} color={colors.black} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Prop Firms</Text>
+        <View style={{ width: 40 }} />
       </View>
 
       {/* Grid with search & chips as header */}
@@ -169,28 +170,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 14,
-    backgroundColor: colors.white,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.black,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.g200,
   },
-  compareButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
-    borderColor: colors.black,
+  backBtn: {
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.lime,
   },
   headerTitle: {
-    fontFamily: "Outfit_800ExtraBold",
-    fontSize: 24,
+    fontSize: 18,
+    fontFamily: fontFamily.sans.bold,
     color: colors.black,
-    letterSpacing: -0.5,
   },
   searchContainer: {
     paddingHorizontal: 16,

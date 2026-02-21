@@ -206,21 +206,23 @@ function PostCard({
         <a href={`/post/${original.id}`} className="pt-post-link">
           {/* Original post header */}
           <div className="pt-post-header">
-            <Avatar
-              src={originalAuthor?.avatar_url}
-              name={originalAuthor?.display_name ?? "User"}
-              size="md"
-            />
-            <div className="pt-post-author">
-              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                <span style={{ fontWeight: 600 }}>{originalAuthor?.display_name ?? "User"}</span>
-                {originalAuthor?.is_verified && (
-                  <IconVerified size={14} style={{ color: "var(--lime)" }} />
-                )}
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span className="pt-post-handle">@{originalAuthor?.username ?? "user"}</span>
-                <span className="pt-post-time">{timeAgo(original.created_at)}</span>
+            <div className="pt-post-author-link" onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.location.href = `/@${originalAuthor?.username}`; }}>
+              <Avatar
+                src={originalAuthor?.avatar_url}
+                name={originalAuthor?.display_name ?? "User"}
+                size="md"
+              />
+              <div className="pt-post-author">
+                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  <span>{originalAuthor?.display_name ?? "User"}</span>
+                  {originalAuthor?.is_verified && (
+                    <IconVerified size={14} style={{ color: "var(--lime)" }} />
+                  )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span className="pt-post-handle">@{originalAuthor?.username ?? "user"}</span>
+                  <span className="pt-post-time">{timeAgo(original.created_at)}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -272,21 +274,23 @@ function PostCard({
       <a href={`/post/${post.id}`} className="pt-post-link">
         {/* Header */}
         <div className="pt-post-header">
-          <Avatar
-            src={post.author?.avatar_url}
-            name={post.author?.display_name ?? "User"}
-            size="md"
-          />
-          <div className="pt-post-author">
-            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-              <span style={{ fontWeight: 600 }}>{post.author?.display_name ?? "User"}</span>
-              {post.author?.is_verified && (
-                <IconVerified size={14} style={{ color: "var(--lime)" }} />
-              )}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span className="pt-post-handle">@{post.author?.username ?? "user"}</span>
-              <span className="pt-post-time">{timeAgo(post.created_at)}</span>
+          <div className="pt-post-author-link" onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.location.href = `/@${post.author?.username}`; }}>
+            <Avatar
+              src={post.author?.avatar_url}
+              name={post.author?.display_name ?? "User"}
+              size="md"
+            />
+            <div className="pt-post-author">
+              <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                <span>{post.author?.display_name ?? "User"}</span>
+                {post.author?.is_verified && (
+                  <IconVerified size={14} style={{ color: "var(--lime)" }} />
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span className="pt-post-handle">@{post.author?.username ?? "user"}</span>
+                <span className="pt-post-time">{timeAgo(post.created_at)}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -525,16 +529,20 @@ function InlineComments({
     <div key={comment.id} className={`pt-comment-thread${isReply ? " pt-comment-reply" : ""}`}>
       <div className="pt-comment">
         {isReply && <div className="pt-thread-line" />}
-        <Avatar
-          src={comment.author?.avatar_url}
-          name={comment.author?.display_name ?? "User"}
-          size="sm"
-        />
+        <a href={`/@${comment.author?.username}`} className="pt-comment-author-link">
+          <Avatar
+            src={comment.author?.avatar_url}
+            name={comment.author?.display_name ?? "User"}
+            size="sm"
+          />
+        </a>
         <div className="pt-comment-body">
           <div className="pt-comment-header">
-            <span className="pt-comment-author">
-              {comment.author?.display_name ?? "Unknown"}
-            </span>
+            <a href={`/@${comment.author?.username}`} className="pt-comment-author-link">
+              <span className="pt-comment-author">
+                {comment.author?.display_name ?? "Unknown"}
+              </span>
+            </a>
             {comment.author?.is_verified && (
               <IconVerified size={12} style={{ color: "var(--lime)" }} />
             )}

@@ -5,12 +5,12 @@
   border-radius: var(--r-lg);
   background: var(--white);
   overflow: hidden;
-  transition: box-shadow var(--t), transform var(--tf);
+  box-shadow: var(--sh-xs);
+  transition: box-shadow var(--t);
 }
 
 .pt-card:hover {
-  box-shadow: var(--sh-sm);
-  transform: translateY(-2px);
+  box-shadow: var(--sh-md);
 }
 
 .pt-card-body {

@@ -27,6 +27,7 @@ export async function middleware(request: NextRequest) {
 
   const {
     data: { user },
+    error,
   } = await supabase.auth.getUser();
 
   const isAuthPage =
@@ -36,6 +37,19 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/verify");
 
   const isApiRoute = request.nextUrl.pathname.startsWith("/api/");
+
+  // If refresh token is invalid/expired, clear stale cookies and redirect to login
+  if (error && !isAuthPage && !isApiRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    const response = NextResponse.redirect(url);
+    request.cookies.getAll().forEach((cookie) => {
+      if (cookie.name.startsWith("sb-")) {
+        response.cookies.delete(cookie.name);
+      }
+    });
+    return response;
+  }
 
   // If not logged in and trying to access protected routes, redirect to login
   if (!user && !isAuthPage && !isApiRoute && request.nextUrl.pathname !== "/") {
@@ -56,6 +70,22 @@ export async function middleware(request: NextRequest) {
   if (atMatch) {
     const url = request.nextUrl.clone();
     url.pathname = `/profile/${atMatch[1]}`;
+    return NextResponse.rewrite(url);
+  }
+
+  // Rewrite /username → /profile/username (bare username without @)
+  const knownRoutes = [
+    "feed", "login", "signup", "forgot-password", "verify",
+    "onboarding", "post", "profile", "settings", "notifications",
+    "bookmarks", "leaderboard", "academy", "firms", "api", "auth",
+    "compare", "search", "chat", "journal", "portfolio",
+    "analytics", "calendar", "sentiments", "referrals",
+    "challenges", "news", "compose",
+  ];
+  const bareMatch = request.nextUrl.pathname.match(/^\/([a-zA-Z0-9_-]+)$/);
+  if (bareMatch && !knownRoutes.includes(bareMatch[1])) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/profile/${bareMatch[1]}`;
     return NextResponse.rewrite(url);
   }
 

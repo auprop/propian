@@ -3,15 +3,15 @@
 .pt-btn {
   display: inline-flex;
   align-items: center;
-  gap: 16px;
-  padding: 9px 9px 9px 22px;
+  gap: 10px;
+  padding: 9px 12px 9px 18px;
   border: var(--brd);
   border-radius: var(--r-lg);
   background: transparent;
   cursor: pointer;
   font-family: var(--font);
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--black);
   transition: all var(--t);
   white-space: nowrap;
@@ -33,18 +33,9 @@
   background: var(--lime);
   padding: 7px;
   border-radius: var(--r-sm);
-  transition: transform var(--t);
+  transition: background var(--t), color var(--t);
   color: var(--black);
   flex-shrink: 0;
-}
-
-.pt-btn:hover .pt-btn-icon {
-  transform: rotate(45deg);
-}
-
-.pt-btn:hover .pt-btn-icon svg {
-  transform: rotate(-45deg);
-  transition: transform var(--t);
 }
 
 .pt-btn.primary {

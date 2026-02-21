@@ -50,3 +50,14 @@ export async function resetPassword(supabase: SupabaseClient, email: string) {
   });
   if (error) throw error;
 }
+
+export async function verifyOtp(supabase: SupabaseClient, email: string, token: string) {
+  const { data, error } = await supabase.auth.verifyOtp({ email, token, type: "signup" });
+  if (error) throw error;
+  return data;
+}
+
+export async function resendVerification(supabase: SupabaseClient, email: string) {
+  const { error } = await supabase.auth.resend({ type: "signup", email });
+  if (error) throw error;
+}

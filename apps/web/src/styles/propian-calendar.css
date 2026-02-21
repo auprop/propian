@@ -44,10 +44,26 @@
 }
 
 .pt-cal-week {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  display: flex;
   gap: 4px;
   margin-bottom: 24px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--g200) transparent;
+  padding-bottom: 4px;
+}
+
+.pt-cal-week::-webkit-scrollbar {
+  height: 4px;
+}
+
+.pt-cal-week::-webkit-scrollbar-thumb {
+  background: var(--g200);
+  border-radius: 4px;
+}
+
+.pt-cal-week::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .pt-cal-day {
@@ -58,6 +74,8 @@
   cursor: pointer;
   transition: all var(--tf);
   background: var(--white);
+  min-width: 120px;
+  flex-shrink: 0;
 }
 
 .pt-cal-day:hover {

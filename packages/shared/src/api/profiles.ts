@@ -79,7 +79,7 @@ export async function getProfileById(supabase: SupabaseClient, userId: string) {
 
 export async function updateProfile(
   supabase: SupabaseClient,
-  updates: Partial<Pick<Profile, "display_name" | "username" | "bio" | "trading_style" | "experience_level" | "avatar_url">>
+  updates: Partial<Pick<Profile, "display_name" | "username" | "bio" | "website" | "location" | "trading_style" | "experience_level" | "avatar_url">>
 ) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");

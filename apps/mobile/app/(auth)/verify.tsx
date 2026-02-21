@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,16 +7,28 @@ import {
   StyleSheet,
   Pressable,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
+import { useVerifyOtp, useResendVerification } from "@propian/shared/hooks";
+import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui";
 import { colors, fontFamily, radii, shadows } from "@/theme";
 
 export default function VerifyScreen() {
   const router = useRouter();
-  const [code, setCode] = useState(["", "", "", "", "", ""]);
+  const { email } = useLocalSearchParams<{ email: string }>();
+  const verifyOtp = useVerifyOtp(supabase);
+  const resendVerification = useResendVerification(supabase);
+
+  const [code, setCode] = useState(["", "", "", "", "", "", "", ""]);
   const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const inputs = useRef<(TextInput | null)[]>([]);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [cooldown]);
 
   function handleChange(value: string, index: number) {
     if (value.length > 1) {
@@ -27,7 +39,7 @@ export default function VerifyScreen() {
     setCode(newCode);
 
     // Auto-advance to next input
-    if (value && index < 5) {
+    if (value && index < 7) {
       inputs.current[index + 1]?.focus();
     }
   }
@@ -38,22 +50,29 @@ export default function VerifyScreen() {
     }
   }
 
-  async function handleVerify() {
+  function handleVerify() {
     const fullCode = code.join("");
-    if (fullCode.length < 6) {
-      setError("Please enter the full 6-digit code");
+    if (fullCode.length < 8) {
+      setError("Please enter the full 8-digit code");
       return;
     }
-    setLoading(true);
     setError("");
-    try {
-      // Verify code logic would go here
-      router.replace("/(tabs)/feed");
-    } catch (err: any) {
-      setError(err.message || "Invalid code");
-    } finally {
-      setLoading(false);
-    }
+    verifyOtp.mutate(
+      { email: email ?? "", token: fullCode },
+      {
+        onSuccess: () => router.replace("/(tabs)/feed"),
+        onError: (err) => setError(err.message || "Invalid verification code"),
+      }
+    );
+  }
+
+  function handleResend() {
+    if (cooldown > 0 || !email) return;
+    setError("");
+    resendVerification.mutate(email, {
+      onSuccess: () => setCooldown(60),
+      onError: (err) => setError(err.message || "Failed to resend code"),
+    });
   }
 
   return (
@@ -64,7 +83,12 @@ export default function VerifyScreen() {
       <View style={styles.card}>
         <Text style={styles.title}>Verify email</Text>
         <Text style={styles.subtitle}>
-          Enter the 6-digit code sent to your email.
+          Enter the 8-digit code sent to{" "}
+          {email ? (
+            <Text style={styles.emailHighlight}>{email}</Text>
+          ) : (
+            "your email"
+          )}
         </Text>
 
         {error !== "" && (
@@ -95,15 +119,17 @@ export default function VerifyScreen() {
           variant="primary"
           fullWidth
           onPress={handleVerify}
-          disabled={loading}
+          disabled={verifyOtp.isPending}
         >
-          {loading ? "Verifying..." : "Verify Email"}
+          {verifyOtp.isPending ? "Verifying..." : "Verify Email"}
         </Button>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>Didn't receive a code? </Text>
-          <Pressable>
-            <Text style={styles.footerLink}>Resend</Text>
+          <Pressable onPress={handleResend} disabled={cooldown > 0}>
+            <Text style={[styles.footerLink, cooldown > 0 && styles.footerLinkDisabled]}>
+              {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend"}
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -139,6 +165,10 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     marginBottom: 8,
   },
+  emailHighlight: {
+    fontFamily: "Outfit_600SemiBold",
+    color: colors.black,
+  },
   errorBox: {
     backgroundColor: colors.redBg,
     borderRadius: radii.md,
@@ -152,18 +182,18 @@ const styles = StyleSheet.create({
   },
   codeRow: {
     flexDirection: "row",
-    gap: 8,
+    gap: 6,
     justifyContent: "center",
     marginVertical: 24,
   },
   codeDigit: {
-    width: 48,
-    height: 56,
+    width: 38,
+    height: 48,
     borderWidth: 2,
     borderColor: colors.g200,
     borderRadius: radii.md,
     textAlign: "center",
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: "JetBrainsMono_500Medium",
     color: colors.black,
   },
@@ -186,5 +216,8 @@ const styles = StyleSheet.create({
     color: colors.black,
     borderBottomWidth: 2,
     borderBottomColor: colors.lime,
+  },
+  footerLinkDisabled: {
+    opacity: 0.5,
   },
 });

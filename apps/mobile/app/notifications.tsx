@@ -5,6 +5,7 @@ import {
   FlatList,
   ScrollView,
   Pressable,
+  TouchableOpacity,
   StyleSheet,
 } from "react-native";
 import { useRouter } from "expo-router";
@@ -23,7 +24,7 @@ import { IconComment } from "@/components/icons/IconComment";
 import { IconUser } from "@/components/icons/IconUser";
 import { IconStar } from "@/components/icons/IconStar";
 import { IconFlag } from "@/components/icons/IconFlag";
-import { IconArrow } from "@/components/icons/IconArrow";
+import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import { timeAgo } from "@propian/shared/utils";
 import type { Notification, NotificationType } from "@propian/shared/types";
 
@@ -106,6 +107,13 @@ export default function NotificationsScreen() {
   if (isLoading) {
     return (
       <View style={[styles.safe, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <IconChevLeft size={20} color={colors.black} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Notifications</Text>
+          <View style={{ width: 40 }} />
+        </View>
         <View style={styles.loadingContainer}>
           {[1, 2, 3, 4, 5].map((i) => (
             <View key={i} style={styles.skeletonRow}>
@@ -133,9 +141,9 @@ export default function NotificationsScreen() {
           <>
             {/* Header */}
             <View style={styles.header}>
-              <Pressable onPress={() => router.back()}>
-                <IconArrow size={20} color={colors.black} />
-              </Pressable>
+              <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                <IconChevLeft size={20} color={colors.black} />
+              </TouchableOpacity>
               <Text style={styles.headerTitle}>Notifications</Text>
               <Pressable
                 style={[
@@ -194,29 +202,33 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: spacing.base,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.sm,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.g200,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
   headerTitle: {
-    fontFamily: "Outfit_800ExtraBold",
-    fontSize: 24,
+    fontFamily: fontFamily.sans.bold,
+    fontSize: 18,
     color: colors.black,
-    letterSpacing: -0.5,
-    flex: 1,
-    marginLeft: 12,
   },
   markAllButton: {
     backgroundColor: colors.lime,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: radii.full,
-    borderWidth: 1.5,
+    borderWidth: 1,
     borderColor: colors.black,
   },
   markAllText: {
     fontFamily: "Outfit_600SemiBold",
-    fontSize: 12,
+    fontSize: 9,
     color: colors.black,
   },
   markAllButtonDisabled: {

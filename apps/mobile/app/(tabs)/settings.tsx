@@ -40,7 +40,7 @@ import { IconArrow } from "@/components/icons/IconArrow";
 interface MenuItem {
   label: string;
   icon: (props: { size: number; color: string }) => ReactNode;
-  route: string;
+  route: string | null;
 }
 
 interface MenuGroup {
@@ -87,7 +87,7 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     label: "Account",
     items: [
-      { label: "Profile", icon: IconUser, route: "/profile" },
+      { label: "Profile", icon: IconUser, route: null },
       { label: "Notifications", icon: IconBell, route: "/notifications" },
       { label: "Referrals", icon: IconRefer, route: "/referrals" },
       { label: "Settings", icon: IconSettings, route: "/settings-page" },
@@ -120,8 +120,6 @@ export default function MoreScreen() {
               triggerHaptic("light");
               if (profile?.username) {
                 router.push(`/profile/${profile.username}` as any);
-              } else {
-                router.push("/profile" as any);
               }
             }}
           >
@@ -157,7 +155,11 @@ export default function MoreScreen() {
                   activeOpacity={0.6}
                   onPress={() => {
                     triggerHaptic("light");
-                    router.push(item.route as any);
+                    if (item.route === null && profile?.username) {
+                      router.push(`/profile/${profile.username}` as any);
+                    } else if (item.route) {
+                      router.push(item.route as any);
+                    }
                   }}
                 >
                   <View style={styles.menuIconWrap as ViewStyle}>

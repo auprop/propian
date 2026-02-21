@@ -4,6 +4,7 @@ import {
   Text,
   FlatList,
   StyleSheet,
+  TouchableOpacity,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -11,6 +12,7 @@ import { colors, fontFamily, radii, spacing, shadows } from "@/theme";
 import { supabase } from "@/lib/supabase";
 import { useLeaderboard } from "@propian/shared/hooks";
 import { Avatar, FilterChip, Card, Skeleton, EmptyState } from "@/components/ui";
+import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import { IconTrophy } from "@/components/icons/IconTrophy";
 import { IconVerified } from "@/components/icons/IconVerified";
 import { IconTrendUp } from "@/components/icons/IconTrendUp";
@@ -77,6 +79,13 @@ export default function LeaderboardScreen() {
   if (isLoading) {
     return (
       <View style={[styles.safe, { paddingTop: insets.top }]}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+            <IconChevLeft size={20} color={colors.black} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Leaderboard</Text>
+          <View style={{ width: 40 }} />
+        </View>
         <View style={styles.loadingContainer}>
           <View style={styles.periodRow}>
             {PERIODS.map((p) => (
@@ -96,7 +105,11 @@ export default function LeaderboardScreen() {
     <View style={[styles.safe, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <IconChevLeft size={20} color={colors.black} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Leaderboard</Text>
+        <View style={{ width: 40 }} />
       </View>
 
       <FlatList
@@ -212,18 +225,25 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   header: {
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     backgroundColor: colors.white,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.black,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.g200,
   },
   headerTitle: {
-    fontFamily: "Outfit_800ExtraBold",
-    fontSize: 24,
+    fontFamily: fontFamily.sans.bold,
+    fontSize: 18,
     color: colors.black,
-    letterSpacing: -0.5,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
   periodRow: {
     flexDirection: "row",

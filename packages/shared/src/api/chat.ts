@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { ChatRoom, Message } from "../types";
+import type { ChatRoom, Message, ChannelReadState, StructuredTradeData } from "../types";
+
+/* ─── Rooms ─── */
 
 export async function getRooms(supabase: SupabaseClient) {
   const { data: { user } } = await supabase.auth.getUser();
@@ -11,18 +13,23 @@ export async function getRooms(supabase: SupabaseClient) {
       room_id,
       last_read_at,
       room:chat_rooms!room_id(
-        id, type, name, created_at
+        id, type, name, created_at, community_id
       )
     `)
     .eq("user_id", user.id)
     .order("joined_at", { ascending: false });
   if (error) throw error;
 
-  return (data ?? []).map((p: any) => ({
-    ...p.room,
-    last_read_at: p.last_read_at,
-  })) as ChatRoom[];
+  // Only return DM / non-community group rooms
+  return (data ?? [])
+    .map((p: any) => ({
+      ...p.room,
+      last_read_at: p.last_read_at,
+    }))
+    .filter((r: any) => !r.community_id) as ChatRoom[];
 }
+
+/* ─── Messages ─── */
 
 export async function getMessages(
   supabase: SupabaseClient,
@@ -32,7 +39,14 @@ export async function getMessages(
 ) {
   let query = supabase
     .from("messages")
-    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+    .select(`
+      *,
+      author:profiles!user_id(id, username, display_name, avatar_url, is_verified),
+      reactions:message_reactions(
+        id, message_id, user_id, emoji, created_at,
+        user:profiles!user_id(id, username, display_name, avatar_url)
+      )
+    `)
     .eq("room_id", roomId)
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -50,19 +64,30 @@ export async function sendMessage(
   supabase: SupabaseClient,
   roomId: string,
   content: string,
-  type: "text" | "image" = "text"
+  type: "text" | "image" = "text",
+  options?: {
+    ticker_mentions?: string[];
+    structured_data?: StructuredTradeData;
+  }
 ) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
   const { data, error } = await supabase
     .from("messages")
-    .insert({ room_id: roomId, user_id: user.id, content, type })
+    .insert({
+      room_id: roomId,
+      user_id: user.id,
+      content,
+      type,
+      ...(options?.ticker_mentions && { ticker_mentions: options.ticker_mentions }),
+      ...(options?.structured_data && { structured_data: options.structured_data }),
+    })
     .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
     .single();
   if (error) throw error;
 
-  // Update last read
+  // Update last read for DM/group participants
   await supabase
     .from("chat_participants")
     .update({ last_read_at: new Date().toISOString() })
@@ -71,14 +96,15 @@ export async function sendMessage(
   return data as Message;
 }
 
+/* ─── DMs & Groups ─── */
+
 export async function createDM(supabase: SupabaseClient, targetUserId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not authenticated");
 
   // Check for existing DM
   const { data: existing } = await supabase.rpc("find_dm_room", {
-    user_a: user.id,
-    user_b: targetUserId,
+    target_user_id: targetUserId,
   });
 
   if (existing) return existing as string;
@@ -117,4 +143,41 @@ export async function createGroup(supabase: SupabaseClient, name: string, member
   await supabase.from("chat_participants").insert(participants);
 
   return room.id as string;
+}
+
+/* ─── Channel Read State ─── */
+
+export async function updateReadState(
+  supabase: SupabaseClient,
+  channelId: string,
+  lastReadMessageId: string
+) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { error } = await supabase
+    .from("channel_read_state")
+    .upsert(
+      {
+        user_id: user.id,
+        channel_id: channelId,
+        last_read_message_id: lastReadMessageId,
+        last_read_at: new Date().toISOString(),
+        mention_count: 0,
+      },
+      { onConflict: "user_id,channel_id" }
+    );
+  if (error) throw error;
+}
+
+export async function getUnreadCounts(supabase: SupabaseClient) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Not authenticated");
+
+  const { data, error } = await supabase
+    .from("channel_read_state")
+    .select("*")
+    .eq("user_id", user.id);
+  if (error) throw error;
+  return (data ?? []) as ChannelReadState[];
 }

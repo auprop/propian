@@ -17,7 +17,7 @@ import { useAuth } from "@/providers/AuthProvider";
 import { Skeleton, EmptyState } from "@/components/ui";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { ChatInput } from "@/components/chat/ChatInput";
-import { IconArrow } from "@/components/icons/IconArrow";
+import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import type { Message } from "@propian/shared/types";
 
 export default function ChatConversationScreen() {
@@ -60,7 +60,7 @@ export default function ChatConversationScreen() {
       <SafeAreaView style={styles.safe}>
         <View style={styles.headerBar}>
           <Pressable onPress={() => router.back()}>
-            <IconArrow size={20} color={colors.black} />
+            <IconChevLeft size={20} color={colors.black} />
           </Pressable>
           <Skeleton width={150} height={18} />
           <View style={{ width: 20 }} />
@@ -95,7 +95,7 @@ export default function ChatConversationScreen() {
         {/* Header */}
         <View style={styles.headerBar}>
           <Pressable onPress={() => router.back()} style={styles.backButton}>
-            <IconArrow size={20} color={colors.black} />
+            <IconChevLeft size={20} color={colors.black} />
           </Pressable>
           <Text style={styles.headerTitle} numberOfLines={1}>
             Chat

@@ -27,7 +27,7 @@ export default function SignupScreen() {
     setError("");
     try {
       await signUp(supabase, data);
-      router.replace("/(auth)/verify");
+      router.replace({ pathname: "/(auth)/verify", params: { email: data.email } });
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {

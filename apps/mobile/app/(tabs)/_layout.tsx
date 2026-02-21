@@ -112,6 +112,10 @@ export default function TabLayout() {
         options={{ href: null }}
       />
       <Tabs.Screen
+        name="calendar"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
         name="chat"
         options={{
           title: "Chat",

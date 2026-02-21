@@ -5,20 +5,21 @@ import {
   ScrollView,
   FlatList,
   Pressable,
+  TouchableOpacity,
   StyleSheet,
   Share,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { colors, radii, spacing, shadows } from "@/theme";
+import { colors, fontFamily, radii, spacing, shadows } from "@/theme";
 import { supabase } from "@/lib/supabase";
 import { useFirms } from "@propian/shared/hooks";
 import type { Firm } from "@propian/shared/types";
-import { Input, Badge, RatingStars, Button, Skeleton, EmptyState } from "@/components/ui";
+import { Input, RatingStars, Button, Skeleton, EmptyState } from "@/components/ui";
 import { IconCompare } from "@/components/icons/IconCompare";
 import { IconCheck } from "@/components/icons/IconCheck";
 import { IconStar } from "@/components/icons/IconStar";
-import { IconArrow } from "@/components/icons/IconArrow";
+import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import { IconAward } from "@/components/icons/IconAward";
 
 /* ================================================================== */
@@ -330,13 +331,11 @@ export default function CompareScreen() {
     <View style={[styles.safe, { paddingTop: insets.top }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <View style={{ transform: [{ rotate: "180deg" }] }}>
-            <IconArrow size={18} color={colors.black} />
-          </View>
-        </Pressable>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <IconChevLeft size={20} color={colors.black} />
+        </TouchableOpacity>
         <Text style={styles.headerTitle}>Compare Firms</Text>
-        <Badge variant="lime">{`${selectedSlugs.length} selected`}</Badge>
+        <View style={{ width: 40 }} />
       </View>
 
       {/* ═══════════ SELECTION VIEW ═══════════ */}
@@ -402,9 +401,7 @@ export default function CompareScreen() {
         <ScrollView contentContainerStyle={styles.compareScroll} showsVerticalScrollIndicator={false}>
           {/* Change Selection */}
           <Pressable onPress={handleBack} style={styles.changeBtn}>
-            <View style={{ transform: [{ rotate: "180deg" }] }}>
-              <IconArrow size={14} color={colors.black} />
-            </View>
+            <IconChevLeft size={14} color={colors.black} />
             <Text style={styles.changeBtnText}>Change Selection</Text>
           </Pressable>
 
@@ -556,29 +553,22 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: 14,
-    backgroundColor: colors.white,
-    borderBottomWidth: 2,
-    borderBottomColor: colors.black,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.g200,
   },
   backBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    borderColor: colors.black,
+    width: 40,
+    height: 40,
     alignItems: "center",
     justifyContent: "center",
   },
   headerTitle: {
-    flex: 1,
-    fontFamily: "Outfit_800ExtraBold",
-    fontSize: 22,
+    fontSize: 18,
+    fontFamily: fontFamily.sans.bold,
     color: colors.black,
-    letterSpacing: -0.5,
   },
   searchContainer: {
     paddingHorizontal: spacing.base,
