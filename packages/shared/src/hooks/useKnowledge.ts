@@ -47,6 +47,17 @@ export function useUnpinMessage(supabase: SupabaseClient) {
   });
 }
 
+export function useUnpinByMessageId(supabase: SupabaseClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (messageId: string) => knowledgeApi.unpinByMessageId(supabase, messageId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["knowledge-pins"] });
+      queryClient.invalidateQueries({ queryKey: ["chat-messages"] });
+    },
+  });
+}
+
 export function useUpdatePin(supabase: SupabaseClient) {
   const queryClient = useQueryClient();
   return useMutation({

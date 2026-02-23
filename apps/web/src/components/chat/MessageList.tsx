@@ -12,6 +12,9 @@ interface MessageListProps {
   isLoading: boolean;
   communityId?: string;
   channelId?: string;
+  canPin?: boolean;
+  onOpenThread?: (msg: Message) => void;
+  onOpenProfile?: (userId: string) => void;
 }
 
 /** Check if two messages are in the same "group" (same author, within 5 min) */
@@ -33,7 +36,16 @@ function isDifferentDay(a: string, b: string): boolean {
   );
 }
 
-export function MessageList({ messages, currentUserId, isLoading, communityId, channelId }: MessageListProps) {
+export function MessageList({
+  messages,
+  currentUserId,
+  isLoading,
+  communityId,
+  channelId,
+  canPin,
+  onOpenThread,
+  onOpenProfile,
+}: MessageListProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -77,10 +89,10 @@ export function MessageList({ messages, currentUserId, isLoading, communityId, c
     setHasNewMessages(false);
   }
 
-  // Loading skeleton — flat layout (all left-aligned)
+  // Loading skeleton
   if (isLoading) {
     return (
-      <div className="pt-chat-msgs" style={{ padding: "16px 0" }}>
+      <div className="pc-msgs" style={{ padding: "16px 0" }}>
         {Array.from({ length: 5 }).map((_, i) => (
           <div
             key={i}
@@ -105,7 +117,7 @@ export function MessageList({ messages, currentUserId, isLoading, communityId, c
   }
 
   return (
-    <div className="pt-chat-msgs" ref={containerRef} onScroll={handleScroll}>
+    <div className="pc-msgs" ref={containerRef} onScroll={handleScroll}>
       {messages?.map((msg, idx) => {
         const isSent = msg.user_id === currentUserId;
         const prev = idx > 0 ? messages[idx - 1] : null;
@@ -117,7 +129,7 @@ export function MessageList({ messages, currentUserId, isLoading, communityId, c
         return (
           <div key={msg.id}>
             {showDateSep && (
-              <div className="pt-chat-date-sep">
+              <div className="pc-date">
                 <span>{formatDate(msg.created_at, "MMMM d, yyyy")}</span>
               </div>
             )}
@@ -128,6 +140,9 @@ export function MessageList({ messages, currentUserId, isLoading, communityId, c
               currentUserId={currentUserId}
               communityId={communityId}
               channelId={channelId}
+              canPin={canPin}
+              onOpenThread={onOpenThread}
+              onOpenProfile={onOpenProfile}
             />
           </div>
         );
@@ -135,7 +150,25 @@ export function MessageList({ messages, currentUserId, isLoading, communityId, c
 
       {/* "New messages" pill */}
       {hasNewMessages && (
-        <button className="pt-chat-new-msg-pill" onClick={scrollToBottom}>
+        <button
+          className="pc-chat-new-msg-pill"
+          onClick={scrollToBottom}
+          style={{
+            position: "sticky",
+            bottom: 8,
+            alignSelf: "center",
+            background: "var(--black)",
+            color: "var(--lime)",
+            border: "none",
+            borderRadius: 20,
+            padding: "6px 16px",
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: "pointer",
+            zIndex: 5,
+            fontFamily: "var(--font)",
+          }}
+        >
           New messages ↓
         </button>
       )}

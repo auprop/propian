@@ -96,6 +96,22 @@ export async function unpinMessage(supabase: SupabaseClient, pinId: string) {
   }
 }
 
+/** Unpin a message by its message ID (finds and removes all pins for it). */
+export async function unpinByMessageId(supabase: SupabaseClient, messageId: string) {
+  // Delete all pins for this message
+  const { error } = await supabase
+    .from("knowledge_pins")
+    .delete()
+    .eq("message_id", messageId);
+  if (error) throw error;
+
+  // Clear the pinned flag on the message
+  await supabase
+    .from("messages")
+    .update({ is_pinned_to_library: false })
+    .eq("id", messageId);
+}
+
 /** Update a pin's category and tags. */
 export async function updatePin(
   supabase: SupabaseClient,

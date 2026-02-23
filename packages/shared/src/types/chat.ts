@@ -82,6 +82,7 @@ export interface ChatRoom {
   id: string;
   type: RoomType;
   name: string | null;
+  description?: string | null;
   created_by: string | null;
   created_at: string;
   /** Enhanced: community channel fields */
@@ -126,6 +127,10 @@ export interface Message {
   ticker_mentions?: string[] | null;
   is_pinned_to_library?: boolean;
   structured_data?: StructuredTradeData | null;
+  /** Threading */
+  parent_message_id?: string | null;
+  reply_count?: number;
+  last_reply_at?: string | null;
   /** Joined */
   author?: UserPreview;
   reactions?: MessageReaction[];

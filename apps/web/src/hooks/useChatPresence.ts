@@ -14,6 +14,11 @@ interface PresenceState {
  * Manages Supabase Realtime Presence for the chat.
  * - Tracks which users are online
  * - Broadcasts & receives typing indicators
+ *
+ * IMPORTANT: The presence channel is GLOBAL — it subscribes once when the
+ * user logs in and stays open for the entire session. It must NOT depend
+ * on activeChannelId or any other frequently-changing value, because
+ * tearing down channels disrupts the shared WebSocket connection.
  */
 export function useChatPresence(
   supabase: SupabaseClient,
@@ -22,13 +27,31 @@ export function useChatPresence(
 ) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const { setOnlineUsers, setTypingUsers, activeChannelId } = useChatStore();
+  const { setOnlineUsers, setTypingUsers } = useChatStore();
 
-  // Subscribe to the global presence channel
+  // Track activeChannelId via a ref + Zustand subscribe so we can read the
+  // latest value inside the presence sync handler WITHOUT including it in the
+  // useEffect deps (which would tear down the channel on every switch).
+  const activeChannelIdRef = useRef(useChatStore.getState().activeChannelId);
+  useEffect(() => {
+    const unsub = useChatStore.subscribe((state) => {
+      activeChannelIdRef.current = state.activeChannelId;
+    });
+    return unsub;
+  }, []);
+
+  // Store supabase in a ref so the subscription uses the latest instance
+  // without re-running the effect.
+  const supabaseRef = useRef(supabase);
+  supabaseRef.current = supabase;
+
+  // Subscribe to the global presence channel — once per session
   useEffect(() => {
     if (!userId || !displayName) return;
 
-    const channel = supabase.channel("chat-presence", {
+    const sb = supabaseRef.current;
+
+    const channel = sb.channel("chat-presence", {
       config: { presence: { key: userId } },
     });
 
@@ -53,9 +76,10 @@ export function useChatPresence(
 
         setOnlineUsers(onlineIds);
 
-        // Update typing for the active channel
-        if (activeChannelId) {
-          setTypingUsers(activeChannelId, typingMap[activeChannelId] ?? []);
+        // Update typing for the active channel (read from ref, not from closure)
+        const currentChannel = activeChannelIdRef.current;
+        if (currentChannel) {
+          setTypingUsers(currentChannel, typingMap[currentChannel] ?? []);
         }
       })
       .subscribe(async (status) => {
@@ -76,10 +100,14 @@ export function useChatPresence(
 
     return () => {
       channel.untrack().catch(() => {});
-      supabase.removeChannel(channel);
+      sb.removeChannel(channel);
       channelRef.current = null;
     };
-  }, [supabase, userId, displayName, setOnlineUsers, setTypingUsers, activeChannelId]);
+    // Only re-subscribe when userId or displayName changes (login/logout).
+    // supabase accessed via ref. activeChannelId accessed via ref.
+    // setOnlineUsers/setTypingUsers are stable Zustand actions.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, displayName, setOnlineUsers, setTypingUsers]);
 
   // Broadcast typing state
   const broadcastTyping = useCallback(

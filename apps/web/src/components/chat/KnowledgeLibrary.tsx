@@ -8,6 +8,7 @@ import { formatTime } from "@propian/shared/utils";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { useChatStore } from "@/stores/chat";
 import { Avatar } from "@/components/ui/Avatar";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 
 const CATEGORIES = [
@@ -33,19 +34,12 @@ export function KnowledgeLibrary({ communityId }: KnowledgeLibraryProps) {
     communityId,
     activeCategory || undefined
   );
-  const unpinMessage = useUnpinMessage(supabase);
 
   function handleJumpToMessage(pin: KnowledgePin) {
     if (pin.channel_id) {
       setActiveChannel(pin.channel_id);
       // Scroll to message would require more infrastructure
       // For now, just navigate to the channel
-    }
-  }
-
-  function handleUnpin(pinId: string) {
-    if (confirm("Remove this pin from the knowledge library?")) {
-      unpinMessage.mutate(pinId);
     }
   }
 
@@ -92,84 +86,118 @@ export function KnowledgeLibrary({ communityId }: KnowledgeLibraryProps) {
           />
         ) : (
           pins.map((pin) => (
-            <div key={pin.id} className="pt-knowledge-card">
-              {/* Channel badge */}
-              {pin.channel && (
-                <div className="pt-knowledge-channel">
-                  # {pin.channel.name}
-                </div>
-              )}
-
-              {/* Message content */}
-              <div className="pt-knowledge-content">
-                {pin.message?.author && (
-                  <div className="pt-knowledge-author">
-                    <Avatar
-                      src={pin.message.author.avatar_url}
-                      name={pin.message.author.display_name}
-                      size="sm"
-                    />
-                    <span>{pin.message.author.display_name}</span>
-                  </div>
-                )}
-                {pin.message?.type === "image" ? (
-                  <img
-                    src={pin.message.content}
-                    alt="Pinned image"
-                    className="pt-knowledge-image"
-                  />
-                ) : (
-                  <div
-                    className="pt-knowledge-text"
-                    dangerouslySetInnerHTML={{
-                      __html: pin.message?.content ?? "",
-                    }}
-                  />
-                )}
-              </div>
-
-              {/* Tags */}
-              {pin.tags && pin.tags.length > 0 && (
-                <div className="pt-knowledge-tags">
-                  {pin.tags.map((tag) => (
-                    <span key={tag} className="pt-knowledge-tag">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Footer */}
-              <div className="pt-knowledge-footer">
-                <span className="pt-knowledge-meta">
-                  {pin.category && (
-                    <span className="pt-knowledge-cat-badge">{pin.category}</span>
-                  )}
-                  {pin.message?.created_at && formatTime(pin.message.created_at)}
-                </span>
-                <div className="pt-knowledge-actions">
-                  <button
-                    className="pt-knowledge-action-btn"
-                    onClick={() => handleJumpToMessage(pin)}
-                    title="Go to message"
-                    type="button"
-                  >
-                    Jump
-                  </button>
-                  <button
-                    className="pt-knowledge-action-btn danger"
-                    onClick={() => handleUnpin(pin.id)}
-                    title="Unpin"
-                    type="button"
-                  >
-                    Unpin
-                  </button>
-                </div>
-              </div>
-            </div>
+            <KnowledgeCard
+              key={pin.id}
+              pin={pin}
+              onJump={handleJumpToMessage}
+            />
           ))
         )}
       </div>
+    </div>
+  );
+}
+
+/* ─── Knowledge Card (extracted for per-card confirm state) ─── */
+
+function KnowledgeCard({ pin, onJump }: { pin: KnowledgePin; onJump: (pin: KnowledgePin) => void }) {
+  const supabase = createBrowserClient();
+  const unpinMessage = useUnpinMessage(supabase);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  function handleUnpin() {
+    unpinMessage.mutate(pin.id, {
+      onSuccess: () => setConfirmOpen(false),
+    });
+  }
+
+  return (
+    <div className="pt-knowledge-card">
+      {/* Channel badge */}
+      {pin.channel && (
+        <div className="pt-knowledge-channel">
+          # {pin.channel.name}
+        </div>
+      )}
+
+      {/* Message content */}
+      <div className="pt-knowledge-content">
+        {pin.message?.author && (
+          <div className="pt-knowledge-author">
+            <Avatar
+              src={pin.message.author.avatar_url}
+              name={pin.message.author.display_name}
+              size="sm"
+            />
+            <span>{pin.message.author.display_name}</span>
+          </div>
+        )}
+        {pin.message?.type === "image" ? (
+          <img
+            src={pin.message.content}
+            alt="Pinned image"
+            className="pt-knowledge-image"
+          />
+        ) : (
+          <div
+            className="pt-knowledge-text"
+            dangerouslySetInnerHTML={{
+              __html: pin.message?.content ?? "",
+            }}
+          />
+        )}
+      </div>
+
+      {/* Tags */}
+      {pin.tags && pin.tags.length > 0 && (
+        <div className="pt-knowledge-tags">
+          {pin.tags.map((tag) => (
+            <span key={tag} className="pt-knowledge-tag">
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="pt-knowledge-footer">
+        <span className="pt-knowledge-meta">
+          {pin.category && (
+            <span className="pt-knowledge-cat-badge">{pin.category}</span>
+          )}
+          {pin.message?.created_at && formatTime(pin.message.created_at)}
+        </span>
+        <div className="pt-knowledge-actions">
+          <button
+            className="pt-knowledge-action-btn"
+            onClick={() => onJump(pin)}
+            title="Go to message"
+            type="button"
+          >
+            Jump
+          </button>
+          <button
+            className="pt-knowledge-action-btn danger"
+            onClick={() => setConfirmOpen(true)}
+            title="Unpin"
+            type="button"
+          >
+            Unpin
+          </button>
+        </div>
+      </div>
+
+      {confirmOpen && (
+        <ConfirmDialog
+          title="Unpin message"
+          message="This will remove the message from the Knowledge Library. Other members will no longer see it as pinned."
+          confirmLabel="Unpin"
+          variant="danger"
+          isPending={unpinMessage.isPending}
+          onConfirm={handleUnpin}
+          onCancel={() => setConfirmOpen(false)}
+        />
+      )}
     </div>
   );
 }

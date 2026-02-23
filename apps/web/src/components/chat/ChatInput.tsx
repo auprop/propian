@@ -4,7 +4,6 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import dynamic from "next/dynamic";
 import { useSendMessage, useCommunityMembers } from "@propian/shared/hooks";
-import { IconSend, IconPlus } from "@propian/shared/icons";
 import type { UserPreview } from "@propian/shared/types";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { useChatStore } from "@/stores/chat";
@@ -15,10 +14,45 @@ import { FilePreview } from "./FilePreview";
 import type { PendingFile } from "./FilePreview";
 
 // Lazy-load emoji picker (2MB+ bundle)
-const EmojiPicker = dynamic(() => import("./EmojiPicker").then((m) => ({ default: m.EmojiPicker })), {
-  ssr: false,
-  loading: () => null,
-});
+const EmojiPicker = dynamic(
+  () => import("./EmojiPicker").then((m) => ({ default: m.EmojiPicker })),
+  { ssr: false, loading: () => null }
+);
+
+/* ─── Inline SVG Icons ─── */
+
+const IcPlus = ({ s = 18 }: { s?: number }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
+const IcGif = ({ s = 16 }: { s?: number }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="4" width="20" height="16" rx="2" />
+    <path d="M7 8v8M12 8v8M17 8v4h-2M7 12h2" />
+  </svg>
+);
+
+const IcImage = ({ s = 16 }: { s?: number }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" />
+    <path d="m21 15-5-5L5 21" />
+  </svg>
+);
+
+const IcSmile = ({ s = 16 }: { s?: number }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <circle cx="12" cy="12" r="10" /><path d="M8 14s1.5 2 4 2 4-2 4-2" />
+    <line x1="9" y1="9" x2="9.01" y2="9" /><line x1="15" y1="9" x2="15.01" y2="9" />
+  </svg>
+);
+
+const IcSend = ({ s = 15 }: { s?: number }) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="currentColor">
+    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
+  </svg>
+);
 
 /* ─── Types ─── */
 
@@ -38,7 +72,6 @@ function parseInitialContent(draft: string): unknown | undefined {
     if (json && json.type === "doc" && Array.isArray(json.content)) {
       return json;
     }
-    // Legacy plain text
     return {
       type: "doc",
       content: [{ type: "paragraph", content: [{ type: "text", text: draft }] }],
@@ -84,10 +117,7 @@ export function ChatInput({ roomId, communityId, onTyping, onStopTyping }: ChatI
         setDraft(roomId, str);
       }, 300);
 
-      // Update char count
       setCharCount(editorRef.current?.getCharCount() ?? 0);
-
-      // Broadcast typing
       onTyping?.();
     },
     [roomId, setDraft, onTyping]
@@ -107,17 +137,13 @@ export function ChatInput({ roomId, communityId, onTyping, onStopTyping }: ChatI
       const result = await uploadFile(pf.file, { roomId });
       setPendingFiles((prev) =>
         prev.map((f) =>
-          f.id === pf.id
-            ? { ...f, status: "done" as const, uploadedUrl: result.url }
-            : f
+          f.id === pf.id ? { ...f, status: "done" as const, uploadedUrl: result.url } : f
         )
       );
     } catch (err) {
       setPendingFiles((prev) =>
         prev.map((f) =>
-          f.id === pf.id
-            ? { ...f, status: "error" as const, error: String(err) }
-            : f
+          f.id === pf.id ? { ...f, status: "error" as const, error: String(err) } : f
         )
       );
     }
@@ -127,15 +153,10 @@ export function ChatInput({ roomId, communityId, onTyping, onStopTyping }: ChatI
     const newFiles: PendingFile[] = files.map((file) => ({
       id: crypto.randomUUID(),
       file,
-      previewUrl: file.type.startsWith("image/")
-        ? URL.createObjectURL(file)
-        : "",
+      previewUrl: file.type.startsWith("image/") ? URL.createObjectURL(file) : "",
       status: "uploading" as const,
     }));
-
     setPendingFiles((prev) => [...prev, ...newFiles]);
-
-    // Start uploads immediately
     newFiles.forEach(uploadPendingFile);
   }
 
@@ -165,33 +186,23 @@ export function ChatInput({ roomId, communityId, onTyping, onStopTyping }: ChatI
     const html = editorRef.current?.getHTML() ?? "";
     const text = editorRef.current?.getText() ?? "";
     const hasText = text.trim().length > 0;
-    const doneFiles = pendingFiles.filter(
-      (f) => f.status === "done" && f.uploadedUrl
-    );
+    const doneFiles = pendingFiles.filter((f) => f.status === "done" && f.uploadedUrl);
     const uploading = pendingFiles.some((f) => f.status === "uploading");
 
     if (!hasText && doneFiles.length === 0) return;
-    if (uploading) return; // Wait for uploads
+    if (uploading) return;
 
-    // Send text message
     if (hasText) {
       await sendMessage.mutateAsync({ roomId, content: html, type: "text" });
     }
 
-    // Send each uploaded file as image message
     for (const pf of doneFiles) {
       if (pf.uploadedUrl) {
-        await sendMessage.mutateAsync({
-          roomId,
-          content: pf.uploadedUrl,
-          type: "image",
-        });
+        await sendMessage.mutateAsync({ roomId, content: pf.uploadedUrl, type: "image" });
       }
     }
 
-    // Clear
     editorRef.current?.clear();
-    // Revoke all object URLs
     pendingFiles.forEach((pf) => {
       if (pf.previewUrl) URL.revokeObjectURL(pf.previewUrl);
     });
@@ -205,7 +216,6 @@ export function ChatInput({ roomId, communityId, onTyping, onStopTyping }: ChatI
 
   function handleEmojiSelect(emoji: string) {
     editorRef.current?.insertEmoji(emoji);
-    // Keep picker open for multiple selections
   }
 
   /* ─── Computed ─── */
@@ -216,85 +226,69 @@ export function ChatInput({ roomId, communityId, onTyping, onStopTyping }: ChatI
   const canSend = (!editorEmpty || hasDoneFiles) && !isUploading;
 
   return (
-    <div {...getRootProps()} className="pt-chat-input-wrapper">
+    <div {...getRootProps()} className="pc-input-wrapper">
       {isDragActive && (
-        <div className="pt-chat-dropzone-overlay">Drop files here</div>
+        <div className="pc-dropzone-overlay">Drop files here</div>
       )}
 
       {/* File preview strip */}
       <FilePreview files={pendingFiles} onRemove={handleRemoveFile} />
 
-      <div className="pt-chat-input">
-        {/* Attachment button */}
-        <button
-          className="pt-chat-input-btn"
-          onClick={open}
-          title="Attach file"
-          type="button"
-        >
-          <IconPlus size={18} />
-        </button>
+      <div className="pc-input-area">
+        <div className="pc-input-wrap">
+          {/* Plus / Attach */}
+          <button className="pc-ibtn" onClick={open} title="Attach file" type="button">
+            <IcPlus s={18} />
+          </button>
 
-        {/* Tiptap editor */}
-        <TiptapEditor
-          ref={editorRef}
-          roomId={roomId}
-          onSend={handleSend}
-          onUpdate={handleEditorUpdate}
-          initialContent={initialContent}
-          mentionSuggestions={mentionUsers}
-        />
+          {/* Tiptap editor */}
+          <TiptapEditor
+            ref={editorRef}
+            roomId={roomId}
+            onSend={handleSend}
+            onUpdate={handleEditorUpdate}
+            initialContent={initialContent}
+            mentionSuggestions={mentionUsers}
+          />
 
-        {/* Emoji */}
-        <div style={{ position: "relative" }}>
+          {/* GIF button */}
+          <button className="pc-ibtn" title="GIF" type="button">
+            <IcGif s={16} />
+          </button>
+
+          {/* Image button */}
+          <button className="pc-ibtn" onClick={open} title="Upload image" type="button">
+            <IcImage s={16} />
+          </button>
+
+          {/* Emoji */}
+          <div style={{ position: "relative" }}>
+            <button
+              className="pc-ibtn"
+              onClick={() => setEmojiPickerOpen((v) => !v)}
+              title="Emoji"
+              type="button"
+            >
+              <IcSmile s={16} />
+            </button>
+            <EmojiPicker
+              isOpen={emojiPickerOpen}
+              onClose={() => setEmojiPickerOpen(false)}
+              onSelect={handleEmojiSelect}
+            />
+          </div>
+
+          {/* Send */}
           <button
-            className="pt-chat-input-btn"
-            onClick={() => setEmojiPickerOpen((v) => !v)}
-            title="Emoji"
+            className={`pc-send ${canSend ? "" : "disabled"}`}
+            onClick={handleSend}
+            disabled={!canSend || sendMessage.isPending}
+            title="Send message"
             type="button"
           >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M8 14s1.5 2 4 2 4-2 4-2" />
-              <line x1="9" y1="9" x2="9.01" y2="9" />
-              <line x1="15" y1="9" x2="15.01" y2="9" />
-            </svg>
+            <IcSend s={15} />
           </button>
-          <EmojiPicker
-            isOpen={emojiPickerOpen}
-            onClose={() => setEmojiPickerOpen(false)}
-            onSelect={handleEmojiSelect}
-          />
         </div>
-
-        {/* Character count */}
-        {charCount > 3500 && (
-          <span
-            className={`pt-chat-char-count ${charCount > 3800 ? "warning" : ""}`}
-          >
-            {charCount} / 4000
-          </span>
-        )}
-
-        {/* Send */}
-        <button
-          className={`pt-chat-send-btn ${canSend ? "active" : ""}`}
-          onClick={handleSend}
-          disabled={!canSend || sendMessage.isPending}
-          title="Send message"
-          type="button"
-        >
-          <IconSend size={16} />
-        </button>
       </div>
 
       <input {...getInputProps()} />

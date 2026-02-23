@@ -9,9 +9,10 @@ import { useChatStore } from "@/stores/chat";
 
 interface MemberSidebarProps {
   communityId: string;
+  onOpenProfile?: (userId: string) => void;
 }
 
-export function MemberSidebar({ communityId }: MemberSidebarProps) {
+export function MemberSidebar({ communityId, onOpenProfile }: MemberSidebarProps) {
   const supabase = createBrowserClient();
   const { data: members } = useCommunityMembers(supabase, communityId);
   const onlineUsers = useChatStore((s) => s.onlineUsers);
@@ -33,45 +34,52 @@ export function MemberSidebar({ communityId }: MemberSidebarProps) {
     return { online: onlineList, offline: offlineList };
   }, [members, onlineUsers]);
 
-  const totalMembers = (members?.length ?? 0);
-
   return (
-    <div className="pt-member-sidebar">
-      <div className="pt-member-sidebar-header">
-        Members — {totalMembers}
-      </div>
-      <div className="pt-member-sidebar-list">
-        {/* Online */}
-        {online.length > 0 && (
-          <>
-            <div className="pt-member-group-label">
-              Online — {online.length}
-            </div>
-            {online.map((m) => (
-              <MemberRow key={m.user_id} member={m} isOffline={false} />
-            ))}
-          </>
-        )}
+    <div className="pc-members">
+      {/* Online */}
+      {online.length > 0 && (
+        <>
+          <div className="pc-mgroup">ONLINE — {online.length}</div>
+          {online.map((m) => (
+            <MemberRow
+              key={m.user_id}
+              member={m}
+              isOffline={false}
+              onClick={() => onOpenProfile?.(m.user_id)}
+            />
+          ))}
+        </>
+      )}
 
-        {/* Offline */}
-        {offline.length > 0 && (
-          <>
-            <div className="pt-member-group-label">
-              Offline — {offline.length}
-            </div>
-            {offline.map((m) => (
-              <MemberRow key={m.user_id} member={m} isOffline={true} />
-            ))}
-          </>
-        )}
-      </div>
+      {/* Offline */}
+      {offline.length > 0 && (
+        <>
+          <div className="pc-mgroup" style={{ marginTop: 16 }}>OFFLINE — {offline.length}</div>
+          {offline.map((m) => (
+            <MemberRow
+              key={m.user_id}
+              member={m}
+              isOffline={true}
+              onClick={() => onOpenProfile?.(m.user_id)}
+            />
+          ))}
+        </>
+      )}
     </div>
   );
 }
 
-function MemberRow({ member, isOffline }: { member: CommunityMember; isOffline: boolean }) {
+function MemberRow({
+  member,
+  isOffline,
+  onClick,
+}: {
+  member: CommunityMember;
+  isOffline: boolean;
+  onClick?: () => void;
+}) {
   return (
-    <div className={`pt-member-item ${isOffline ? "offline" : ""}`}>
+    <div className={`pc-member ${isOffline ? "off" : ""}`} onClick={onClick}>
       <Avatar
         src={member.user?.avatar_url}
         name={member.user?.display_name ?? "User"}
@@ -79,12 +87,14 @@ function MemberRow({ member, isOffline }: { member: CommunityMember; isOffline: 
         showStatus
         isOnline={!isOffline}
       />
-      <span className="pt-member-item-name">
-        {member.user?.display_name ?? "User"}
-      </span>
-      {member.role && member.role.name !== "member" && (
-        <span className="pt-member-item-role">{member.role.name}</span>
-      )}
+      <div>
+        <div className="pc-mname">{member.user?.display_name ?? "User"}</div>
+        <div className="pc-mrole">
+          {member.role?.name && member.role.name !== "member"
+            ? member.role.name
+            : "Member"}
+        </div>
+      </div>
     </div>
   );
 }

@@ -15,3 +15,5 @@ export { TypingIndicator } from "./TypingIndicator";
 export { KnowledgeLibrary } from "./KnowledgeLibrary";
 export { PinMessageDialog } from "./PinMessageDialog";
 export { ChatSearch } from "./ChatSearch";
+export { UserProfileOverlay } from "./UserProfileOverlay";
+export { MemberSidebar } from "./MemberSidebar";
