@@ -58,7 +58,7 @@ export default function LeaderboardScreen() {
               {item.user?.display_name || "Trader"}
             </Text>
             {item.user?.is_verified && (
-              <IconVerified size={12} color={colors.lime} />
+              <IconVerified size={12} />
             )}
           </View>
           <Text style={styles.rankHandle}>

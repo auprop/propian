@@ -65,6 +65,21 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Admin route protection: check is_admin flag
+  if (user && request.nextUrl.pathname.startsWith("/admin")) {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_admin")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile?.is_admin) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/feed";
+      return NextResponse.redirect(url);
+    }
+  }
+
   // Rewrite /@username → /profile/username (after auth checks)
   const atMatch = request.nextUrl.pathname.match(/^\/@([a-zA-Z0-9_-]+)$/);
   if (atMatch) {
@@ -80,7 +95,7 @@ export async function middleware(request: NextRequest) {
     "bookmarks", "leaderboard", "academy", "firms", "api", "auth",
     "compare", "search", "chat", "journal", "portfolio",
     "analytics", "calendar", "sentiments", "referrals",
-    "challenges", "news", "compose",
+    "challenges", "news", "compose", "admin",
   ];
   const bareMatch = request.nextUrl.pathname.match(/^\/([a-zA-Z0-9_-]+)$/);
   if (bareMatch && !knownRoutes.includes(bareMatch[1])) {

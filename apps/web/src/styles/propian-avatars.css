@@ -15,15 +15,25 @@
 }
 
 .pt-av.has-img {
-  background: var(--black);
+  background: var(--g200);
+  border-color: var(--g300);
+  overflow: hidden;
 }
 
 .pt-av img,
 .pt-av-img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.pt-av-img.pt-av-loaded {
+  opacity: 1;
 }
 
 .pt-av-initials {

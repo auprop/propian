@@ -14,7 +14,7 @@
 }
 
 .pt-course-thumb {
-  height: 160px;
+  aspect-ratio: 16/9;
   position: relative;
   overflow: hidden;
   display: flex;

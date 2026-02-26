@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -7,11 +7,18 @@ import {
   RefreshControl,
   StyleSheet,
   TextInput,
+  ImageBackground,
+  AppState,
   Dimensions,
+  Linking,
+  Alert,
+  ActivityIndicator,
   type ViewStyle,
   type TextStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { WebView } from "react-native-webview";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import {
   useCourses,
@@ -33,6 +40,9 @@ import {
   useSubmitQuiz,
   useSaveNote,
   useIssueCertificate,
+  useLearningStats,
+  useHasCoursePurchase,
+  useUserSubscription,
 } from "@propian/shared/hooks";
 import type {
   Course,
@@ -141,6 +151,28 @@ export default function AcademyScreen() {
   const userProgress = progressQuery.data ?? [];
   const certificates = certsQuery.data ?? [];
   const paths = pathsQuery.data ?? [];
+
+  /* ── Refetch progress when app returns to foreground ── */
+  const queryClient = useQueryClient();
+  const appStateRef = useRef(AppState.currentState);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (nextState) => {
+      if (
+        appStateRef.current.match(/inactive|background/) &&
+        nextState === "active"
+      ) {
+        // Invalidate all user-specific academy caches so enrollment
+        // changes made on the web (or another device) are picked up.
+        queryClient.invalidateQueries({ queryKey: ["academy-user-progress"] });
+        queryClient.invalidateQueries({ queryKey: ["academy-user-course-progress"] });
+        queryClient.invalidateQueries({ queryKey: ["academy-user-lesson-progress"] });
+        queryClient.invalidateQueries({ queryKey: ["academy-certificates"] });
+      }
+      appStateRef.current = nextState;
+    });
+    return () => sub.remove();
+  }, [queryClient]);
 
   const progressMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -322,10 +354,51 @@ function CoursesTab({
   onCourseClick: (slug: string) => void;
   onInstructorClick: (id: string) => void;
 }) {
+  const { data: learningStats } = useLearningStats(supabase);
+  const activityDates = learningStats?.activityDates ?? [];
+
   const completed = userProgress.filter((p) => p.completed_at).length;
-  const streakDays = ["M", "T", "W", "T", "F", "S", "S"];
-  const today = new Date().getDay();
-  const dayIdx = today === 0 ? 6 : today - 1;
+  const hoursLearned = Math.round((learningStats?.totalMinutes ?? 0) / 60 * 10) / 10;
+
+  // Compute real streak from consecutive activity days
+  const streak = useMemo(() => {
+    if (!activityDates.length) return 0;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const dates = [...new Set(activityDates)]
+      .map((d) => { const dt = new Date(d); dt.setHours(0, 0, 0, 0); return dt; })
+      .sort((a, b) => b.getTime() - a.getTime());
+    const diff = Math.round((now.getTime() - dates[0].getTime()) / (1000 * 60 * 60 * 24));
+    if (diff > 1) return 0;
+    let s = 1;
+    for (let i = 1; i < dates.length; i++) {
+      const gap = Math.round((dates[i - 1].getTime() - dates[i].getTime()) / (1000 * 60 * 60 * 24));
+      if (gap === 1) s++;
+      else if (gap === 0) continue;
+      else break;
+    }
+    return s;
+  }, [activityDates]);
+
+  // Build weekly view from real activity dates
+  const weekView = useMemo(() => {
+    const dayLabels = ["M", "T", "W", "T", "F", "S", "S"];
+    const now = new Date();
+    const dayIdx = now.getDay() === 0 ? 6 : now.getDay() - 1;
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - dayIdx);
+    weekStart.setHours(0, 0, 0, 0);
+    const activitySet = new Set(activityDates);
+    return dayLabels.map((d, i) => {
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + i);
+      const dateStr = date.toISOString().split("T")[0];
+      const hasActivity = activitySet.has(dateStr);
+      if (i > dayIdx) return { label: d, status: "upcoming" as const };
+      if (i === dayIdx) return { label: d, status: hasActivity ? "done" as const : "today" as const };
+      return { label: d, status: hasActivity ? "done" as const : "upcoming" as const };
+    });
+  }, [activityDates]);
 
   return (
     <>
@@ -336,11 +409,11 @@ function CoursesTab({
           <Text style={s.statLabel as TextStyle}>Completed</Text>
         </View>
         <View style={s.statCard as ViewStyle}>
-          <Text style={s.statNum as TextStyle}>{Math.round(completed * 4.5)}h</Text>
+          <Text style={s.statNum as TextStyle}>{hoursLearned}h</Text>
           <Text style={s.statLabel as TextStyle}>Hours</Text>
         </View>
         <View style={s.statCard as ViewStyle}>
-          <Text style={s.statNum as TextStyle}>{dayIdx}</Text>
+          <Text style={s.statNum as TextStyle}>{streak}</Text>
           <Text style={s.statLabel as TextStyle}>Streak</Text>
         </View>
         <View style={s.statCard as ViewStyle}>
@@ -351,17 +424,17 @@ function CoursesTab({
 
       {/* Streak card */}
       <View style={s.streakCard as ViewStyle}>
-        <Text style={s.streakNum as TextStyle}>{dayIdx}</Text>
+        <Text style={s.streakNum as TextStyle}>{streak}</Text>
         <Text style={s.streakLabel as TextStyle}>Day Streak</Text>
         <View style={s.streakDays as ViewStyle}>
-          {streakDays.map((d, i) => (
+          {weekView.map((d, i) => (
             <View
               key={i}
               style={[
                 s.streakDay,
-                i < dayIdx
+                d.status === "done"
                   ? s.streakDayDone
-                  : i === dayIdx
+                  : d.status === "today"
                     ? s.streakDayToday
                     : s.streakDayUpcoming,
               ] as ViewStyle[]}
@@ -369,14 +442,14 @@ function CoursesTab({
               <Text
                 style={[
                   s.streakDayText,
-                  i < dayIdx
+                  d.status === "done"
                     ? { color: colors.black }
-                    : i === dayIdx
+                    : d.status === "today"
                       ? { color: colors.lime }
                       : { color: colors.g500 },
                 ] as TextStyle[]}
               >
-                {d}
+                {d.label}
               </Text>
             </View>
           ))}
@@ -472,11 +545,19 @@ function MobileCourseCard({
   return (
     <TouchableOpacity style={s.courseCard as ViewStyle} onPress={onPress} activeOpacity={0.7}>
       {/* Thumbnail */}
-      <View style={[s.courseThumb, { backgroundColor: course.thumbnail_color }] as ViewStyle[]}>
-        <View style={s.coursePlay as ViewStyle}>
-          <Text style={{ fontSize: 16 }}>▶</Text>
+      {course.thumbnail_url ? (
+        <ImageBackground source={{ uri: course.thumbnail_url }} style={[s.courseThumb, { backgroundColor: course.thumbnail_color }] as ViewStyle[]} resizeMode="cover">
+          <View style={s.coursePlay as ViewStyle}>
+            <Text style={{ fontSize: 16 }}>▶</Text>
+          </View>
+        </ImageBackground>
+      ) : (
+        <View style={[s.courseThumb, { backgroundColor: course.thumbnail_color }] as ViewStyle[]}>
+          <View style={s.coursePlay as ViewStyle}>
+            <Text style={{ fontSize: 16 }}>▶</Text>
+          </View>
         </View>
-      </View>
+      )}
       {/* Body */}
       <View style={s.courseBody as ViewStyle}>
         <View style={s.courseMetaRow as ViewStyle}>
@@ -730,8 +811,47 @@ function CourseDetailDrill({
   const { data: lessons } = useCourseLessons(supabase, course?.id ?? null);
   const { data: progress } = useUserCourseProgress(supabase, course?.id ?? null);
   const { data: lessonProgress } = useUserLessonProgress(supabase, course?.id ?? null);
+  const { data: hasPurchased } = useHasCoursePurchase(supabase, course?.id ?? null);
+  const { data: subscription } = useUserSubscription(supabase);
   const enrollMutation = useEnrollCourse(supabase);
   const [expandedModule, setExpandedModule] = useState<string | null>(null);
+
+  const isProActive = subscription?.status === "active" || subscription?.status === "trialing";
+
+  // Mobile checkout: call API route with Bearer token, then open URL via Linking
+  const checkoutMutation = useMutation({
+    mutationFn: async (params: { courseId: string } | { plan: "pro" }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Not authenticated");
+
+      // Use the web app URL for mobile checkout
+      const apiBase = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+      const res = await fetch(`${apiBase}/api/stripe/checkout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(params),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to create checkout session");
+      }
+
+      return res.json() as Promise<{ url: string }>;
+    },
+    onSuccess: (data) => {
+      if (data.url) {
+        Linking.openURL(data.url);
+      }
+    },
+    onError: (err: Error) => {
+      Alert.alert("Payment Error", err.message);
+    },
+  });
 
   const completedSet = useMemo(() => {
     const set = new Set<string>();
@@ -764,11 +884,19 @@ function CourseDetailDrill({
   return (
     <>
       {/* Thumbnail */}
-      <View style={[s.drillThumb, { backgroundColor: course.thumbnail_color }] as ViewStyle[]}>
-        <View style={s.coursePlay as ViewStyle}>
-          <Text style={{ fontSize: 24 }}>▶</Text>
+      {course.thumbnail_url ? (
+        <ImageBackground source={{ uri: course.thumbnail_url }} style={[s.drillThumb, { backgroundColor: course.thumbnail_color }] as ViewStyle[]} resizeMode="cover">
+          <View style={s.coursePlay as ViewStyle}>
+            <Text style={{ fontSize: 24 }}>▶</Text>
+          </View>
+        </ImageBackground>
+      ) : (
+        <View style={[s.drillThumb, { backgroundColor: course.thumbnail_color }] as ViewStyle[]}>
+          <View style={s.coursePlay as ViewStyle}>
+            <Text style={{ fontSize: 24 }}>▶</Text>
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Title + meta */}
       <Text style={s.drillTitle as TextStyle}>{course.title}</Text>
@@ -805,21 +933,8 @@ function CourseDetailDrill({
         </TouchableOpacity>
       )}
 
-      {/* Enroll / Progress */}
-      {!progress ? (
-        <TouchableOpacity
-          style={s.enrollBtn as ViewStyle}
-          onPress={() => enrollMutation.mutate(course.id)}
-          activeOpacity={0.7}
-          disabled={enrollMutation.isPending}
-        >
-          <Text style={s.enrollBtnText as TextStyle}>
-            {enrollMutation.isPending
-              ? "Enrolling..."
-              : `Enroll Now${course.price !== "Free" ? ` — ${course.price}` : ""}`}
-          </Text>
-        </TouchableOpacity>
-      ) : (
+      {/* Enroll / Progress / Purchase */}
+      {progress ? (
         <View style={{ marginVertical: 12 }}>
           <View style={s.progressBar as ViewStyle}>
             <View
@@ -833,9 +948,101 @@ function CourseDetailDrill({
             />
           </View>
           <Text style={s.progressLabel as TextStyle}>
-            {progress.progress_pct}% · {completedSet.size}/{course.lessons_count} lessons
+            {progress.progress_pct}% · {completedSet.size}/{lessons?.length ?? 0} lessons
           </Text>
         </View>
+      ) : course.price_type === "free" || !course.price_type ? (
+        /* Free course */
+        <TouchableOpacity
+          style={s.enrollBtn as ViewStyle}
+          onPress={() => enrollMutation.mutate(course.id)}
+          activeOpacity={0.7}
+          disabled={enrollMutation.isPending}
+        >
+          <Text style={s.enrollBtnText as TextStyle}>
+            {enrollMutation.isPending ? "Enrolling..." : "Enroll Now — Free"}
+          </Text>
+        </TouchableOpacity>
+      ) : course.price_type === "one_time" ? (
+        hasPurchased ? (
+          /* Already purchased */
+          <TouchableOpacity
+            style={s.enrollBtn as ViewStyle}
+            onPress={() => enrollMutation.mutate(course.id)}
+            activeOpacity={0.7}
+            disabled={enrollMutation.isPending}
+          >
+            <Text style={s.enrollBtnText as TextStyle}>
+              {enrollMutation.isPending ? "Enrolling..." : "Start Course — Purchased ✓"}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          /* One-time purchase */
+          <TouchableOpacity
+            style={[s.enrollBtn, { backgroundColor: colors.lime }] as ViewStyle[]}
+            onPress={() => checkoutMutation.mutate({ courseId: course.id })}
+            activeOpacity={0.7}
+            disabled={checkoutMutation.isPending}
+          >
+            {checkoutMutation.isPending ? (
+              <ActivityIndicator size="small" color={colors.black} />
+            ) : (
+              <Text style={[s.enrollBtnText, { color: colors.black }] as TextStyle[]}>
+                Purchase — {course.price}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )
+      ) : course.price_type === "pro_only" ? (
+        isProActive ? (
+          /* Pro subscriber */
+          <TouchableOpacity
+            style={s.enrollBtn as ViewStyle}
+            onPress={() => enrollMutation.mutate(course.id)}
+            activeOpacity={0.7}
+            disabled={enrollMutation.isPending}
+          >
+            <Text style={s.enrollBtnText as TextStyle}>
+              {enrollMutation.isPending ? "Enrolling..." : "Enroll Now — Pro Member ✓"}
+            </Text>
+          </TouchableOpacity>
+        ) : (
+          /* Not a Pro subscriber */
+          <View>
+            <MBadge label="Pro Only" color={colors.lime} />
+            <TouchableOpacity
+              style={[s.enrollBtn, { backgroundColor: colors.lime, marginTop: 8 }] as ViewStyle[]}
+              onPress={() => checkoutMutation.mutate({ plan: "pro" })}
+              activeOpacity={0.7}
+              disabled={checkoutMutation.isPending}
+            >
+              {checkoutMutation.isPending ? (
+                <ActivityIndicator size="small" color={colors.black} />
+              ) : (
+                <Text style={[s.enrollBtnText, { color: colors.black }] as TextStyle[]}>
+                  Subscribe to Pro
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        )
+      ) : (
+        /* Fallback */
+        <TouchableOpacity
+          style={s.enrollBtn as ViewStyle}
+          onPress={() => enrollMutation.mutate(course.id)}
+          activeOpacity={0.7}
+          disabled={enrollMutation.isPending}
+        >
+          <Text style={s.enrollBtnText as TextStyle}>
+            {enrollMutation.isPending ? "Enrolling..." : "Enroll Now"}
+          </Text>
+        </TouchableOpacity>
+      )}
+      {(checkoutMutation.isError || enrollMutation.isError) && (
+        <Text style={{ color: colors.red, fontSize: 13, marginTop: 4 }}>
+          {checkoutMutation.error?.message || enrollMutation.error?.message || "Something went wrong"}
+        </Text>
       )}
 
       {/* Description */}
@@ -955,11 +1162,30 @@ function LessonDrill({
   return (
     <>
       {/* Video */}
-      <View style={[s.drillThumb, { backgroundColor: course.thumbnail_color, height: 200 }] as ViewStyle[]}>
-        <View style={s.coursePlay as ViewStyle}>
-          <Text style={{ fontSize: 24 }}>▶</Text>
+      {currentLesson.bunny_video_id ? (
+        <View style={{ width: "100%", aspectRatio: 16 / 9, borderRadius: 14, overflow: "hidden", backgroundColor: "#0f172a", marginBottom: 4 }}>
+          <WebView
+            source={{ uri: `https://iframe.mediadelivery.net/embed/${process.env.EXPO_PUBLIC_BUNNY_STREAM_LIBRARY_ID}/${currentLesson.bunny_video_id}?autoplay=false&preload=true&responsive=true` }}
+            style={{ flex: 1 }}
+            allowsFullscreenVideo
+            allowsInlineMediaPlayback
+            mediaPlaybackRequiresUserAction={false}
+            javaScriptEnabled
+          />
         </View>
-      </View>
+      ) : course.thumbnail_url ? (
+        <ImageBackground source={{ uri: course.thumbnail_url }} style={[s.drillThumb, { backgroundColor: course.thumbnail_color, height: 200 }] as ViewStyle[]} resizeMode="cover">
+          <View style={s.coursePlay as ViewStyle}>
+            <Text style={{ fontSize: 24 }}>▶</Text>
+          </View>
+        </ImageBackground>
+      ) : (
+        <View style={[s.drillThumb, { backgroundColor: course.thumbnail_color, height: 200 }] as ViewStyle[]}>
+          <View style={s.coursePlay as ViewStyle}>
+            <Text style={{ fontSize: 24 }}>▶</Text>
+          </View>
+        </View>
+      )}
 
       <Text style={s.drillTitle as TextStyle}>{currentLesson.title}</Text>
       <Text style={{ fontSize: 13, color: colors.g400, marginBottom: 16 }}>

@@ -8,9 +8,10 @@ import { triggerHaptic } from "@/hooks/useHaptics";
 interface ChatInputProps {
   onSend: (content: string) => void;
   disabled?: boolean;
+  placeholder?: string;
 }
 
-export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
+export function ChatInput({ onSend, disabled = false, placeholder }: ChatInputProps) {
   const [text, setText] = useState("");
 
   const handleSend = () => {
@@ -28,7 +29,7 @@ export function ChatInput({ onSend, disabled = false }: ChatInputProps) {
       </Pressable>
       <TextInput
         style={styles.input}
-        placeholder="Type a message..."
+        placeholder={placeholder ?? "Type a message..."}
         placeholderTextColor={colors.g400}
         value={text}
         onChangeText={setText}

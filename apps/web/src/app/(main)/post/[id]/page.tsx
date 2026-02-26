@@ -13,7 +13,6 @@ import {
   IconRepost,
   IconShare,
   IconBookmark,
-  IconEye,
   IconVerified,
   IconQuote,
   IconReply,
@@ -187,7 +186,7 @@ export default function PostDetailPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <span style={{ fontWeight: 600, fontSize: 16 }}>{author?.display_name ?? "User"}</span>
                   {author?.is_verified && (
-                    <IconVerified size={16} style={{ color: "var(--lime)" }} />
+                    <IconVerified size={16} />
                   )}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -218,7 +217,7 @@ export default function PostDetailPage() {
                   {post.quoted_post.author?.display_name ?? "Unknown"}
                 </span>
                 {post.quoted_post.author?.is_verified && (
-                  <IconVerified size={12} style={{ color: "var(--lime)" }} />
+                  <IconVerified size={12} />
                 )}
                 <span className="pt-quoted-embed-handle">
                   @{post.quoted_post.author?.username ?? "user"}
@@ -351,11 +350,6 @@ export default function PostDetailPage() {
               <span>{post.like_count > 0 ? formatCompact(post.like_count) : ""}</span>
             </button>
 
-            <div className="pt-post-action" style={{ cursor: "default" }}>
-              <IconEye size={18} />
-              <span>{post.view_count > 0 ? formatCompact(post.view_count) : ""}</span>
-            </div>
-
             <button
               className={`pt-post-action ${post.is_bookmarked ? "bookmarked" : ""}`}
               onClick={handleBookmark}
@@ -403,7 +397,7 @@ export default function PostDetailPage() {
                   {post.author?.display_name ?? "Unknown"}
                 </span>
                 {post.author?.is_verified && (
-                  <IconVerified size={12} style={{ color: "var(--lime)" }} />
+                  <IconVerified size={12} />
                 )}
                 <span className="pt-quoted-embed-handle">
                   @{post.author?.username ?? "user"}
@@ -570,7 +564,7 @@ function InlineComments({
               {comment.author?.display_name ?? "Unknown"}
             </span>
             {comment.author?.is_verified && (
-              <IconVerified size={12} style={{ color: "var(--lime)" }} />
+              <IconVerified size={12} />
             )}
             <span className="pt-comment-time">{timeAgo(comment.created_at)}</span>
           </div>

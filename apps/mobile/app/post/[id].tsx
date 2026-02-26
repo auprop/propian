@@ -270,7 +270,7 @@ export default function PostDetailScreen() {
             {comment.author?.display_name || "Unknown"}
           </Text>
           {comment.author?.is_verified && (
-            <IconVerified size={12} color={colors.lime} />
+            <IconVerified size={12} />
           )}
           <Text style={styles.commentDot}>·</Text>
           <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
@@ -466,7 +466,7 @@ export default function PostDetailScreen() {
             <Text style={styles.displayName} numberOfLines={1}>
               {author?.display_name || "Unknown"}
             </Text>
-            {author?.is_verified && <IconVerified size={16} color={colors.lime} />}
+            {author?.is_verified && <IconVerified size={16} />}
           </View>
           <Text style={styles.handle}>
             @{author?.username || "user"}{" "}
@@ -572,7 +572,7 @@ export default function PostDetailScreen() {
               {post.quoted_post.author?.display_name || "Unknown"}
             </Text>
             {post.quoted_post.author?.is_verified && (
-              <IconVerified size={12} color={colors.lime} />
+              <IconVerified size={12} />
             )}
             <Text style={styles.quotedHandle}>
               @{post.quoted_post.author?.username || "user"}

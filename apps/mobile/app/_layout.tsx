@@ -80,11 +80,23 @@ export default function RootLayout() {
             />
             <Stack.Screen
               name="chat-room/[roomId]"
-              options={{
-                headerShown: true,
-                headerTitle: "Chat",
-                headerBackTitle: "Back",
-              }}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="chat-members"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="chat-search"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="chat-pinned"
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="chat-thread/[messageId]"
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="profile/[username]"

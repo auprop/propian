@@ -150,117 +150,119 @@ export function ChatMessage({
         <div style={{ width: 38, flexShrink: 0 }} />
       )}
 
-      <div className="pc-msg-body">
-        {/* Pinned indicator — shown above author for visibility */}
-        {isPinned && !isGrouped && (
-          <div className="pc-pinned-tag">
-            <IcPin s={11} /> Pinned to Knowledge Library
-          </div>
-        )}
+      <div className={`pc-msg-bubble${isGrouped ? " pc-msg-bubble-grouped" : ""}`}>
+        <div className="pc-msg-body">
+          {/* Pinned indicator — shown above author for visibility */}
+          {isPinned && !isGrouped && (
+            <div className="pc-pinned-tag">
+              <IcPin s={11} /> Pinned to Knowledge Library
+            </div>
+          )}
 
-        {/* Author line */}
-        {!isGrouped && message.author && (
-          <div className="pc-msg-head">
-            <span
-              className="pc-msg-user"
-              onClick={() => message.user_id && onOpenProfile?.(message.user_id)}
-            >
-              {message.author.display_name}
-            </span>
-            {message.author.is_verified && (
-              <IconVerified size={14} />
-            )}
-            <span className="pc-mono-xs" style={{ color: "var(--g400)" }}>
-              {formatTime(message.created_at)}
-            </span>
-          </div>
-        )}
-
-        {/* Message content */}
-        {message.type === "image" ? (
-          <div className="pc-msg-img">
-            <img
-              src={message.content}
-              alt="Shared image"
-              style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }}
-            />
-          </div>
-        ) : (
-          <div
-            className="pc-msg-text"
-            dangerouslySetInnerHTML={{ __html: message.content }}
-          />
-        )}
-
-        {/* Reactions */}
-        <ReactionBar
-          reactions={reactions}
-          currentUserId={currentUserId}
-          onToggle={handleReactionToggle}
-          onOpenPicker={() => setPickerOpen(true)}
-        />
-
-        {/* Thread link (shown when message has replies) */}
-        {(message.reply_count ?? 0) > 0 && (
-          <div
-            className="pc-thread-link"
-            onClick={() => onOpenThread?.(message)}
-          >
-            <IcThread s={14} />
-            <span>
-              {message.reply_count} {message.reply_count === 1 ? "reply" : "replies"}
-            </span>
-            {message.last_reply_at && (
-              <span style={{ color: "var(--g400)", fontWeight: 400, marginLeft: 4 }}>
-                Last reply {formatTime(message.last_reply_at)}
+          {/* Author line */}
+          {!isGrouped && message.author && (
+            <div className="pc-msg-head">
+              <span
+                className="pc-msg-user"
+                onClick={() => message.user_id && onOpenProfile?.(message.user_id)}
+              >
+                {message.author.display_name}
               </span>
-            )}
-          </div>
-        )}
+              {message.author.is_verified && (
+                <IconVerified size={14} />
+              )}
+              <span className="pc-mono-xs" style={{ color: "var(--g400)" }}>
+                {formatTime(message.created_at)}
+              </span>
+            </div>
+          )}
 
-        {/* Hover action bar */}
-        {hovered && (
-          <div className="pc-msg-actions">
-            <div className="pc-msg-act" onClick={() => setPickerOpen((v) => !v)} title="React">
-              <IcSmile s={14} />
+          {/* Message content */}
+          {message.type === "image" ? (
+            <div className="pc-msg-img">
+              <img
+                src={message.content}
+                alt="Shared image"
+                style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }}
+              />
             </div>
-            <div className="pc-msg-act" onClick={() => onOpenThread?.(message)} title="Reply">
-              <IcReply s={14} />
-            </div>
-            <div className="pc-msg-act" onClick={() => onOpenThread?.(message)} title="Thread">
-              <IcThread s={14} />
-            </div>
-            {communityId && channelId && canPin && (
-              isPinned ? (
-                <div
-                  className="pc-msg-act pc-msg-act-danger"
-                  onClick={() => setUnpinConfirmOpen(true)}
-                  title="Unpin from Knowledge Library"
-                >
-                  <IcPinOff s={14} />
-                </div>
-              ) : (
-                <div className="pc-msg-act" onClick={() => setPinDialogOpen(true)} title="Pin to Knowledge Library">
-                  <IcPin s={14} />
-                </div>
-              )
-            )}
-            <div className="pc-msg-act" title="More">
-              <IcMore s={14} />
-            </div>
-          </div>
-        )}
-
-        {/* Reaction picker popover */}
-        {pickerOpen && (
-          <div className="pt-reaction-picker-anchor">
-            <ReactionPicker
-              isOpen={pickerOpen}
-              onClose={() => setPickerOpen(false)}
-              onSelect={handleReactionSelect}
+          ) : (
+            <div
+              className="pc-msg-text"
+              dangerouslySetInnerHTML={{ __html: message.content }}
             />
-          </div>
-        )}
+          )}
+
+          {/* Reactions */}
+          <ReactionBar
+            reactions={reactions}
+            currentUserId={currentUserId}
+            onToggle={handleReactionToggle}
+            onOpenPicker={() => setPickerOpen(true)}
+          />
+
+          {/* Thread link (shown when message has replies) */}
+          {(message.reply_count ?? 0) > 0 && (
+            <div
+              className="pc-thread-link"
+              onClick={() => onOpenThread?.(message)}
+            >
+              <IcThread s={14} />
+              <span>
+                {message.reply_count} {message.reply_count === 1 ? "reply" : "replies"}
+              </span>
+              {message.last_reply_at && (
+                <span style={{ color: "var(--g400)", fontWeight: 400, marginLeft: 4 }}>
+                  Last reply {formatTime(message.last_reply_at)}
+                </span>
+              )}
+            </div>
+          )}
+
+          {/* Hover action bar */}
+          {hovered && (
+            <div className="pc-msg-actions">
+              <div className="pc-msg-act" onClick={() => setPickerOpen((v) => !v)} title="React">
+                <IcSmile s={14} />
+              </div>
+              <div className="pc-msg-act" onClick={() => onOpenThread?.(message)} title="Reply">
+                <IcReply s={14} />
+              </div>
+              <div className="pc-msg-act" onClick={() => onOpenThread?.(message)} title="Thread">
+                <IcThread s={14} />
+              </div>
+              {communityId && channelId && canPin && (
+                isPinned ? (
+                  <div
+                    className="pc-msg-act pc-msg-act-danger"
+                    onClick={() => setUnpinConfirmOpen(true)}
+                    title="Unpin from Knowledge Library"
+                  >
+                    <IcPinOff s={14} />
+                  </div>
+                ) : (
+                  <div className="pc-msg-act" onClick={() => setPinDialogOpen(true)} title="Pin to Knowledge Library">
+                    <IcPin s={14} />
+                  </div>
+                )
+              )}
+              <div className="pc-msg-act" title="More">
+                <IcMore s={14} />
+              </div>
+            </div>
+          )}
+
+          {/* Reaction picker popover */}
+          {pickerOpen && (
+            <div className="pt-reaction-picker-anchor">
+              <ReactionPicker
+                isOpen={pickerOpen}
+                onClose={() => setPickerOpen(false)}
+                onSelect={handleReactionSelect}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Pin dialog */}

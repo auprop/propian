@@ -220,8 +220,8 @@ function ThreadPanel({
         <button className="pc-ibtn" onClick={onClose} type="button"><IcX s={18} /></button>
       </div>
       <div className="pc-msgs" style={{ flex: 1 }}>
-        {/* Parent message */}
-        <div className="pc-msg">
+        {/* Parent (original) message */}
+        <div className="pc-msg pc-msg-thread-parent">
           <div
             style={{ cursor: "pointer" }}
             onClick={() => parentMessage.user_id && onOpenProfile?.(parentMessage.user_id)}
@@ -232,29 +232,31 @@ function ThreadPanel({
               size="chat"
             />
           </div>
-          <div className="pc-msg-body">
-            <div className="pc-msg-head">
-              <span
-                className="pc-msg-user"
-                onClick={() => parentMessage.user_id && onOpenProfile?.(parentMessage.user_id)}
-              >
-                {parentMessage.author?.display_name}
-              </span>
-              <span className="pc-mono-xs" style={{ color: "var(--g400)" }}>
-                {formatTime(parentMessage.created_at)}
-              </span>
-            </div>
-            {parentMessage.type === "image" ? (
-              <div className="pc-msg-img" style={{ maxWidth: 240 }}>
-                <img
-                  src={parentMessage.content}
-                  alt="Shared image"
-                  style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }}
-                />
+          <div className="pc-msg-bubble pc-msg-bubble-parent">
+            <div className="pc-msg-body">
+              <div className="pc-msg-head">
+                <span
+                  className="pc-msg-user"
+                  onClick={() => parentMessage.user_id && onOpenProfile?.(parentMessage.user_id)}
+                >
+                  {parentMessage.author?.display_name}
+                </span>
+                <span className="pc-mono-xs" style={{ color: "var(--g400)" }}>
+                  {formatTime(parentMessage.created_at)}
+                </span>
               </div>
-            ) : (
-              <div className="pc-msg-text" dangerouslySetInnerHTML={{ __html: parentMessage.content }} />
-            )}
+              {parentMessage.type === "image" ? (
+                <div className="pc-msg-img" style={{ maxWidth: 240 }}>
+                  <img
+                    src={parentMessage.content}
+                    alt="Shared image"
+                    style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }}
+                  />
+                </div>
+              ) : (
+                <div className="pc-msg-text" dangerouslySetInnerHTML={{ __html: parentMessage.content }} />
+              )}
+            </div>
           </div>
         </div>
 
@@ -294,31 +296,33 @@ function ThreadPanel({
               ) : (
                 <div style={{ width: 38, flexShrink: 0 }} />
               )}
-              <div className="pc-msg-body">
-                {!isGrouped && (
-                  <div className="pc-msg-head">
-                    <span
-                      className="pc-msg-user"
-                      onClick={() => reply.user_id && onOpenProfile?.(reply.user_id)}
-                    >
-                      {reply.author?.display_name ?? "User"}
-                    </span>
-                    <span className="pc-mono-xs" style={{ color: "var(--g400)" }}>
-                      {formatTime(reply.created_at)}
-                    </span>
-                  </div>
-                )}
-                {reply.type === "image" ? (
-                  <div className="pc-msg-img" style={{ maxWidth: 200 }}>
-                    <img
-                      src={reply.content}
-                      alt="Shared image"
-                      style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }}
-                    />
-                  </div>
-                ) : (
-                  <div className="pc-msg-text" dangerouslySetInnerHTML={{ __html: reply.content }} />
-                )}
+              <div className={`pc-msg-bubble${isGrouped ? " pc-msg-bubble-grouped" : ""}`}>
+                <div className="pc-msg-body">
+                  {!isGrouped && (
+                    <div className="pc-msg-head">
+                      <span
+                        className="pc-msg-user"
+                        onClick={() => reply.user_id && onOpenProfile?.(reply.user_id)}
+                      >
+                        {reply.author?.display_name ?? "User"}
+                      </span>
+                      <span className="pc-mono-xs" style={{ color: "var(--g400)" }}>
+                        {formatTime(reply.created_at)}
+                      </span>
+                    </div>
+                  )}
+                  {reply.type === "image" ? (
+                    <div className="pc-msg-img" style={{ maxWidth: 200 }}>
+                      <img
+                        src={reply.content}
+                        alt="Shared image"
+                        style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 10 }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="pc-msg-text" dangerouslySetInnerHTML={{ __html: reply.content }} />
+                  )}
+                </div>
               </div>
             </div>
           );

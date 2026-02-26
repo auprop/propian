@@ -368,20 +368,30 @@ const SIDEBAR_GROUPS: SidebarGroup[] = [
 
 /* ─── Component ─── */
 
+interface CachedProfile {
+  avatar_url: string | null;
+  display_name: string;
+  username: string;
+}
+
 interface SidebarProps {
   collapsed?: boolean;
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
   onToggle?: () => void;
+  cachedProfile?: CachedProfile | null;
 }
 
-export function Sidebar({ collapsed = false, mobileOpen = false, onCloseMobile, onToggle }: SidebarProps) {
+export function Sidebar({ collapsed = false, mobileOpen = false, onCloseMobile, onToggle, cachedProfile }: SidebarProps) {
   const pathname = usePathname();
   const supabase = useMemo(() => createBrowserClient(), []);
 
   const { data: session } = useSession(supabase);
   const { data: profile } = useCurrentProfile(supabase, session?.user?.id);
-  const displayName = profile?.display_name ?? "Trader";
+
+  // Use hook data first, fall back to server-provided cookie cache (no flash)
+  const displayName = profile?.display_name ?? cachedProfile?.display_name ?? "Trader";
+  const avatarUrl = profile?.avatar_url ?? cachedProfile?.avatar_url ?? null;
   const [greeting, setGreeting] = useState("");
   useEffect(() => {
     const h = new Date().getHours();
@@ -417,7 +427,7 @@ export function Sidebar({ collapsed = false, mobileOpen = false, onCloseMobile, 
           style={collapsed ? { cursor: "pointer" } : undefined}
         >
           <Avatar
-            src={profile?.avatar_url}
+            src={avatarUrl}
             name={displayName}
             size={collapsed ? "md" : "lg"}
           />

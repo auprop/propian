@@ -17,7 +17,6 @@ import {
   IconRepost,
   IconShare,
   IconBookmark,
-  IconEye,
   IconVerified,
   IconFire,
   IconTrendUp,
@@ -136,11 +135,6 @@ function ActionBar({
         <span>{post.like_count > 0 ? formatCompact(post.like_count) : ""}</span>
       </button>
 
-      <div className="pt-post-action" style={{ cursor: "default" }}>
-        <IconEye size={18} />
-        <span>{post.view_count > 0 ? formatCompact(post.view_count) : ""}</span>
-      </div>
-
       <button
         className={`pt-post-action ${post.is_bookmarked ? "bookmarked" : ""}`}
         onClick={() => onBookmark(post.id, !!post.is_bookmarked)}
@@ -216,7 +210,7 @@ function PostCard({
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   <span>{originalAuthor?.display_name ?? "User"}</span>
                   {originalAuthor?.is_verified && (
-                    <IconVerified size={14} style={{ color: "var(--lime)" }} />
+                    <IconVerified size={14} />
                   )}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -284,7 +278,7 @@ function PostCard({
               <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 <span>{post.author?.display_name ?? "User"}</span>
                 {post.author?.is_verified && (
-                  <IconVerified size={14} style={{ color: "var(--lime)" }} />
+                  <IconVerified size={14} />
                 )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -318,7 +312,7 @@ function PostCard({
                 {post.quoted_post.author?.display_name ?? "Unknown"}
               </span>
               {post.quoted_post.author?.is_verified && (
-                <IconVerified size={12} style={{ color: "var(--lime)" }} />
+                <IconVerified size={12} />
               )}
               <span className="pt-quoted-embed-handle">
                 @{post.quoted_post.author?.username ?? "user"}
@@ -544,7 +538,7 @@ function InlineComments({
               </span>
             </a>
             {comment.author?.is_verified && (
-              <IconVerified size={12} style={{ color: "var(--lime)" }} />
+              <IconVerified size={12} />
             )}
             <span className="pt-comment-time">{timeAgo(comment.created_at)}</span>
           </div>
@@ -1078,7 +1072,7 @@ export default function FeedPage() {
           {/* Trending hashtags */}
           <div className="pt-trending">
             <h3 className="pt-trending-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <IconFire size={18} style={{ color: "var(--lime)" }} />
+              <IconFire size={18} />
               Trending
             </h3>
             {TRENDING_TAGS.map((item) => (
@@ -1092,7 +1086,7 @@ export default function FeedPage() {
           {/* Suggested traders */}
           <div className="pt-trending" style={{ marginTop: 16 }}>
             <h3 className="pt-trending-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <IconTrendUp size={16} style={{ color: "var(--lime)" }} />
+              <IconTrendUp size={16} />
               Suggested Traders
             </h3>
             {SUGGESTED_TRADERS.map((trader) => (
@@ -1101,7 +1095,7 @@ export default function FeedPage() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                     <span style={{ fontWeight: 600, fontSize: 14 }}>{trader.name}</span>
-                    {trader.verified && <IconVerified size={12} style={{ color: "var(--lime)" }} />}
+                    {trader.verified && <IconVerified size={12} />}
                   </div>
                   <div style={{ fontSize: 13, color: "var(--g400)" }}>{trader.handle}</div>
                 </div>
@@ -1147,7 +1141,7 @@ export default function FeedPage() {
                     {quotedPost.author?.display_name ?? "Unknown"}
                   </span>
                   {quotedPost.author?.is_verified && (
-                    <IconVerified size={12} style={{ color: "var(--lime)" }} />
+                    <IconVerified size={12} />
                   )}
                   <span className="pt-quoted-embed-handle">
                     @{quotedPost.author?.username ?? "user"}

@@ -184,7 +184,7 @@ export function CommentSheet({ visible, postId, onClose }: CommentSheetProps) {
             {comment.author?.display_name || "Unknown"}
           </Text>
           {comment.author?.is_verified && (
-            <IconVerified size={12} color={colors.lime} />
+            <IconVerified size={12} />
           )}
           <Text style={styles.commentDot}>·</Text>
           <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>

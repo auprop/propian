@@ -62,7 +62,7 @@ export default function SearchScreen() {
                 <View style={styles.resultNameRow}>
                   <Text style={styles.resultName}>{item.display_name}</Text>
                   {item.is_verified && (
-                    <IconVerified size={14} color={colors.lime} />
+                    <IconVerified size={14} />
                   )}
                 </View>
                 <Text style={styles.resultHandle}>@{item.username}</Text>

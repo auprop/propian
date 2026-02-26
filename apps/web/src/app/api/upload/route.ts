@@ -39,12 +39,13 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     const roomId = formData.get("roomId") as string | null;
+    const context = formData.get("context") as string | null;
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
-    if (!roomId) {
-      return NextResponse.json({ error: "roomId is required" }, { status: 400 });
+    if (!context && !roomId) {
+      return NextResponse.json({ error: "roomId or context is required" }, { status: 400 });
     }
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json({ error: "File too large (max 10MB)" }, { status: 400 });
@@ -64,20 +65,25 @@ export async function POST(req: NextRequest) {
       const image = sharp(buffer);
       const metadata = await image.metadata();
 
-      // Resize if wider than 1920px
-      if (metadata.width && metadata.width > 1920) {
-        image.resize({ width: 1920, withoutEnlargement: true });
+      const isThumbnail = context === "thumbnail";
+      const maxWidth = isThumbnail ? 1280 : 1920;
+      const quality = isThumbnail ? 85 : 80;
+
+      if (metadata.width && metadata.width > maxWidth) {
+        image.resize({ width: maxWidth, withoutEnlargement: true });
       }
 
       buffer = await image
-        .jpeg({ quality: 80 })
+        .jpeg({ quality })
         .toBuffer() as Buffer;
       contentType = "image/jpeg";
     }
 
-    // Generate upload key: chat/{roomId}/{uuid}.{ext}
+    // Generate upload key based on context
     const ext = contentType.split("/")[1] || "bin";
-    const key = `chat/${roomId}/${randomUUID()}.${ext}`;
+    const key = context === "thumbnail"
+      ? `thumbnails/${randomUUID()}.${ext}`
+      : `chat/${roomId}/${randomUUID()}.${ext}`;
 
     // Upload to Cloudflare R2
     const r2 = createR2Client();

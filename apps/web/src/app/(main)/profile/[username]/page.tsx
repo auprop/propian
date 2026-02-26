@@ -18,7 +18,6 @@ import {
   IconBookmark,
   IconRepost,
   IconQuote,
-  IconEye,
 } from "@propian/shared/icons";
 import { formatCompact, timeAgo } from "@propian/shared/utils";
 import { createBrowserClient } from "@/lib/supabase/client";
@@ -138,7 +137,7 @@ export default function ProfilePage() {
             <div className="pt-profile-name">
               {profile.display_name}
               {profile.is_verified && (
-                <IconVerified size={18} style={{ color: "var(--lime)" }} />
+                <IconVerified size={18} />
               )}
               <span className="pt-profile-handle">@{profile.username}</span>
             </div>
@@ -357,7 +356,7 @@ export default function ProfilePage() {
                           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
                             <span>{post.author?.display_name ?? "User"}</span>
                             {post.author?.is_verified && (
-                              <IconVerified size={14} style={{ color: "var(--lime)" }} />
+                              <IconVerified size={14} />
                             )}
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -415,11 +414,6 @@ export default function ProfilePage() {
                         )}
                         <span>{post.like_count > 0 ? formatCompact(post.like_count) : ""}</span>
                       </button>
-
-                      <div className="pt-post-action" style={{ cursor: "default" }}>
-                        <IconEye size={18} />
-                        <span>{post.view_count > 0 ? formatCompact(post.view_count) : ""}</span>
-                      </div>
 
                       <button
                         className={`pt-post-action ${post.is_bookmarked ? "bookmarked" : ""}`}

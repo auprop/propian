@@ -3,6 +3,9 @@
 /** Course difficulty level */
 export type CourseLevel = "beginner" | "intermediate" | "advanced";
 
+/** Course pricing model */
+export type CoursePriceType = "free" | "one_time" | "pro_only";
+
 /** Lesson content type */
 export type LessonType = "video" | "article" | "quiz";
 
@@ -47,9 +50,20 @@ export interface Course {
   duration_text: string;
   students_count: number;
   price: string;
+  price_type: CoursePriceType;
+  price_cents: number;
   thumbnail_color: string;
   instructor_id: string;
   created_at: string;
+  /** New fields (migration 048) */
+  status?: string;
+  category?: string | null;
+  tags?: string[] | null;
+  thumbnail_url?: string | null;
+  certificate_enabled?: boolean;
+  /** Stripe product/price IDs (migration 052) */
+  stripe_product_id?: string | null;
+  stripe_price_id?: string | null;
   /** Joined */
   instructor?: Instructor;
 }
@@ -71,6 +85,8 @@ export interface Lesson {
   sort_order: number;
   video_url: string | null;
   content: string | null;
+  /** Bunny.net Stream video GUID (migration 048) */
+  bunny_video_id?: string | null;
 }
 
 export interface QuizQuestion {
@@ -165,4 +181,38 @@ export interface AcademyStats {
   hours_learned: number;
   current_streak: number;
   certificates_earned: number;
+}
+
+export interface LearningStats {
+  activityDates: string[];
+  totalMinutes: number;
+}
+
+/* ─── Payments ─── */
+
+export interface Purchase {
+  id: string;
+  user_id: string;
+  course_id: string;
+  stripe_session_id: string;
+  stripe_payment_intent: string | null;
+  amount_cents: number;
+  currency: string;
+  status: "pending" | "completed" | "refunded" | "failed";
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface UserSubscription {
+  id: string;
+  user_id: string;
+  stripe_subscription_id: string;
+  stripe_customer_id: string;
+  status: "active" | "past_due" | "canceled" | "trialing" | "incomplete" | "unpaid";
+  current_period_start: string | null;
+  current_period_end: string | null;
+  cancel_at_period_end: boolean;
+  canceled_at: string | null;
+  created_at: string;
+  updated_at: string;
 }

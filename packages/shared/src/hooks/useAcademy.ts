@@ -182,6 +182,42 @@ export function useUserQuizAttempts(
   });
 }
 
+/** Fetch learning stats (activity dates + total minutes) for current user */
+export function useLearningStats(supabase: SupabaseClient) {
+  return useQuery({
+    queryKey: ["academy-learning-stats"],
+    queryFn: () => academyApi.getUserLearningStats(supabase),
+  });
+}
+
+/** Check if user has purchased a specific course */
+export function useHasCoursePurchase(
+  supabase: SupabaseClient,
+  courseId: string | null,
+) {
+  return useQuery({
+    queryKey: ["academy-purchase", courseId],
+    queryFn: () => academyApi.hasCoursePurchase(supabase, courseId!),
+    enabled: !!courseId,
+  });
+}
+
+/** Fetch user's active Pro subscription */
+export function useUserSubscription(supabase: SupabaseClient) {
+  return useQuery({
+    queryKey: ["academy-subscription"],
+    queryFn: () => academyApi.getUserSubscription(supabase),
+  });
+}
+
+/** Fetch user's purchase history */
+export function useUserPurchases(supabase: SupabaseClient) {
+  return useQuery({
+    queryKey: ["academy-purchases"],
+    queryFn: () => academyApi.getUserPurchases(supabase),
+  });
+}
+
 /* ─── Write Hooks (Mutations) ─── */
 
 /** Enroll in a course */
@@ -218,6 +254,7 @@ export function useCompleteLesson(supabase: SupabaseClient) {
         queryKey: ["academy-user-course-progress", courseId],
       });
       qc.invalidateQueries({ queryKey: ["academy-user-progress"] });
+      qc.invalidateQueries({ queryKey: ["academy-learning-stats"] });
     },
   });
 }
@@ -266,6 +303,31 @@ export function useIssueCertificate(supabase: SupabaseClient) {
       academyApi.issueCertificate(supabase, courseId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["academy-certificates"] });
+    },
+  });
+}
+
+/** Start a Stripe Checkout session and redirect */
+export function useCheckout() {
+  return useMutation({
+    mutationFn: (params: { courseId: string } | { plan: "pro" }) =>
+      academyApi.createCheckoutSession(params),
+    onSuccess: (data) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
+    },
+  });
+}
+
+/** Open Stripe Customer Portal for subscription management */
+export function useCustomerPortal() {
+  return useMutation({
+    mutationFn: () => academyApi.createPortalSession(),
+    onSuccess: (data) => {
+      if (data.url) {
+        window.location.href = data.url;
+      }
     },
   });
 }

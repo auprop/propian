@@ -17,3 +17,4 @@ export * from "./useCalendar";
 export * from "./useSentiments";
 export * from "./useAcademy";
 export * from "./useReferrals";
+export * from "./useAdmin";

@@ -16,6 +16,11 @@ export interface Profile {
   onboarding_completed: boolean;
   created_at: string;
   updated_at: string;
+  /** Stripe */
+  stripe_customer_id?: string | null;
+  pro_subscription_status?: "active" | "past_due" | "canceled" | "trialing" | null;
+  pro_subscription_id?: string | null;
+  pro_expires_at?: string | null;
 }
 
 export interface UserPreview {

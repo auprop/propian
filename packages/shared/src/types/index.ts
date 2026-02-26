@@ -10,3 +10,4 @@ export * from "./calendar";
 export * from "./sentiment";
 export * from "./academy";
 export * from "./referral";
+export * from "./admin";

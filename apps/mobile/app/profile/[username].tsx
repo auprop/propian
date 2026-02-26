@@ -154,7 +154,7 @@ export default function ProfileScreen() {
             <View style={styles.nameRow}>
               <Text style={styles.displayName}>{profile.display_name}</Text>
               {profile.is_verified && (
-                <IconVerified size={18} color={colors.lime} />
+                <IconVerified size={18} />
               )}
             </View>
             <Text style={styles.handle}>@{profile.username}</Text>

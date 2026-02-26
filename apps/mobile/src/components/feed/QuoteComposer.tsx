@@ -279,7 +279,7 @@ export function QuoteComposer({
                         {quotedAuthor?.display_name || "Unknown"}
                       </Text>
                       {quotedAuthor?.is_verified && (
-                        <IconVerified size={12} color={colors.lime} />
+                        <IconVerified size={12} />
                       )}
                       <Text style={styles.quotedHandle}>
                         @{quotedAuthor?.username || "user"}
@@ -323,7 +323,7 @@ export function QuoteComposer({
 
               {/* Quote indicator */}
               <View style={styles.quoteIndicator}>
-                <IconQuoteMark size={14} color={colors.lime} />
+                <IconQuoteMark size={14} />
                 <Text style={styles.quoteIndicatorText}>Quoting</Text>
               </View>
             </View>

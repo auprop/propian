@@ -11,7 +11,6 @@ import { IconComment } from "@/components/icons/IconComment";
 import { IconRepost } from "@/components/icons/IconRepost";
 import { IconShare } from "@/components/icons/IconShare";
 import { IconBookmark } from "@/components/icons/IconBookmark";
-import { IconEye } from "@/components/icons/IconEye";
 import { IconVerified } from "@/components/icons/IconVerified";
 import { formatCompact } from "@propian/shared/utils";
 import { timeAgo } from "@propian/shared/utils";
@@ -175,7 +174,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
                   {originalAuthor?.display_name || "Unknown"}
                 </Text>
                 {originalAuthor?.is_verified && (
-                  <IconVerified size={14} color={colors.lime} />
+                  <IconVerified size={14} />
                 )}
               </View>
               <View style={styles.metaRow}>
@@ -263,7 +262,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
                 {author?.display_name || "Unknown"}
               </Text>
               {author?.is_verified && (
-                <IconVerified size={14} color={colors.lime} />
+                <IconVerified size={14} />
               )}
             </View>
             <View style={styles.metaRow}>
@@ -321,7 +320,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
                     {post.quoted_post.author?.display_name || "Unknown"}
                   </Text>
                   {post.quoted_post.author?.is_verified && (
-                    <IconVerified size={12} color={colors.lime} />
+                    <IconVerified size={12} />
                   )}
                 </View>
                 <Text style={styles.quotedEmbedHandle}>
@@ -462,16 +461,6 @@ function ActionBar({
           </Text>
         )}
       </Pressable>
-
-      {/* Views */}
-      <View style={styles.actionButton}>
-        <IconEye size={18} color={colors.g400} />
-        {post.view_count > 0 && (
-          <Text style={styles.actionCount}>
-            {formatCompact(post.view_count)}
-          </Text>
-        )}
-      </View>
 
       {/* Bookmark */}
       <Pressable

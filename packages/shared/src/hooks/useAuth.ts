@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient, Session } from "@supabase/supabase-js";
 import * as authApi from "../api/auth";
+import { clearProfileCache } from "./useProfile";
 
 export function useSession(supabase: SupabaseClient) {
   return useQuery({
@@ -37,6 +38,7 @@ export function useSignOut(supabase: SupabaseClient) {
     mutationFn: () => authApi.signOut(supabase),
     onSuccess: () => {
       queryClient.clear();
+      clearProfileCache();
     },
   });
 }

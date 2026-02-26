@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   useCourses,
   useCourse,
@@ -23,6 +24,10 @@ import {
   useSubmitQuiz,
   useSaveNote,
   useIssueCertificate,
+  useLearningStats,
+  useHasCoursePurchase,
+  useUserSubscription,
+  useCheckout,
 } from "@propian/shared/hooks";
 import type {
   AcademyView,
@@ -58,16 +63,60 @@ const LEVEL_LABELS: { label: string; value: CourseLevel | "all" }[] = [
 
 const COURSE_TABS = ["Curriculum", "Overview", "Reviews", "Resources"] as const;
 
-/* ─── Streak helper ─── */
+/* ─── Streak helpers ─── */
 
-function getStreakDays(): { label: string; status: "done" | "today" | "upcoming" }[] {
+/** Build weekly view based on actual activity dates */
+function getStreakDays(activityDates: string[]): { label: string; status: "done" | "today" | "upcoming" }[] {
   const days = ["M", "T", "W", "T", "F", "S", "S"];
-  const today = new Date().getDay(); // 0=Sun
-  const dayIndex = today === 0 ? 6 : today - 1; // Mon=0
-  return days.map((d, i) => ({
-    label: d,
-    status: i < dayIndex ? "done" : i === dayIndex ? "today" : "upcoming",
-  }));
+  const today = new Date();
+  const dayIndex = today.getDay() === 0 ? 6 : today.getDay() - 1; // Mon=0
+
+  // Get the start of the current week (Monday)
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - dayIndex);
+  weekStart.setHours(0, 0, 0, 0);
+
+  const activitySet = new Set(activityDates);
+
+  return days.map((d, i) => {
+    const date = new Date(weekStart);
+    date.setDate(weekStart.getDate() + i);
+    const dateStr = date.toISOString().split("T")[0];
+
+    if (i > dayIndex) return { label: d, status: "upcoming" as const };
+    if (i === dayIndex) {
+      return { label: d, status: activitySet.has(dateStr) ? "done" as const : "today" as const };
+    }
+    // Past day — green if activity happened, gray otherwise
+    return { label: d, status: activitySet.has(dateStr) ? "done" as const : "upcoming" as const };
+  });
+}
+
+/** Compute consecutive-day streak from sorted activity dates */
+function computeStreak(activityDates: string[]): number {
+  if (!activityDates.length) return 0;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Unique sorted dates descending
+  const dates = [...new Set(activityDates)]
+    .map((d) => { const dt = new Date(d); dt.setHours(0, 0, 0, 0); return dt; })
+    .sort((a, b) => b.getTime() - a.getTime());
+
+  // Most recent activity must be today or yesterday
+  const mostRecent = dates[0];
+  const diffDays = Math.round((today.getTime() - mostRecent.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays > 1) return 0;
+
+  let streak = 1;
+  for (let i = 1; i < dates.length; i++) {
+    const gap = Math.round((dates[i - 1].getTime() - dates[i].getTime()) / (1000 * 60 * 60 * 24));
+    if (gap === 1) streak++;
+    else if (gap === 0) continue; // duplicate
+    else break;
+  }
+  return streak;
 }
 
 /* ─── Sub-components ─── */
@@ -98,14 +147,16 @@ function CourseCard({
     <div className="pt-course-card" onClick={onClick} style={{ cursor: "pointer" }}>
       <div
         className="pt-course-thumb"
-        style={{ background: course.thumbnail_color }}
+        style={{ background: course.thumbnail_url ? `url(${course.thumbnail_url}) center/cover` : course.thumbnail_color }}
       >
-        <div
-          className="pt-course-thumb-pattern"
-          style={{
-            background: `repeating-linear-gradient(-45deg, transparent, transparent 8px, rgba(255,255,255,0.1) 8px, rgba(255,255,255,0.1) 16px)`,
-          }}
-        />
+        {!course.thumbnail_url && (
+          <div
+            className="pt-course-thumb-pattern"
+            style={{
+              background: `repeating-linear-gradient(-45deg, transparent, transparent 8px, rgba(255,255,255,0.1) 8px, rgba(255,255,255,0.1) 16px)`,
+            }}
+          />
+        )}
         <div className="pt-course-play">▶</div>
       </div>
       <div className="pt-course-body">
@@ -200,6 +251,7 @@ function InstructorCard({
 
 export default function AcademyPage() {
   const supabase = createBrowserClient();
+  const qc = useQueryClient();
 
   /* ── Navigation state ── */
   const [view, setView] = useState<AcademyView>("catalog");
@@ -207,6 +259,28 @@ export default function AcademyPage() {
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [selectedInstructorId, setSelectedInstructorId] = useState<string | null>(null);
   const [levelFilter, setLevelFilter] = useState<CourseLevel | "all">("all");
+
+  /* ── Handle Stripe redirect: ?payment=success ── */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("payment") === "success") {
+      // Invalidate queries so purchase/subscription/enrollment data refreshes
+      qc.invalidateQueries({ queryKey: ["academy-user-progress"] });
+      qc.invalidateQueries({ queryKey: ["academy-subscription"] });
+      qc.invalidateQueries({ queryKey: ["academy-purchases"] });
+      qc.invalidateQueries({ queryKey: ["academy-courses"] });
+
+      // Navigate to course if slug is in URL
+      const courseSlug = params.get("course");
+      if (courseSlug) {
+        setSelectedCourseSlug(courseSlug);
+        setView("course");
+      }
+
+      // Clean URL
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, [qc]);
 
   /* ── Data hooks ── */
   const { data: courses, isLoading: coursesLoading } = useCourses(
@@ -256,6 +330,7 @@ export default function AcademyPage() {
     <div className="pt-container">
       {view === "catalog" && (
         <CatalogView
+          supabase={supabase}
           courses={courses ?? []}
           instructors={instructors ?? []}
           paths={paths ?? []}
@@ -334,6 +409,7 @@ export default function AcademyPage() {
    ═══════════════════════════════════════════════════ */
 
 function CatalogView({
+  supabase,
   courses,
   instructors,
   paths,
@@ -348,6 +424,7 @@ function CatalogView({
   onViewPaths,
   onViewCerts,
 }: {
+  supabase: ReturnType<typeof createBrowserClient>;
   courses: Course[];
   instructors: Instructor[];
   paths: LearningPath[];
@@ -362,10 +439,12 @@ function CatalogView({
   onViewPaths: () => void;
   onViewCerts: () => void;
 }) {
-  const streakDays = getStreakDays();
+  const { data: learningStats } = useLearningStats(supabase);
+  const activityDates = learningStats?.activityDates ?? [];
+  const streakDays = getStreakDays(activityDates);
   const completed = userProgress.filter((p) => p.completed_at).length;
-  const hoursLearned = Math.round(completed * 4.5); // Approximate
-  const streak = streakDays.filter((d) => d.status === "done").length;
+  const hoursLearned = Math.round((learningStats?.totalMinutes ?? 0) / 60 * 10) / 10;
+  const streak = computeStreak(activityDates);
 
   return (
     <>
@@ -453,37 +532,7 @@ function CatalogView({
         </div>
       )}
 
-      {/* Featured Instructors */}
-      {instructors.length > 0 && (
-        <>
-          <h2
-            style={{
-              fontSize: 18,
-              fontWeight: 700,
-              marginBottom: 16,
-              letterSpacing: -0.3,
-            }}
-          >
-            Featured Instructors
-          </h2>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
-              gap: 16,
-              marginBottom: 40,
-            }}
-          >
-            {instructors.map((inst) => (
-              <InstructorCard
-                key={inst.id}
-                instructor={inst}
-                onClick={() => onInstructorClick(inst.id)}
-              />
-            ))}
-          </div>
-        </>
-      )}
+      {/* Featured Instructors — hidden for now, may revisit later */}
     </>
   );
 }
@@ -512,8 +561,13 @@ function CourseDetailView({
   const { data: lessons } = useCourseLessons(supabase, course?.id ?? null);
   const { data: progress } = useUserCourseProgress(supabase, course?.id ?? null);
   const { data: lessonProgress } = useUserLessonProgress(supabase, course?.id ?? null);
+  const { data: hasPurchased } = useHasCoursePurchase(supabase, course?.id ?? null);
+  const { data: subscription } = useUserSubscription(supabase);
   const enrollMutation = useEnrollCourse(supabase);
+  const checkoutMutation = useCheckout();
   const [courseTab, setCourseTab] = useState<(typeof COURSE_TABS)[number]>("Curriculum");
+
+  const isProActive = subscription?.status === "active" || subscription?.status === "trialing";
 
   const completedLessons = useMemo(() => {
     const set = new Set<string>();
@@ -555,8 +609,8 @@ function CourseDetailView({
           style={{
             position: "absolute",
             inset: 0,
-            background: course.thumbnail_color,
-            opacity: 0.3,
+            background: course.thumbnail_url ? `url(${course.thumbnail_url}) center/cover` : course.thumbnail_color,
+            opacity: course.thumbnail_url ? 1 : 0.3,
           }}
         />
         <div className="pt-video-overlay">
@@ -596,17 +650,9 @@ function CourseDetailView({
           </span>
         </div>
 
-        {/* Enroll / Progress */}
+        {/* Enroll / Progress / Purchase */}
         <div style={{ marginTop: 16 }}>
-          {!progress ? (
-            <button
-              className="pt-btn pt-btn-primary"
-              onClick={() => enrollMutation.mutate(course.id)}
-              disabled={enrollMutation.isPending}
-            >
-              {enrollMutation.isPending ? "Enrolling..." : "Enroll Now"} {course.price !== "Free" && `— ${course.price}`}
-            </button>
-          ) : (
+          {progress ? (
             <div style={{ maxWidth: 400 }}>
               <div className="pt-course-progress">
                 <div
@@ -620,9 +666,88 @@ function CourseDetailView({
               <div className="pt-course-progress-label">
                 <span>{progress.progress_pct}% complete</span>
                 <span>
-                  {completedLessons.size}/{course.lessons_count} lessons
+                  {completedLessons.size}/{lessons?.length ?? 0} lessons
                 </span>
               </div>
+            </div>
+          ) : course.price_type === "free" || !course.price_type ? (
+            /* Free course — direct enroll */
+            <button
+              className="pt-btn pt-btn-primary"
+              onClick={() => enrollMutation.mutate(course.id)}
+              disabled={enrollMutation.isPending}
+            >
+              {enrollMutation.isPending ? "Enrolling..." : "Enroll Now — Free"}
+            </button>
+          ) : course.price_type === "one_time" ? (
+            hasPurchased ? (
+              /* Already purchased — enroll */
+              <button
+                className="pt-btn pt-btn-primary"
+                onClick={() => enrollMutation.mutate(course.id)}
+                disabled={enrollMutation.isPending}
+              >
+                {enrollMutation.isPending ? "Enrolling..." : "Start Course — Purchased ✓"}
+              </button>
+            ) : (
+              /* One-time purchase */
+              <button
+                className="pt-btn pt-btn-primary"
+                onClick={() => checkoutMutation.mutate({ courseId: course.id })}
+                disabled={checkoutMutation.isPending}
+                style={{ background: "var(--lime)", color: "var(--g900)" }}
+              >
+                {checkoutMutation.isPending ? "Redirecting..." : `Purchase — ${course.price}`}
+              </button>
+            )
+          ) : course.price_type === "pro_only" ? (
+            isProActive ? (
+              /* Pro subscriber — direct enroll */
+              <button
+                className="pt-btn pt-btn-primary"
+                onClick={() => enrollMutation.mutate(course.id)}
+                disabled={enrollMutation.isPending}
+              >
+                {enrollMutation.isPending ? "Enrolling..." : "Enroll Now — Pro Member ✓"}
+              </button>
+            ) : (
+              /* Not a Pro subscriber — subscribe */
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <span className="pt-badge" style={{ color: "var(--lime)", fontSize: 12, width: "fit-content" }}>
+                  Pro Only
+                </span>
+                <button
+                  className="pt-btn pt-btn-primary"
+                  onClick={() => checkoutMutation.mutate({ plan: "pro" })}
+                  disabled={checkoutMutation.isPending}
+                  style={{ background: "var(--lime)", color: "var(--g900)" }}
+                >
+                  {checkoutMutation.isPending ? "Redirecting..." : "Subscribe to Pro"}
+                </button>
+              </div>
+            )
+          ) : (
+            /* Fallback */
+            <button
+              className="pt-btn pt-btn-primary"
+              onClick={() => enrollMutation.mutate(course.id)}
+              disabled={enrollMutation.isPending}
+            >
+              {enrollMutation.isPending ? "Enrolling..." : "Enroll Now"}
+            </button>
+          )}
+          {checkoutMutation.isError && (
+            <div style={{ marginTop: 8, color: "var(--red)", fontSize: 13 }}>
+              {checkoutMutation.error?.message ?? "Payment failed. Please try again."}
+            </div>
+          )}
+          {enrollMutation.isError && (
+            <div style={{ marginTop: 8, color: "var(--red)", fontSize: 13 }}>
+              {enrollMutation.error?.message === "PAYMENT_REQUIRED"
+                ? "This course requires payment."
+                : enrollMutation.error?.message === "PRO_SUBSCRIPTION_REQUIRED"
+                  ? "This course requires a Pro subscription."
+                  : enrollMutation.error?.message ?? "Failed to enroll."}
             </div>
           )}
         </div>
@@ -647,7 +772,7 @@ function CourseDetailView({
           <div className="pt-curriculum-header">
             <span>Course Curriculum</span>
             <span style={{ fontSize: 12, color: "var(--g400)", fontWeight: 400 }}>
-              {modules?.length ?? 0} modules · {course.lessons_count} lessons
+              {modules?.length ?? 0} modules · {lessons?.length ?? 0} lessons
             </span>
           </div>
           {(modules ?? []).map((mod, mi) => {
@@ -816,20 +941,32 @@ function LessonView({
       </div>
 
       {/* Video player */}
-      <div className="pt-video-player" style={{ marginBottom: 24 }}>
-        <div style={{ position: "absolute", inset: 0, background: course.thumbnail_color, opacity: 0.2 }} />
-        <div className="pt-video-overlay">
-          <div className="pt-video-big-play">▶</div>
-          <div className="pt-video-title-overlay">{currentLesson.title}</div>
+      {currentLesson.bunny_video_id ? (
+        <div style={{ position: "relative", paddingTop: "56.25%", marginBottom: 24, borderRadius: 16, overflow: "hidden", background: "#0f172a" }}>
+          <iframe
+            src={`https://iframe.mediadelivery.net/embed/${process.env.NEXT_PUBLIC_BUNNY_STREAM_LIBRARY_ID}/${currentLesson.bunny_video_id}?autoplay=false&preload=true&responsive=true`}
+            style={{ position: "absolute", inset: 0, width: "100%", height: "100%", border: "none" }}
+            loading="lazy"
+            allow="accelerometer; gyroscope; autoplay; encrypted-media; picture-in-picture; fullscreen"
+            allowFullScreen
+          />
         </div>
-        <div className="pt-video-controls">
-          <button className="pt-video-ctrl-btn">▶</button>
-          <div className="pt-video-progress">
-            <div className="pt-video-progress-fill" style={{ width: "35%" }} />
+      ) : (
+        <div className="pt-video-player" style={{ marginBottom: 24 }}>
+          <div style={{ position: "absolute", inset: 0, background: course.thumbnail_url ? `url(${course.thumbnail_url}) center/cover` : course.thumbnail_color, opacity: course.thumbnail_url ? 1 : 0.2 }} />
+          <div className="pt-video-overlay">
+            <div className="pt-video-big-play">▶</div>
+            <div className="pt-video-title-overlay">{currentLesson.title}</div>
           </div>
-          <span className="pt-video-time">0:00 / {currentLesson.duration_text}</span>
+          <div className="pt-video-controls">
+            <button className="pt-video-ctrl-btn">▶</button>
+            <div className="pt-video-progress">
+              <div className="pt-video-progress-fill" style={{ width: "0%" }} />
+            </div>
+            <span className="pt-video-time">0:00 / {currentLesson.duration_text}</span>
+          </div>
         </div>
-      </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: 24 }}>
         <div>

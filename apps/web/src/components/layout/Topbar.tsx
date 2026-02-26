@@ -9,17 +9,29 @@ import { useSession } from "@propian/shared/hooks";
 import { useCurrentProfile } from "@propian/shared/hooks";
 import { useNotifications } from "@propian/shared/hooks";
 
-interface TopbarProps {
-  onToggleSidebar?: () => void;
+interface CachedProfile {
+  avatar_url: string | null;
+  display_name: string;
+  username: string;
 }
 
-export function Topbar({ onToggleSidebar }: TopbarProps) {
+interface TopbarProps {
+  onToggleSidebar?: () => void;
+  cachedProfile?: CachedProfile | null;
+}
+
+export function Topbar({ onToggleSidebar, cachedProfile }: TopbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createBrowserClient();
   const { data: session } = useSession(supabase);
   const { data: profile } = useCurrentProfile(supabase, session?.user?.id);
   const { unreadCount } = useNotifications(supabase);
+
+  // Use hook data first, fall back to server-provided cookie cache (no flash)
+  const displayName = profile?.display_name ?? cachedProfile?.display_name ?? "User";
+  const avatarUrl = profile?.avatar_url ?? cachedProfile?.avatar_url ?? null;
+  const username = profile?.username ?? cachedProfile?.username;
 
   return (
     <div className="pt-app-topbar">
@@ -71,10 +83,10 @@ export function Topbar({ onToggleSidebar }: TopbarProps) {
           )}
         </Link>
 
-        <Link href={profile ? `/@${profile.username}` : "/settings"} className="pt-topbar-avatar">
+        <Link href={username ? `/@${username}` : "/settings"} className="pt-topbar-avatar">
           <Avatar
-            src={profile?.avatar_url}
-            name={profile?.display_name || "User"}
+            src={avatarUrl}
+            name={displayName}
             size="sm"
           />
         </Link>
