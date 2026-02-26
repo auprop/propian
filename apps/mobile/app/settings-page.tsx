@@ -6,9 +6,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Linking,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { colors, fontFamily, radii, spacing } from "@/theme";
 import { supabase } from "@/lib/supabase";
 import {
@@ -17,6 +19,7 @@ import {
   useSignOut,
   usePreferences,
   useUpdatePreferences,
+  useUserSubscription,
 } from "@propian/shared/hooks";
 import { useAuth } from "@/providers/AuthProvider";
 import { Input, Textarea, Toggle, Button, Card, Avatar, Skeleton } from "@/components/ui";
@@ -24,6 +27,7 @@ import { IconUser } from "@/components/icons/IconUser";
 import { IconBell } from "@/components/icons/IconBell";
 import { IconLock } from "@/components/icons/IconLock";
 import { IconChevLeft } from "@/components/icons/IconChevLeft";
+import { IconPro } from "@/components/icons/IconPro";
 
 export default function SettingsPageScreen() {
   const insets = useSafeAreaInsets();
@@ -32,6 +36,8 @@ export default function SettingsPageScreen() {
   const { data: profile, isLoading } = useCurrentProfile(supabase, user?.id);
   const updateProfile = useUpdateProfile(supabase);
   const signOut = useSignOut(supabase);
+  const { data: subscription } = useUserSubscription(supabase);
+  const queryClient = useQueryClient();
 
   // Form state
   const [displayName, setDisplayName] = useState("");
@@ -103,6 +109,96 @@ export default function SettingsPageScreen() {
           onPress: () => {
             Alert.alert("Info", "Please contact support to delete your account.");
           },
+        },
+      ]
+    );
+  };
+
+  // Subscription helpers
+  const proStatus = profile?.pro_subscription_status;
+  const isProActive = proStatus === "active" || proStatus === "trialing";
+  const isPendingCancel = subscription?.cancel_at_period_end;
+
+  const formatDate = (d: string | null | undefined) => {
+    if (!d) return "—";
+    return new Date(d).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  // Cancel subscription mutation (calls API with Bearer token)
+  const cancelSubMutation = useMutation({
+    mutationFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Not authenticated");
+
+      const apiBase = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+      const res = await fetch(`${apiBase}/api/stripe/cancel-subscription`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to cancel subscription");
+      }
+
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["academy-subscription"] });
+      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      Alert.alert("Subscription Cancelled", "Your subscription will remain active until the end of the current billing period.");
+    },
+    onError: (err: Error) => {
+      Alert.alert("Error", err.message);
+    },
+  });
+
+  // Manage billing (open Stripe portal)
+  const manageBillingMutation = useMutation({
+    mutationFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Not authenticated");
+
+      const apiBase = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+      const res = await fetch(`${apiBase}/api/stripe/portal`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to open billing portal");
+      }
+
+      return res.json() as Promise<{ url: string }>;
+    },
+    onSuccess: (data) => {
+      if (data.url) {
+        Linking.openURL(data.url);
+      }
+    },
+    onError: (err: Error) => {
+      Alert.alert("Error", err.message);
+    },
+  });
+
+  const handleCancelSubscription = () => {
+    const endDate = formatDate(subscription?.current_period_end ?? profile?.pro_expires_at);
+    Alert.alert(
+      "Cancel Subscription",
+      `Are you sure? You'll keep access until ${endDate}. After that, you'll lose access to Pro courses and features.`,
+      [
+        { text: "Keep Subscription", style: "cancel" },
+        {
+          text: "Yes, Cancel",
+          style: "destructive",
+          onPress: () => cancelSubMutation.mutate(),
         },
       ]
     );
@@ -271,6 +367,127 @@ export default function SettingsPageScreen() {
               value={prefs?.show_trading_stats ?? true}
               onValueChange={(v) => updatePrefs.mutate({ show_trading_stats: v })}
             />
+          </Card>
+        </View>
+
+        {/* Subscription Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <IconPro size={16} />
+            <Text style={styles.sectionTitle}>Subscription</Text>
+          </View>
+
+          <Card>
+            {!subscription && !isProActive ? (
+              /* No subscription */
+              <View style={{ alignItems: "center", paddingVertical: 8 }}>
+                <IconPro size={20} />
+                <Text style={[styles.avatarName, { marginTop: 10, textAlign: "center" }]}>
+                  No active subscription
+                </Text>
+                <Text style={[styles.avatarHandle, { marginTop: 4, textAlign: "center", marginBottom: 14 }]}>
+                  Subscribe to Pro to unlock all courses and premium features.
+                </Text>
+                <Button
+                  variant="primary"
+                  fullWidth
+                  noIcon
+                  onPress={() => router.push("/academy" as any)}
+                >
+                  Subscribe to Pro
+                </Button>
+              </View>
+            ) : (
+              /* Active / Pending cancel / Cancelled subscription */
+              <View>
+                {/* Status row */}
+                <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <IconPro size={16} />
+                    <Text style={{ fontFamily: fontFamily.sans.bold, fontSize: 16, color: colors.black }}>
+                      {proStatus === "trialing" ? "Trial" : isProActive ? "Active" : proStatus === "canceled" ? "Cancelled" : proStatus === "past_due" ? "Past Due" : "Inactive"}
+                    </Text>
+                  </View>
+                  {isProActive && !isPendingCancel && (
+                    <View style={{ backgroundColor: "#c8ff00", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20 }}>
+                      <Text style={{ fontSize: 10, fontWeight: "800", color: "#0a0a0a" }}>Active</Text>
+                    </View>
+                  )}
+                  {isPendingCancel && (
+                    <View style={{ backgroundColor: "rgba(245, 158, 11, 0.1)", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 20 }}>
+                      <Text style={{ fontSize: 10, fontWeight: "700", color: colors.amber }}>Cancelling</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Billing date */}
+                <View style={styles.toggleDivider} />
+                <View style={{ paddingVertical: 12 }}>
+                  <Text style={{ fontFamily: fontFamily.sans.semibold, fontSize: 14, color: colors.black }}>
+                    {isPendingCancel ? "Access until" : "Next billing date"}
+                  </Text>
+                  <Text style={{ fontFamily: fontFamily.sans.regular, fontSize: 13, color: colors.g500, marginTop: 2 }}>
+                    {isPendingCancel
+                      ? `Subscription ends ${formatDate(subscription?.current_period_end ?? profile?.pro_expires_at)}`
+                      : formatDate(subscription?.current_period_end ?? profile?.pro_expires_at)}
+                  </Text>
+                </View>
+
+                {/* Pending cancel warning */}
+                {isPendingCancel && (
+                  <View style={{
+                    marginBottom: 12,
+                    padding: 12,
+                    borderRadius: radii.md,
+                    backgroundColor: "rgba(245, 158, 11, 0.06)",
+                    borderWidth: 1,
+                    borderColor: "rgba(245, 158, 11, 0.15)",
+                  }}>
+                    <Text style={{ fontSize: 13, color: colors.amber, fontFamily: fontFamily.sans.medium }}>
+                      Your subscription has been cancelled but you'll retain access until the end of the current billing period.
+                    </Text>
+                  </View>
+                )}
+
+                <View style={styles.toggleDivider} />
+
+                {/* Actions */}
+                <View style={{ paddingTop: 12, gap: 8 }}>
+                  <Button
+                    variant="ghost"
+                    fullWidth
+                    noIcon
+                    onPress={() => manageBillingMutation.mutate()}
+                    disabled={manageBillingMutation.isPending}
+                  >
+                    {manageBillingMutation.isPending ? "Opening..." : "Manage Billing"}
+                  </Button>
+
+                  {isProActive && !isPendingCancel && (
+                    <Button
+                      variant="danger"
+                      fullWidth
+                      noIcon
+                      onPress={handleCancelSubscription}
+                      disabled={cancelSubMutation.isPending}
+                    >
+                      {cancelSubMutation.isPending ? "Cancelling..." : "Cancel Subscription"}
+                    </Button>
+                  )}
+
+                  {proStatus === "canceled" && (
+                    <Button
+                      variant="primary"
+                      fullWidth
+                      noIcon
+                      onPress={() => router.push("/academy" as any)}
+                    >
+                      Resubscribe to Pro
+                    </Button>
+                  )}
+                </View>
+              </View>
+            )}
           </Card>
         </View>
 

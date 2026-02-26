@@ -847,3 +847,21 @@ export async function createPortalSession(): Promise<{ url: string }> {
 
   return res.json();
 }
+
+/** Cancel Pro subscription at the end of the current billing period */
+export async function cancelSubscription(): Promise<{
+  success: boolean;
+  cancel_at_period_end: boolean;
+  current_period_end: string | null;
+}> {
+  const res = await fetch("/api/stripe/cancel-subscription", {
+    method: "POST",
+  });
+
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.error || "Failed to cancel subscription");
+  }
+
+  return res.json();
+}

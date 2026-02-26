@@ -331,3 +331,15 @@ export function useCustomerPortal() {
     },
   });
 }
+
+/** Cancel Pro subscription at the end of the current billing period */
+export function useCancelSubscription(supabase: SupabaseClient) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => academyApi.cancelSubscription(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["academy-subscription"] });
+      qc.invalidateQueries({ queryKey: ["profile"] });
+    },
+  });
+}

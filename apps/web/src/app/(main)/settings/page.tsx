@@ -11,6 +11,9 @@ import {
   useSignOut,
   usePreferences,
   useUpdatePreferences,
+  useUserSubscription,
+  useCustomerPortal,
+  useCancelSubscription,
 } from "@propian/shared/hooks";
 import {
   updateProfileSchema,
@@ -24,10 +27,11 @@ import { Toggle } from "@/components/ui/Toggle";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { Avatar } from "@/components/ui/Avatar";
 
-type SettingsSection = "account" | "notifications" | "privacy" | "danger";
+type SettingsSection = "account" | "subscription" | "notifications" | "privacy" | "danger";
 
 const NAV_ITEMS: { label: string; value: SettingsSection }[] = [
   { label: "Account", value: "account" },
+  { label: "Subscription", value: "subscription" },
   { label: "Notifications", value: "notifications" },
   { label: "Privacy", value: "privacy" },
   { label: "Danger Zone", value: "danger" },
@@ -568,6 +572,232 @@ function AccountSection() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Subscription Section                                               */
+/* ------------------------------------------------------------------ */
+function SubscriptionSection() {
+  const supabase = createBrowserClient();
+  const { data: session } = useSession(supabase);
+  const { data: profile } = useCurrentProfile(supabase, session?.user?.id);
+  const { data: subscription, isLoading } = useUserSubscription(supabase);
+  const customerPortal = useCustomerPortal();
+  const cancelSub = useCancelSubscription(supabase);
+  const [confirmCancel, setConfirmCancel] = useState(false);
+
+  const formatDate = (d: string | null | undefined) => {
+    if (!d) return "—";
+    return new Date(d).toLocaleDateString("en-US", {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+  };
+
+  if (isLoading) {
+    return (
+      <div className="pt-col" style={{ gap: 16 }}>
+        <Skeleton width="100%" height={44} borderRadius={10} />
+        <Skeleton width="100%" height={120} borderRadius={10} />
+      </div>
+    );
+  }
+
+  const status = profile?.pro_subscription_status;
+  const isActive = status === "active" || status === "trialing";
+  const isCancelled = status === "canceled";
+  const isPendingCancel = subscription?.cancel_at_period_end;
+
+  // No subscription
+  if (!subscription && !isActive) {
+    return (
+      <div>
+        <h3 className="pt-settings-group-title">Pro Subscription</h3>
+        <div
+          style={{
+            padding: 24,
+            borderRadius: "var(--r-lg)",
+            border: "1px solid var(--brd)",
+            background: "var(--bg-2)",
+            textAlign: "center",
+          }}
+        >
+          <div style={{ fontSize: 32, marginBottom: 8 }}>
+            <span style={{ background: "#c8ff00", color: "#0a0a0a", fontWeight: 800, fontSize: 14, padding: "4px 10px", borderRadius: 6, letterSpacing: 0.5 }}>PRO</span>
+          </div>
+          <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>
+            You don&apos;t have an active subscription
+          </p>
+          <p style={{ fontSize: 13, color: "var(--g400)", marginBottom: 16 }}>
+            Subscribe to Pro to unlock all courses, get verified, and access premium features.
+          </p>
+          <a
+            href="/academy"
+            className="pt-btn lime"
+            style={{ display: "inline-flex", textDecoration: "none" }}
+          >
+            <span>Subscribe to Pro</span>
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h3 className="pt-settings-group-title">Pro Subscription</h3>
+
+      {/* Status card */}
+      <div
+        style={{
+          padding: 20,
+          borderRadius: "var(--r-lg)",
+          border: `1px solid ${isActive ? "#c8ff00" : "var(--brd)"}`,
+          background: "var(--bg-2)",
+          marginBottom: 16,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ background: "#c8ff00", color: "#0a0a0a", fontWeight: 800, fontSize: 12, padding: "3px 8px", borderRadius: 5, letterSpacing: 0.5 }}>PRO</span>
+            <span style={{ fontWeight: 700, fontSize: 16 }}>
+              {status === "trialing" ? "Trial" : isActive ? "Active" : isCancelled ? "Cancelled" : status === "past_due" ? "Past Due" : "Inactive"}
+            </span>
+          </div>
+          {isActive && !isPendingCancel && (
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "#0a0a0a",
+                background: "#c8ff00",
+                padding: "2px 8px",
+                borderRadius: 20,
+              }}
+            >
+              Active
+            </span>
+          )}
+          {isPendingCancel && (
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--amber)",
+                background: "rgba(245, 158, 11, 0.1)",
+                padding: "2px 8px",
+                borderRadius: 20,
+              }}
+            >
+              Cancelling
+            </span>
+          )}
+        </div>
+
+        <div className="pt-settings-toggle-list" style={{ gap: 0 }}>
+          <div className="pt-settings-toggle-row" style={{ borderBottom: "none" }}>
+            <div>
+              <div className="pt-settings-toggle-label">
+                {isPendingCancel ? "Access until" : "Next billing date"}
+              </div>
+              <div className="pt-settings-toggle-desc">
+                {isPendingCancel
+                  ? `Your subscription will end on ${formatDate(subscription?.current_period_end ?? profile?.pro_expires_at)}`
+                  : formatDate(subscription?.current_period_end ?? profile?.pro_expires_at)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {isPendingCancel && (
+          <div
+            style={{
+              marginTop: 12,
+              padding: "10px 14px",
+              borderRadius: "var(--r-md)",
+              background: "rgba(245, 158, 11, 0.08)",
+              border: "1px solid rgba(245, 158, 11, 0.2)",
+              fontSize: 13,
+              color: "var(--amber)",
+              fontWeight: 500,
+            }}
+          >
+            Your subscription has been cancelled but you&apos;ll retain access until the end of the current billing period.
+          </div>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="pt-col" style={{ gap: 10 }}>
+        <Button
+          variant="ghost"
+          onClick={() => customerPortal.mutate()}
+          disabled={customerPortal.isPending}
+        >
+          {customerPortal.isPending ? "Opening..." : "Manage Billing"}
+        </Button>
+
+        {isActive && !isPendingCancel && (
+          <>
+            {!confirmCancel ? (
+              <Button
+                variant="danger"
+                onClick={() => setConfirmCancel(true)}
+              >
+                Cancel Subscription
+              </Button>
+            ) : (
+              <div
+                className="pt-col"
+                style={{
+                  gap: 8,
+                  padding: 16,
+                  borderRadius: "var(--r-lg)",
+                  border: "1px solid var(--red)",
+                }}
+              >
+                <p style={{ fontSize: 14, fontWeight: 600 }}>
+                  Are you sure you want to cancel?
+                </p>
+                <p style={{ fontSize: 13, color: "var(--g400)" }}>
+                  You&apos;ll keep access until{" "}
+                  <strong>{formatDate(subscription?.current_period_end ?? profile?.pro_expires_at)}</strong>.
+                  After that, you&apos;ll lose access to Pro courses and features.
+                </p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <Button
+                    variant="danger"
+                    disabled={cancelSub.isPending}
+                    onClick={() => {
+                      cancelSub.mutate(undefined, {
+                        onSuccess: () => setConfirmCancel(false),
+                      });
+                    }}
+                  >
+                    {cancelSub.isPending ? "Cancelling..." : "Yes, Cancel"}
+                  </Button>
+                  <Button variant="ghost" onClick={() => setConfirmCancel(false)}>
+                    Keep Subscription
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {isCancelled && (
+          <a
+            href="/academy"
+            className="pt-btn lime"
+            style={{ display: "inline-flex", textDecoration: "none", width: "fit-content" }}
+          >
+            <span>Resubscribe to Pro</span>
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Notifications Section                                              */
 /* ------------------------------------------------------------------ */
 function NotificationsSection() {
@@ -847,6 +1077,7 @@ export default function SettingsPage() {
         {/* Content */}
         <div className="pt-settings-content">
           {section === "account" && <AccountSection />}
+          {section === "subscription" && <SubscriptionSection />}
           {section === "notifications" && <NotificationsSection />}
           {section === "privacy" && <PrivacySection />}
           {section === "danger" && <DangerZoneSection />}
