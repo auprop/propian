@@ -26,14 +26,20 @@ export async function GET(req: NextRequest) {
   if (course) params.set("course", course);
   const queryStr = params.toString();
 
-  // Derive Expo dev server address from the request host (same machine, port 8081)
-  const host = req.headers.get("host") || "192.168.1.63:3000";
+  // Detect environment: Vercel = production, otherwise local dev
+  const host = req.headers.get("host") || "localhost:3000";
+  const isProduction = host.includes("vercel.app") || host.includes("propian.");
   const ip = host.split(":")[0];
 
-  // Expo Go deep link: exp://IP:8081/--/path?query
-  const expoGoLink = `exp://${ip}:8081/--/academy?${queryStr}`;
-  // Production build deep link
+  // Production build deep link (custom scheme)
   const prodLink = `propian://academy?${queryStr}`;
+  // Expo Go deep link: exp://IP:8081/--/path?query (only works locally)
+  const expoGoLink = `exp://${ip}:8081/--/academy?${queryStr}`;
+
+  // Use production link by default on Vercel, Expo Go link locally
+  const primaryLink = isProduction ? prodLink : expoGoLink;
+  const secondaryLink = isProduction ? expoGoLink : prodLink;
+  const secondaryLabel = isProduction ? "Using Expo Go? Tap here" : "Production build? Tap here";
 
   const html = `<!DOCTYPE html>
 <html>
@@ -97,13 +103,13 @@ export async function GET(req: NextRequest) {
     </div>
     <h1>${status === "success" ? "Payment Successful!" : "Payment Cancelled"}</h1>
     <p id="msg">${status === "success" ? "Redirecting you back to the app..." : "Your payment was cancelled. No charges were made."}</p>
-    <a class="btn" href="${expoGoLink}">Open Propian</a>
-    <a class="alt" href="${prodLink}">Production build? Tap here</a>
+    <a class="btn" href="${primaryLink}">Open Propian</a>
+    <a class="alt" href="${secondaryLink}">${secondaryLabel}</a>
   </div>
   <script>
-    // Auto-redirect via Expo Go deep link
+    // Auto-redirect via primary deep link
     setTimeout(function() {
-      window.location.href = "${expoGoLink}";
+      window.location.href = "${primaryLink}";
     }, 1200);
   </script>
 </body>
