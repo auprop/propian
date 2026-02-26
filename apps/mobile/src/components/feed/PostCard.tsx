@@ -12,6 +12,7 @@ import { IconRepost } from "@/components/icons/IconRepost";
 import { IconShare } from "@/components/icons/IconShare";
 import { IconBookmark } from "@/components/icons/IconBookmark";
 import { IconVerified } from "@/components/icons/IconVerified";
+import { IconPro } from "@/components/icons/IconPro";
 import { formatCompact } from "@propian/shared/utils";
 import { timeAgo } from "@propian/shared/utils";
 import { parseChartRef, buildMiniChartUrl, formatChartLabel } from "@propian/shared/utils";
@@ -176,6 +177,9 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
                 {originalAuthor?.is_verified && (
                   <IconVerified size={14} />
                 )}
+                {originalAuthor?.pro_subscription_status === "active" && (
+                  <IconPro size={14} />
+                )}
               </View>
               <View style={styles.metaRow}>
                 <Text style={styles.handle}>@{originalAuthor?.username || "user"}</Text>
@@ -264,6 +268,9 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
               {author?.is_verified && (
                 <IconVerified size={14} />
               )}
+              {author?.pro_subscription_status === "active" && (
+                <IconPro size={14} />
+              )}
             </View>
             <View style={styles.metaRow}>
               <Text style={styles.handle}>@{author?.username || "user"}</Text>
@@ -321,6 +328,9 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
                   </Text>
                   {post.quoted_post.author?.is_verified && (
                     <IconVerified size={12} />
+                  )}
+                  {post.quoted_post.author?.pro_subscription_status === "active" && (
+                    <IconPro size={12} />
                   )}
                 </View>
                 <Text style={styles.quotedEmbedHandle}>

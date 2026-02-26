@@ -39,6 +39,7 @@ import { IconRepost } from "@/components/icons/IconRepost";
 import { IconShare } from "@/components/icons/IconShare";
 import { IconBookmark } from "@/components/icons/IconBookmark";
 import { IconVerified } from "@/components/icons/IconVerified";
+import { IconPro } from "@/components/icons/IconPro";
 import { IconSend } from "@/components/icons/IconSend";
 import { IconClose } from "@/components/icons/IconClose";
 import { formatCompact, timeAgo } from "@propian/shared/utils";
@@ -272,6 +273,9 @@ export default function PostDetailScreen() {
           {comment.author?.is_verified && (
             <IconVerified size={12} />
           )}
+          {comment.author?.pro_subscription_status === "active" && (
+            <IconPro size={12} />
+          )}
           <Text style={styles.commentDot}>·</Text>
           <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>
         </View>
@@ -467,6 +471,7 @@ export default function PostDetailScreen() {
               {author?.display_name || "Unknown"}
             </Text>
             {author?.is_verified && <IconVerified size={16} />}
+            {author?.pro_subscription_status === "active" && <IconPro size={16} />}
           </View>
           <Text style={styles.handle}>
             @{author?.username || "user"}{" "}
@@ -573,6 +578,9 @@ export default function PostDetailScreen() {
             </Text>
             {post.quoted_post.author?.is_verified && (
               <IconVerified size={12} />
+            )}
+            {post.quoted_post.author?.pro_subscription_status === "active" && (
+              <IconPro size={12} />
             )}
             <Text style={styles.quotedHandle}>
               @{post.quoted_post.author?.username || "user"}

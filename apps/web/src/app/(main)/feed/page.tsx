@@ -18,6 +18,7 @@ import {
   IconShare,
   IconBookmark,
   IconVerified,
+  IconPro,
   IconFire,
   IconTrendUp,
   IconQuote,
@@ -212,6 +213,9 @@ function PostCard({
                   {originalAuthor?.is_verified && (
                     <IconVerified size={14} />
                   )}
+                  {originalAuthor?.pro_subscription_status === "active" && (
+                    <IconPro size={14} />
+                  )}
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span className="pt-post-handle">@{originalAuthor?.username ?? "user"}</span>
@@ -280,6 +284,9 @@ function PostCard({
                 {post.author?.is_verified && (
                   <IconVerified size={14} />
                 )}
+                {post.author?.pro_subscription_status === "active" && (
+                  <IconPro size={14} />
+                )}
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 <span className="pt-post-handle">@{post.author?.username ?? "user"}</span>
@@ -313,6 +320,9 @@ function PostCard({
               </span>
               {post.quoted_post.author?.is_verified && (
                 <IconVerified size={12} />
+              )}
+              {post.quoted_post.author?.pro_subscription_status === "active" && (
+                <IconPro size={12} />
               )}
               <span className="pt-quoted-embed-handle">
                 @{post.quoted_post.author?.username ?? "user"}
@@ -539,6 +549,9 @@ function InlineComments({
             </a>
             {comment.author?.is_verified && (
               <IconVerified size={12} />
+            )}
+            {comment.author?.pro_subscription_status === "active" && (
+              <IconPro size={12} />
             )}
             <span className="pt-comment-time">{timeAgo(comment.created_at)}</span>
           </div>
@@ -1142,6 +1155,9 @@ export default function FeedPage() {
                   </span>
                   {quotedPost.author?.is_verified && (
                     <IconVerified size={12} />
+                  )}
+                  {quotedPost.author?.pro_subscription_status === "active" && (
+                    <IconPro size={12} />
                   )}
                   <span className="pt-quoted-embed-handle">
                     @{quotedPost.author?.username ?? "user"}

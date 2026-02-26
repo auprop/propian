@@ -15,6 +15,7 @@ import { Avatar, FilterChip, Card, Skeleton, EmptyState } from "@/components/ui"
 import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import { IconTrophy } from "@/components/icons/IconTrophy";
 import { IconVerified } from "@/components/icons/IconVerified";
+import { IconPro } from "@/components/icons/IconPro";
 import { IconTrendUp } from "@/components/icons/IconTrendUp";
 import { formatPercent, formatCompact } from "@propian/shared/utils";
 import type { LeaderboardEntry, LeaderboardPeriod } from "@propian/shared/types";
@@ -59,6 +60,9 @@ export default function LeaderboardScreen() {
             </Text>
             {item.user?.is_verified && (
               <IconVerified size={12} />
+            )}
+            {item.user?.pro_subscription_status === "active" && (
+              <IconPro size={12} />
             )}
           </View>
           <Text style={styles.rankHandle}>

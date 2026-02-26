@@ -15,7 +15,7 @@ export async function getReactionsForMessages(
     .from("message_reactions")
     .select(`
       *,
-      user:profiles!user_id(id, username, display_name, avatar_url, is_verified)
+      user:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)
     `)
     .in("message_id", messageIds)
     .order("created_at", { ascending: true });
@@ -43,7 +43,7 @@ export async function addReaction(
     .insert({ message_id: messageId, user_id: user.id, emoji })
     .select(`
       *,
-      user:profiles!user_id(id, username, display_name, avatar_url, is_verified)
+      user:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)
     `)
     .single();
   if (error) throw error;

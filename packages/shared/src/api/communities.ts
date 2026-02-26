@@ -186,7 +186,7 @@ export async function getCommunityMembers(supabase: SupabaseClient, communityId:
     .from("community_members")
     .select(`
       *,
-      user:profiles!user_id(id, username, display_name, avatar_url, is_verified),
+      user:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status),
       role:community_roles!role_id(id, name, color, permissions, position)
     `)
     .eq("community_id", communityId)

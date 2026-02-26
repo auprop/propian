@@ -269,6 +269,8 @@ export default function AcademyPage() {
       qc.invalidateQueries({ queryKey: ["academy-subscription"] });
       qc.invalidateQueries({ queryKey: ["academy-purchases"] });
       qc.invalidateQueries({ queryKey: ["academy-courses"] });
+      // Also refresh profile (Pro status + auto-verification)
+      qc.invalidateQueries({ queryKey: ["profile"] });
 
       // Navigate to course if slug is in URL
       const courseSlug = params.get("course");

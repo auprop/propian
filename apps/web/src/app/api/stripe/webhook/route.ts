@@ -145,7 +145,7 @@ export async function POST(req: NextRequest) {
               cancel_at_period_end: subscription.cancel_at_period_end,
             });
 
-            // Update profile
+            // Update profile — auto-verify Pro subscribers
             await supabase
               .from("profiles")
               .update({
@@ -158,11 +158,12 @@ export async function POST(req: NextRequest) {
                 pro_expires_at: periodEnd
                   ? new Date(periodEnd * 1000).toISOString()
                   : null,
+                is_verified: true,
               })
               .eq("id", userId);
 
             console.log(
-              `[stripe/webhook] Pro subscription created: user=${userId} sub=${subscriptionId}`,
+              `[stripe/webhook] Pro subscription created: user=${userId} sub=${subscriptionId} (auto-verified)`,
             );
           }
         }

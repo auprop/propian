@@ -8,7 +8,7 @@ export async function getReviews(
 ) {
   let query = supabase
     .from("firm_reviews")
-    .select("*, author:profiles!user_id(username, display_name, avatar_url, is_verified)")
+    .select("*, author:profiles!user_id(username, display_name, avatar_url, is_verified, pro_subscription_status)")
     .eq("firm_id", firmId);
 
   if (sort === "helpful") {
@@ -41,7 +41,7 @@ export async function createReview(
   const { data, error } = await supabase
     .from("firm_reviews")
     .insert({ ...review, firm_id: firmId, user_id: user.id })
-    .select("*, author:profiles!user_id(username, display_name, avatar_url, is_verified)")
+    .select("*, author:profiles!user_id(username, display_name, avatar_url, is_verified, pro_subscription_status)")
     .single();
   if (error) throw error;
   return data as FirmReview;

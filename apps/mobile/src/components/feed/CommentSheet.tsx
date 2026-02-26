@@ -29,6 +29,7 @@ import { Avatar, Skeleton } from "@/components/ui";
 import { IconClose } from "@/components/icons/IconClose";
 import { IconSend } from "@/components/icons/IconSend";
 import { IconVerified } from "@/components/icons/IconVerified";
+import { IconPro } from "@/components/icons/IconPro";
 import { IconComment } from "@/components/icons/IconComment";
 import { IconHeart } from "@/components/icons/IconHeart";
 import { IconHeartOutline } from "@/components/icons/IconHeartOutline";
@@ -185,6 +186,9 @@ export function CommentSheet({ visible, postId, onClose }: CommentSheetProps) {
           </Text>
           {comment.author?.is_verified && (
             <IconVerified size={12} />
+          )}
+          {comment.author?.pro_subscription_status === "active" && (
+            <IconPro size={12} />
           )}
           <Text style={styles.commentDot}>·</Text>
           <Text style={styles.commentTime}>{timeAgo(comment.created_at)}</Text>

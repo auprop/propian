@@ -38,7 +38,7 @@ export async function searchAll(
   if (!filter || filter === "all" || filter === "posts") {
     const { data } = await supabase
       .from("posts")
-      .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+      .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
       .ilike("content", searchTerm)
       .order("created_at", { ascending: false })
       .limit(10);
@@ -48,7 +48,7 @@ export async function searchAll(
   if (!filter || filter === "all" || filter === "reviews") {
     const { data } = await supabase
       .from("firm_reviews")
-      .select("*, author:profiles!user_id(username, display_name, avatar_url, is_verified)")
+      .select("*, author:profiles!user_id(username, display_name, avatar_url, is_verified, pro_subscription_status)")
       .or(`title.ilike.${searchTerm},body.ilike.${searchTerm}`)
       .order("created_at", { ascending: false })
       .limit(10);

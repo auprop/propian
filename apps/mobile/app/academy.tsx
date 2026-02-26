@@ -168,6 +168,9 @@ export default function AcademyScreen() {
         queryClient.invalidateQueries({ queryKey: ["academy-user-course-progress"] });
         queryClient.invalidateQueries({ queryKey: ["academy-user-lesson-progress"] });
         queryClient.invalidateQueries({ queryKey: ["academy-certificates"] });
+        // Also refresh subscription & profile (Pro status after Stripe checkout)
+        queryClient.invalidateQueries({ queryKey: ["academy-subscription"] });
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
       }
       appStateRef.current = nextState;
     });

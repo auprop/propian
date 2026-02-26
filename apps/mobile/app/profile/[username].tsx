@@ -30,6 +30,7 @@ import {
   EmptyState,
 } from "@/components/ui";
 import { IconVerified } from "@/components/icons/IconVerified";
+import { IconPro } from "@/components/icons/IconPro";
 import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import { IconEdit } from "@/components/icons/IconEdit";
 import { IconUser } from "@/components/icons/IconUser";
@@ -156,6 +157,9 @@ export default function ProfileScreen() {
               {profile.is_verified && (
                 <IconVerified size={18} />
               )}
+              {profile.pro_subscription_status === "active" && (
+                <IconPro size={16} />
+              )}
             </View>
             <Text style={styles.handle}>@{profile.username}</Text>
 
@@ -166,7 +170,7 @@ export default function ProfileScreen() {
             )}
 
             {/* Trading style + experience as badges */}
-            {(profile.trading_style || profile.experience_level) && (
+            {(profile.trading_style || profile.experience_level || profile.pro_subscription_status === "active") && (
               <View style={styles.tagsRow}>
                 {profile.trading_style && (
                   <Badge variant="lime">
@@ -175,6 +179,9 @@ export default function ProfileScreen() {
                 )}
                 {profile.experience_level && (
                   <Badge>{profile.experience_level}</Badge>
+                )}
+                {profile.pro_subscription_status === "active" && (
+                  <Badge variant="lime">PRO MEMBER</Badge>
                 )}
               </View>
             )}

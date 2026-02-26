@@ -6,6 +6,7 @@ import { useProfile, useFollow, useFollowStatus, useSession, useUserPosts, useLi
 import type { Badge as BadgeType, Post } from "@propian/shared/types";
 import {
   IconVerified,
+  IconPro,
   IconShare,
   IconMail,
   IconTrendUp,
@@ -139,6 +140,9 @@ export default function ProfilePage() {
               {profile.is_verified && (
                 <IconVerified size={18} />
               )}
+              {profile.pro_subscription_status === "active" && (
+                <IconPro size={16} />
+              )}
               <span className="pt-profile-handle">@{profile.username}</span>
             </div>
 
@@ -160,6 +164,9 @@ export default function ProfilePage() {
                   <Badge variant="">
                     {profile.experience_level.toUpperCase()}
                   </Badge>
+                )}
+                {profile.pro_subscription_status === "active" && (
+                  <Badge variant="lime">PRO MEMBER</Badge>
                 )}
               </div>
 
@@ -357,6 +364,9 @@ export default function ProfilePage() {
                             <span>{post.author?.display_name ?? "User"}</span>
                             {post.author?.is_verified && (
                               <IconVerified size={14} />
+                            )}
+                            {post.author?.pro_subscription_status === "active" && (
+                              <IconPro size={14} />
                             )}
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>

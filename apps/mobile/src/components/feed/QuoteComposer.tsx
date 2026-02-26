@@ -15,6 +15,7 @@ import { colors, radii, spacing } from "@/theme";
 import { triggerHaptic } from "@/hooks/useHaptics";
 import { Avatar } from "@/components/ui";
 import { IconVerified } from "@/components/icons/IconVerified";
+import { IconPro } from "@/components/icons/IconPro";
 import { timeAgo } from "@propian/shared/utils";
 import Svg, { Path, Circle } from "react-native-svg";
 import type { Post } from "@propian/shared/types";
@@ -280,6 +281,9 @@ export function QuoteComposer({
                       </Text>
                       {quotedAuthor?.is_verified && (
                         <IconVerified size={12} />
+                      )}
+                      {quotedAuthor?.pro_subscription_status === "active" && (
+                        <IconPro size={12} />
                       )}
                       <Text style={styles.quotedHandle}>
                         @{quotedAuthor?.username || "user"}

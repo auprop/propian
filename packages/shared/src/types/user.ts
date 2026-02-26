@@ -29,6 +29,7 @@ export interface UserPreview {
   display_name: string;
   avatar_url: string | null;
   is_verified: boolean;
+  pro_subscription_status?: "active" | "past_due" | "canceled" | "trialing" | null;
 }
 
 export interface Badge {

@@ -9,7 +9,7 @@ export async function getFeedPosts(
 ): Promise<PaginatedResponse<Post>> {
   let query = supabase
     .from("posts")
-    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
     .order("created_at", { ascending: false })
     .limit(PAGE_SIZE + 1);
 
@@ -36,7 +36,7 @@ export async function getFeedPosts(
   if (quotedIds.length > 0) {
     const { data: quotedPosts } = await supabase
       .from("posts")
-      .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+      .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
       .in("id", quotedIds);
 
     if (quotedPosts) {
@@ -83,7 +83,7 @@ export async function getUserPosts(
 ): Promise<PaginatedResponse<Post>> {
   let query = supabase
     .from("posts")
-    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(PAGE_SIZE + 1);
@@ -111,7 +111,7 @@ export async function getUserPosts(
   if (quotedIds.length > 0) {
     const { data: quotedPosts } = await supabase
       .from("posts")
-      .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+      .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
       .in("id", quotedIds);
 
     if (quotedPosts) {
@@ -157,7 +157,7 @@ export async function getPostById(
 ): Promise<Post | null> {
   const { data, error } = await supabase
     .from("posts")
-    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
     .eq("id", postId)
     .single();
   if (error) return null;
@@ -168,7 +168,7 @@ export async function getPostById(
   if (post.quoted_post_id) {
     const { data: quotedPost } = await supabase
       .from("posts")
-      .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+      .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
       .eq("id", post.quoted_post_id)
       .single();
     post.quoted_post = quotedPost ?? null;
@@ -200,7 +200,7 @@ export async function createPost(
   const { data, error } = await supabase
     .from("posts")
     .insert({ ...post, user_id: user.id })
-    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
     .single();
   if (error) throw error;
   return data as Post;
@@ -230,7 +230,7 @@ export async function unlikePost(supabase: SupabaseClient, postId: string) {
 export async function getComments(supabase: SupabaseClient, postId: string) {
   const { data, error } = await supabase
     .from("comments")
-    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
     .eq("post_id", postId)
     .order("created_at", { ascending: true });
   if (error) throw error;
@@ -288,7 +288,7 @@ export async function createComment(
   const { data, error } = await supabase
     .from("comments")
     .insert({ post_id: postId, user_id: user.id, content, parent_id: parentId ?? null })
-    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
     .single();
   if (error) throw error;
   return data;
@@ -334,7 +334,7 @@ export async function repostPost(supabase: SupabaseClient, postId: string) {
       type: "repost",
       quoted_post_id: postId,
     })
-    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
     .single();
   if (error) throw error;
   return data as Post;

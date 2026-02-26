@@ -13,9 +13,9 @@ export async function getKnowledgePins(
       *,
       message:messages!message_id(
         id, room_id, user_id, content, type, created_at, ticker_mentions, structured_data,
-        author:profiles!user_id(id, username, display_name, avatar_url, is_verified)
+        author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)
       ),
-      pinner:profiles!pinned_by(id, username, display_name, avatar_url, is_verified),
+      pinner:profiles!pinned_by(id, username, display_name, avatar_url, is_verified, pro_subscription_status),
       channel:chat_rooms!channel_id(id, name, channel_type)
     `)
     .eq("community_id", communityId)

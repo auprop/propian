@@ -4,7 +4,7 @@ import type { ChatRoom, Message, ChannelReadState, StructuredTradeData } from ".
 /** Shared select string for messages with author + reactions */
 const MESSAGE_SELECT = `
   *,
-  author:profiles!user_id(id, username, display_name, avatar_url, is_verified),
+  author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status),
   reactions:message_reactions(
     id, message_id, user_id, emoji, created_at,
     user:profiles!user_id(id, username, display_name, avatar_url)
@@ -118,7 +118,7 @@ export async function sendMessage(
       ...(options?.structured_data && { structured_data: options.structured_data }),
       ...(options?.parent_message_id && { parent_message_id: options.parent_message_id }),
     })
-    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified)")
+    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
     .single();
   if (error) throw error;
 
