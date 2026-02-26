@@ -264,13 +264,21 @@ export default function AcademyPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("payment") === "success") {
-      // Invalidate queries so purchase/subscription/enrollment data refreshes
-      qc.invalidateQueries({ queryKey: ["academy-user-progress"] });
-      qc.invalidateQueries({ queryKey: ["academy-subscription"] });
-      qc.invalidateQueries({ queryKey: ["academy-purchases"] });
-      qc.invalidateQueries({ queryKey: ["academy-courses"] });
-      // Also refresh profile (Pro status + auto-verification)
-      qc.invalidateQueries({ queryKey: ["profile"] });
+      // Verify subscription directly with Stripe (fallback if webhook didn't fire)
+      fetch("/api/stripe/verify-subscription", { method: "POST" })
+        .then(() => {
+          // Invalidate queries so purchase/subscription/enrollment data refreshes
+          qc.invalidateQueries({ queryKey: ["academy-user-progress"] });
+          qc.invalidateQueries({ queryKey: ["academy-subscription"] });
+          qc.invalidateQueries({ queryKey: ["academy-purchases"] });
+          qc.invalidateQueries({ queryKey: ["academy-courses"] });
+          qc.invalidateQueries({ queryKey: ["profile"] });
+        })
+        .catch(() => {
+          // Still invalidate queries even if verification fails
+          qc.invalidateQueries({ queryKey: ["academy-subscription"] });
+          qc.invalidateQueries({ queryKey: ["profile"] });
+        });
 
       // Navigate to course if slug is in URL
       const courseSlug = params.get("course");

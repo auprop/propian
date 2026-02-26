@@ -73,6 +73,7 @@ export default function AdminUsers() {
   const bannedCount = users?.filter((u) => u.banned_at).length ?? 0;
   const shadowCount = users?.filter((u) => u.shadowbanned).length ?? 0;
   const adminCount = users?.filter((u) => u.is_admin).length ?? 0;
+  const proCount = users?.filter((u) => u.pro_subscription_status === "active" || u.pro_subscription_status === "trialing").length ?? 0;
 
   const formatDate = (d: string | null) => {
     if (!d) return "—";
@@ -106,6 +107,7 @@ export default function AdminUsers() {
         {[
           { label: "Total Users", value: totalUsers ? `${totalUsers}+` : "—" },
           { label: "Verified", value: verifiedCount.toString() },
+          { label: "Pro Members", value: proCount.toString() },
           { label: "Admins", value: adminCount.toString() },
           { label: "Banned", value: bannedCount.toString() },
           { label: "Shadowbanned", value: shadowCount.toString() },
@@ -137,8 +139,8 @@ export default function AdminUsers() {
       {/* User table */}
       {!isLoading && (
         <div className="pt-admin-table">
-          <div className="pt-admin-table-header" style={{ gridTemplateColumns: "2.5fr 1fr 1fr 1fr 1fr 1fr 60px" }}>
-            {["User", "Joined", "Posts", "Role", "Status", "Verified", ""].map((h, i) => (
+          <div className="pt-admin-table-header" style={{ gridTemplateColumns: "2.5fr 1fr 1fr 1fr 1fr 1fr 1fr 60px" }}>
+            {["User", "Joined", "Posts", "Role", "Pro", "Status", "Verified", ""].map((h, i) => (
               <div key={i} className="pt-admin-table-header-cell">{h}</div>
             ))}
           </div>
@@ -157,7 +159,7 @@ export default function AdminUsers() {
                 {/* Main row */}
                 <div
                   className="pt-admin-table-row"
-                  style={{ gridTemplateColumns: "2.5fr 1fr 1fr 1fr 1fr 1fr 60px", cursor: "pointer" }}
+                  style={{ gridTemplateColumns: "2.5fr 1fr 1fr 1fr 1fr 1fr 1fr 60px", cursor: "pointer" }}
                   onClick={() => setExpandedUser(isExpanded ? null : u.id)}
                 >
                   {/* Avatar + name */}
@@ -191,6 +193,17 @@ export default function AdminUsers() {
 
                   {/* Role */}
                   <span className={`pt-admin-badge ${role.cls}`}>{role.label}</span>
+
+                  {/* Pro */}
+                  {u.pro_subscription_status === "active" || u.pro_subscription_status === "trialing" ? (
+                    <span className="pt-admin-badge lime" style={{ background: "#c8ff00", color: "#0a0a0a", fontWeight: 800, fontSize: 10, letterSpacing: 0.5 }}>PRO</span>
+                  ) : u.pro_subscription_status === "past_due" ? (
+                    <span className="pt-admin-badge amber">Past Due</span>
+                  ) : u.pro_subscription_status === "canceled" ? (
+                    <span className="pt-admin-badge red">Cancelled</span>
+                  ) : (
+                    <span style={{ fontSize: 12, color: "var(--g500)" }}>—</span>
+                  )}
 
                   {/* Status */}
                   <span className={`pt-admin-badge ${status.cls}`}>
@@ -262,6 +275,40 @@ export default function AdminUsers() {
                             <span className="pt-admin-detail-key">Joined</span>
                             <span>{formatDate(u.created_at)}</span>
                           </div>
+                          <div className="pt-admin-detail-row">
+                            <span className="pt-admin-detail-key">Pro Status</span>
+                            <span>
+                              {u.pro_subscription_status === "active" || u.pro_subscription_status === "trialing" ? (
+                                <span style={{ background: "#c8ff00", color: "#0a0a0a", fontWeight: 800, fontSize: 10, padding: "2px 6px", borderRadius: 4, letterSpacing: 0.5 }}>
+                                  {u.pro_subscription_status === "trialing" ? "TRIALING" : "PRO ACTIVE"}
+                                </span>
+                              ) : u.pro_subscription_status === "past_due" ? (
+                                <span style={{ color: "var(--amber)", fontWeight: 600, fontSize: 12 }}>Past Due</span>
+                              ) : u.pro_subscription_status === "canceled" ? (
+                                <span style={{ color: "var(--red)", fontWeight: 600, fontSize: 12 }}>Cancelled</span>
+                              ) : (
+                                <span style={{ color: "var(--g400)" }}>Not subscribed</span>
+                              )}
+                            </span>
+                          </div>
+                          {u.pro_subscription_id && (
+                            <div className="pt-admin-detail-row">
+                              <span className="pt-admin-detail-key">Subscription ID</span>
+                              <span className="pt-admin-mono" style={{ fontSize: 11 }}>{u.pro_subscription_id}</span>
+                            </div>
+                          )}
+                          {u.pro_expires_at && (
+                            <div className="pt-admin-detail-row">
+                              <span className="pt-admin-detail-key">Pro Expires</span>
+                              <span>{formatDate(u.pro_expires_at)}</span>
+                            </div>
+                          )}
+                          {u.stripe_customer_id && (
+                            <div className="pt-admin-detail-row">
+                              <span className="pt-admin-detail-key">Stripe Customer</span>
+                              <span className="pt-admin-mono" style={{ fontSize: 11 }}>{u.stripe_customer_id}</span>
+                            </div>
+                          )}
                           {u.banned_at && (
                             <>
                               <div className="pt-admin-detail-row">

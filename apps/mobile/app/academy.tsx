@@ -162,15 +162,26 @@ export default function AcademyScreen() {
         appStateRef.current.match(/inactive|background/) &&
         nextState === "active"
       ) {
+        // Verify subscription directly with Stripe (fallback if webhook didn't fire)
+        const apiBase = process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.access_token) {
+            fetch(`${apiBase}/api/stripe/verify-subscription`, {
+              method: "POST",
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            }).finally(() => {
+              queryClient.invalidateQueries({ queryKey: ["academy-subscription"] });
+              queryClient.invalidateQueries({ queryKey: ["profile"] });
+            });
+          }
+        });
+
         // Invalidate all user-specific academy caches so enrollment
         // changes made on the web (or another device) are picked up.
         queryClient.invalidateQueries({ queryKey: ["academy-user-progress"] });
         queryClient.invalidateQueries({ queryKey: ["academy-user-course-progress"] });
         queryClient.invalidateQueries({ queryKey: ["academy-user-lesson-progress"] });
         queryClient.invalidateQueries({ queryKey: ["academy-certificates"] });
-        // Also refresh subscription & profile (Pro status after Stripe checkout)
-        queryClient.invalidateQueries({ queryKey: ["academy-subscription"] });
-        queryClient.invalidateQueries({ queryKey: ["profile"] });
       }
       appStateRef.current = nextState;
     });
