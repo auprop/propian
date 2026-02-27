@@ -30,6 +30,7 @@ export { IconLock } from "./IconLock";
 export { IconMail } from "./IconMail";
 export { IconEye } from "./IconEye";
 export { IconBookmark } from "./IconBookmark";
+export { IconBookmarkFilled } from "./IconBookmarkFilled";
 export { IconFlag } from "./IconFlag";
 export { IconVerified } from "./IconVerified";
 export { IconDollar } from "./IconDollar";

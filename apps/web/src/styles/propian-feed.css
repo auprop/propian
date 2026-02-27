@@ -21,12 +21,65 @@
   max-width: 600px;
 }
 
-.pt-composer {
+/* ─── Feed List Container (flat edge-to-edge posts) ─── */
+
+.pt-feed-list {
   border: var(--brd-strong);
   border-radius: var(--r-lg);
+  overflow: hidden;
+  margin-top: 16px;
+  background: var(--g100);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ─── Feed Tabs ─── */
+
+.pt-feed-tabs {
+  display: flex;
+  background: var(--white);
+  border: var(--brd-strong);
+  border-bottom: var(--brd-l);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  overflow: hidden;
+}
+
+.pt-feed-tab {
+  flex: 1;
+  padding: 12px 16px;
+  border: none;
+  background: none;
+  font-family: var(--font);
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--g400);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--tf);
+  border-bottom: 2px solid transparent;
+}
+
+.pt-feed-tab:hover {
+  background: var(--g50);
+  color: var(--g600);
+}
+
+.pt-feed-tab--active {
+  color: var(--black);
+  font-weight: 600;
+  border-bottom-color: var(--black);
+}
+
+.pt-composer {
+  border-left: var(--brd-strong);
+  border-right: var(--brd-strong);
+  border-top: none;
+  border-bottom: var(--brd-strong);
+  border-radius: 0 0 var(--r-lg) var(--r-lg);
   background: var(--white);
   padding: 20px;
-  margin-bottom: 20px;
+  margin-bottom: 0;
   box-shadow: var(--sh-sm);
   transition: border-color var(--t), box-shadow var(--t);
 }
@@ -48,12 +101,103 @@
   resize: none;
   font-family: var(--font);
   font-size: 15px;
-  flex: 1;
+  line-height: 1.5;
+  width: 100%;
   min-height: 60px;
+  padding: 0;
+  color: transparent;
+  caret-color: var(--black);
+  background: transparent;
+  position: relative;
+  z-index: 1;
 }
 
 .pt-composer textarea::placeholder {
   color: var(--g400);
+}
+
+.pt-composer-input-wrap {
+  flex: 1;
+  position: relative;
+}
+
+/* Highlight overlay — mirrors textarea text with @mentions colored */
+.pt-composer-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow: hidden;
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--g800);
+  padding: 0;
+  margin: 0;
+  border: none;
+}
+
+/* ─── Mention Autocomplete Dropdown ─── */
+
+.pt-mention-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: var(--white);
+  border: var(--brd);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-md);
+  z-index: 50;
+  padding: 4px;
+  animation: pt-toast-in 0.12s ease-out;
+}
+
+.pt-mention-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.pt-mention-item:hover,
+.pt-mention-item.active {
+  background: var(--lime-10);
+}
+
+.pt-mention-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.pt-mention-item-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--black);
+  line-height: 1.2;
+}
+
+.pt-mention-item-username {
+  font-size: 13px;
+  color: var(--g400);
+  line-height: 1.3;
+}
+
+/* ─── @Mention Highlight (green text for @username) ─── */
+
+.pt-mention-hl {
+  color: #00743c;
 }
 
 .pt-composer-actions {
@@ -85,17 +229,8 @@
 }
 
 .pt-post {
-  border: var(--brd-strong);
-  border-radius: var(--r-lg);
   background: var(--white);
-  margin-bottom: 16px;
   overflow: hidden;
-  box-shadow: var(--sh-xs);
-  transition: box-shadow var(--t);
-}
-
-.pt-post:hover {
-  box-shadow: var(--sh-md);
 }
 
 /* Clickable post content link */
@@ -557,11 +692,11 @@
 }
 
 .pt-comment-action-btn.pt-comment-action-bookmarked {
-  color: var(--lime);
+  color: var(--green);
 }
 
 .pt-comment-action-btn.pt-comment-action-bookmarked:hover {
-  color: var(--lime);
+  color: var(--green);
 }
 
 /* Threaded replies */
@@ -711,7 +846,7 @@
 }
 
 .pt-post-action.bookmarked {
-  color: var(--lime-dim);
+  color: var(--green);
 }
 
 /* ─── Repost Banner (for simple reposts) ─── */
@@ -888,9 +1023,16 @@
   resize: none;
   font-family: var(--font);
   font-size: 15px;
+  line-height: 1.5;
   flex: 1;
   min-height: 80px;
   width: 100%;
+  padding: 0;
+  color: transparent;
+  caret-color: var(--black);
+  background: transparent;
+  position: relative;
+  z-index: 1;
 }
 
 .pt-quote-composer textarea::placeholder {
@@ -921,6 +1063,9 @@
 
 .pt-post-detail {
   transform: none !important;
+  border: var(--brd-strong);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-xs);
 }
 
 .pt-post-detail .pt-comments {

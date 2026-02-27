@@ -1,9 +1,18 @@
 "use client";
 
+import { useEffect } from "react";
 import { useInfiniteQuery, useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Post, Comment } from "../types";
 import * as postsApi from "../api/posts";
+
+/* ------------------------------------------------------------------ */
+/*  Feed tab type                                                      */
+/* ------------------------------------------------------------------ */
+
+export type FeedTab = "for-you" | "following";
+
+const FEED_TABS: FeedTab[] = ["for-you", "following"];
 
 /* ------------------------------------------------------------------ */
 /*  Helper: optimistically update a post in the infinite feed cache    */
@@ -14,28 +23,133 @@ function updatePostInCache(
   postId: string,
   updater: (post: Post) => Post
 ) {
-  queryClient.setQueryData(["feed"], (old: any) => {
+  // Update in all feed tabs
+  for (const tab of FEED_TABS) {
+    queryClient.setQueryData(["feed", tab], (old: any) => {
+      if (!old) return old;
+      return {
+        ...old,
+        pages: old.pages.map((page: any) => ({
+          ...page,
+          data: Array.isArray(page.data)
+            ? page.data.map((post: Post) => (post.id === postId ? updater(post) : post))
+            : page.data,
+        })),
+      };
+    });
+  }
+  // Update single-post detail cache
+  queryClient.setQueryData(["post", postId], (old: any) => {
     if (!old) return old;
-    return {
-      ...old,
-      pages: old.pages.map((page: any) => ({
-        ...page,
-        data: Array.isArray(page.data)
-          ? page.data.map((post: Post) => (post.id === postId ? updater(post) : post))
-          : page.data,
-      })),
-    };
+    return updater(old);
   });
+  // Update user-posts cache (all keys)
+  queryClient.getQueriesData({ queryKey: ["userPosts"] }).forEach(([key]) => {
+    queryClient.setQueryData(key, (old: any) => {
+      if (!old) return old;
+      return {
+        ...old,
+        pages: old.pages.map((page: any) => ({
+          ...page,
+          data: Array.isArray(page.data)
+            ? page.data.map((post: Post) => (post.id === postId ? updater(post) : post))
+            : page.data,
+        })),
+      };
+    });
+  });
+}
+
+function saveFeedCaches(queryClient: ReturnType<typeof useQueryClient>) {
+  return {
+    forYou: queryClient.getQueryData(["feed", "for-you"]),
+    following: queryClient.getQueryData(["feed", "following"]),
+  };
+}
+
+function restoreFeedCaches(
+  queryClient: ReturnType<typeof useQueryClient>,
+  saved: { forYou: unknown; following: unknown }
+) {
+  if (saved.forYou) queryClient.setQueryData(["feed", "for-you"], saved.forYou);
+  if (saved.following) queryClient.setQueryData(["feed", "following"], saved.following);
 }
 
 /* ------------------------------------------------------------------ */
 /*  Feed query                                                         */
 /* ------------------------------------------------------------------ */
 
-export function useFeed(supabase: SupabaseClient) {
+export function useFeed(supabase: SupabaseClient, tab: FeedTab = "for-you") {
+  const queryClient = useQueryClient();
+
+  // Realtime: live post count updates (likes, comments, reposts from other users)
+  useEffect(() => {
+    const channel = supabase
+      .channel("feed-realtime")
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "posts" },
+        (payload) => {
+          const u = payload.new as any;
+          // Only touch counts — don't overwrite optimistic is_liked etc.
+          for (const t of FEED_TABS) {
+            queryClient.setQueryData(["feed", t], (old: any) => {
+              if (!old) return old;
+              return {
+                ...old,
+                pages: old.pages.map((page: any) => ({
+                  ...page,
+                  data: Array.isArray(page.data)
+                    ? page.data.map((post: Post) =>
+                        post.id === u.id
+                          ? {
+                              ...post,
+                              like_count: u.like_count,
+                              comment_count: u.comment_count,
+                              repost_count: u.repost_count,
+                              share_count: u.share_count,
+                            }
+                          : post
+                      )
+                    : page.data,
+                })),
+              };
+            });
+          }
+          // Also update single-post cache
+          queryClient.setQueryData(["post", u.id], (old: any) => {
+            if (!old) return old;
+            return {
+              ...old,
+              like_count: u.like_count,
+              comment_count: u.comment_count,
+              repost_count: u.repost_count,
+              share_count: u.share_count,
+            };
+          });
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "posts" },
+        () => {
+          // New post appeared — mark stale so next navigation refetches
+          queryClient.invalidateQueries({ queryKey: ["feed"], refetchType: "none" });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, queryClient]);
+
   return useInfiniteQuery({
-    queryKey: ["feed"],
-    queryFn: ({ pageParam }) => postsApi.getFeedPosts(supabase, pageParam),
+    queryKey: ["feed", tab],
+    queryFn: ({ pageParam }) =>
+      tab === "following"
+        ? postsApi.getFollowingFeedPosts(supabase, pageParam)
+        : postsApi.getFeedPosts(supabase, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
   });
@@ -83,6 +197,38 @@ export function useCreatePost(supabase: SupabaseClient) {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Delete post                                                        */
+/* ------------------------------------------------------------------ */
+
+export function useDeletePost(supabase: SupabaseClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (postId: string) => postsApi.deletePost(supabase, postId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] });
+    },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/*  Update post                                                        */
+/* ------------------------------------------------------------------ */
+
+export function useUpdatePost(supabase: SupabaseClient) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ postId, updates }: { postId: string; updates: { content: string; sentiment_tag?: string | null } }) =>
+      postsApi.updatePost(supabase, postId, updates),
+    onSuccess: (updatedPost) => {
+      updatePostInCache(queryClient, updatedPost.id, () => updatedPost);
+      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      queryClient.invalidateQueries({ queryKey: ["userPosts"] });
+    },
+  });
+}
+
+/* ------------------------------------------------------------------ */
 /*  Like / Unlike                                                      */
 /* ------------------------------------------------------------------ */
 
@@ -93,20 +239,19 @@ export function useLikePost(supabase: SupabaseClient) {
       action === "like" ? postsApi.likePost(supabase, postId) : postsApi.unlikePost(supabase, postId),
     onMutate: async ({ postId, action }) => {
       await queryClient.cancelQueries({ queryKey: ["feed"] });
-      const previousFeed = queryClient.getQueryData(["feed"]);
+      const previousFeeds = saveFeedCaches(queryClient);
       updatePostInCache(queryClient, postId, (post) => ({
         ...post,
         is_liked: action === "like",
         like_count: Math.max(0, post.like_count + (action === "like" ? 1 : -1)),
       }));
-      return { previousFeed };
+      return { previousFeeds };
     },
     onError: (_err, _vars, context) => {
-      if (context?.previousFeed) queryClient.setQueryData(["feed"], context.previousFeed);
+      if (context?.previousFeeds) restoreFeedCaches(queryClient, context.previousFeeds);
     },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["feed"] });
-    },
+    // No onSettled invalidation — optimistic update + Realtime handle this.
+    // Invalidating would trigger a slow full refetch that overwrites the instant UI update.
   });
 }
 
@@ -133,19 +278,19 @@ export function useCreateComment(supabase: SupabaseClient) {
       postsApi.createComment(supabase, postId, content, parentId),
     onMutate: async ({ postId }) => {
       await queryClient.cancelQueries({ queryKey: ["feed"] });
-      const previousFeed = queryClient.getQueryData(["feed"]);
+      const previousFeeds = saveFeedCaches(queryClient);
       updatePostInCache(queryClient, postId, (post) => ({
         ...post,
         comment_count: post.comment_count + 1,
       }));
-      return { previousFeed };
+      return { previousFeeds };
     },
     onError: (_err, _vars, context) => {
-      if (context?.previousFeed) queryClient.setQueryData(["feed"], context.previousFeed);
+      if (context?.previousFeeds) restoreFeedCaches(queryClient, context.previousFeeds);
     },
     onSettled: (_, __, variables) => {
       queryClient.invalidateQueries({ queryKey: ["comments", variables.postId] });
-      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      // Feed comment_count updated via Realtime — no need to refetch entire feed
     },
   });
 }
@@ -161,18 +306,15 @@ export function useBookmark(supabase: SupabaseClient) {
       action === "bookmark" ? postsApi.bookmarkPost(supabase, postId) : postsApi.unbookmarkPost(supabase, postId),
     onMutate: async ({ postId, action }) => {
       await queryClient.cancelQueries({ queryKey: ["feed"] });
-      const previousFeed = queryClient.getQueryData(["feed"]);
+      const previousFeeds = saveFeedCaches(queryClient);
       updatePostInCache(queryClient, postId, (post) => ({
         ...post,
         is_bookmarked: action === "bookmark",
       }));
-      return { previousFeed };
+      return { previousFeeds };
     },
     onError: (_err, _vars, context) => {
-      if (context?.previousFeed) queryClient.setQueryData(["feed"], context.previousFeed);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      if (context?.previousFeeds) restoreFeedCaches(queryClient, context.previousFeeds);
     },
   });
 }
@@ -183,7 +325,7 @@ export function useBookmark(supabase: SupabaseClient) {
 
 export function useRepost(supabase: SupabaseClient) {
   const queryClient = useQueryClient();
-  return useMutation<void, Error, { postId: string; action: "repost" | "unrepost" }, { previousFeed: unknown }>({
+  return useMutation<void, Error, { postId: string; action: "repost" | "unrepost" }, { previousFeeds: { forYou: unknown; following: unknown } }>({
     mutationFn: async ({ postId, action }) => {
       if (action === "repost") {
         await postsApi.repostPost(supabase, postId);
@@ -193,19 +335,16 @@ export function useRepost(supabase: SupabaseClient) {
     },
     onMutate: async ({ postId, action }) => {
       await queryClient.cancelQueries({ queryKey: ["feed"] });
-      const previousFeed = queryClient.getQueryData(["feed"]);
+      const previousFeeds = saveFeedCaches(queryClient);
       updatePostInCache(queryClient, postId, (post) => ({
         ...post,
         is_reposted: action === "repost",
         repost_count: Math.max(0, post.repost_count + (action === "repost" ? 1 : -1)),
       }));
-      return { previousFeed };
+      return { previousFeeds };
     },
     onError: (_err, _vars, context) => {
-      if (context?.previousFeed) queryClient.setQueryData(["feed"], context.previousFeed);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["feed"] });
+      if (context?.previousFeeds) restoreFeedCaches(queryClient, context.previousFeeds);
     },
   });
 }

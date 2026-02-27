@@ -1,10 +1,11 @@
-import { useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import {
   View,
   Text,
   ScrollView,
   Pressable,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -19,6 +20,8 @@ import {
   useUserPosts,
   useLikePost,
   useBookmark,
+  useDeletePost,
+  useUpdatePost,
 } from "@propian/shared/hooks";
 import { useAuth } from "@/providers/AuthProvider";
 import {
@@ -37,6 +40,8 @@ import { IconUser } from "@/components/icons/IconUser";
 import { formatCompact, isRTLText } from "@propian/shared/utils";
 import type { Post } from "@propian/shared/types";
 import { PostCard } from "@/components/feed/PostCard";
+import { PostOptionsMenu } from "@/components/feed/PostOptionsMenu";
+import { PostComposer } from "@/components/feed/PostComposer";
 
 export default function ProfileScreen() {
   const { username } = useLocalSearchParams<{ username: string }>();
@@ -60,6 +65,11 @@ export default function ProfileScreen() {
 
   const likeMutation = useLikePost(supabase);
   const bookmarkMutation = useBookmark(supabase);
+  const deletePostMutation = useDeletePost(supabase);
+  const updatePostMutation = useUpdatePost(supabase);
+
+  const [menuPost, setMenuPost] = useState<Post | null>(null);
+  const [editPost, setEditPost] = useState<Post | null>(null);
 
   const isOwnProfile = currentProfile?.username === username;
   const isFollowing = followStatus === "following";
@@ -86,6 +96,25 @@ export default function ProfileScreen() {
     },
     [bookmarkMutation]
   );
+
+  const handleMenuPress = useCallback((post: Post) => {
+    setMenuPost(post);
+  }, []);
+
+  const handleDeletePost = useCallback((postId: string) => {
+    Alert.alert("Delete Post", "Are you sure you want to delete this post? This cannot be undone.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: () => deletePostMutation.mutate(postId),
+      },
+    ]);
+  }, [deletePostMutation]);
+
+  const handleEditPost = useCallback((post: Post) => {
+    setEditPost(post);
+  }, []);
 
   if (isLoading) {
     return (
@@ -259,15 +288,47 @@ export default function ProfileScreen() {
           )}
 
           {posts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              onLike={handleLike}
-              onBookmark={handleBookmark}
-            />
+            <View key={post.id} style={styles.postWrapper}>
+              <PostCard
+                post={post}
+                onLike={handleLike}
+                onBookmark={handleBookmark}
+                onMenuPress={handleMenuPress}
+              />
+            </View>
           ))}
         </View>
       </ScrollView>
+
+      {/* Post Options Menu */}
+      <PostOptionsMenu
+        visible={!!menuPost}
+        post={menuPost}
+        isOwnPost={!!menuPost && menuPost.user_id === user?.id}
+        onClose={() => setMenuPost(null)}
+        onDelete={handleDeletePost}
+        onEdit={handleEditPost}
+        onNotInterested={() => {}}
+        onEmbed={() => {}}
+      />
+
+      {/* Post Composer (edit mode) */}
+      <PostComposer
+        visible={!!editPost}
+        onClose={() => setEditPost(null)}
+        onSubmit={(data) => {
+          if (!editPost) return;
+          updatePostMutation.mutate(
+            { postId: editPost.id, updates: { content: data.content, sentiment_tag: data.sentiment_tag } },
+            { onSuccess: () => setEditPost(null) }
+          );
+        }}
+        isPending={updatePostMutation.isPending}
+        avatar={currentProfile?.avatar_url}
+        displayName={currentProfile?.display_name}
+        initialContent={editPost?.content}
+        initialSentiment={editPost?.sentiment_tag}
+      />
     </View>
   );
 }
@@ -434,7 +495,9 @@ const styles = StyleSheet.create({
   },
   postsSection: {
     marginTop: 16,
-    paddingHorizontal: spacing.base,
-    gap: 12,
+  },
+  postWrapper: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.g200,
   },
 });

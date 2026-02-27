@@ -22,6 +22,32 @@
   border-color: var(--lime);
 }
 
+/* ─── Avatar with type badge ─── */
+
+.pt-notif-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.pt-notif-type-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--white);
+}
+
+.pt-notif.unread .pt-notif-type-badge {
+  border-color: var(--lime-10);
+}
+
+/* ─── Fallback icon (no avatar) ─── */
+
 .pt-notif-icon {
   width: 40px;
   height: 40px;
@@ -30,26 +56,21 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  font-size: 16px;
 }
+
+.pt-notif-icon-mention { background: var(--blue-bg); color: var(--blue); }
+.pt-notif-icon-like { background: var(--red-bg); color: var(--red); }
+.pt-notif-icon-follow { background: var(--green-bg); color: var(--green); }
+.pt-notif-icon-comment { background: var(--blue-bg); color: var(--blue); }
+.pt-notif-icon-repost { background: var(--lime-10); color: var(--black); }
+.pt-notif-icon-system { background: var(--g100); color: var(--g600); }
+
+/* ─── Content ─── */
 
 .pt-notif-content {
   flex: 1;
-}
-
-.pt-notif-text {
-  font-size: 14px;
-  line-height: 1.4;
-}
-
-.pt-notif-text strong {
-  font-weight: 600;
-}
-
-.pt-notif-time {
-  font-size: 11px;
-  color: var(--g400);
-  margin-top: 4px;
-  font-family: var(--mono);
+  min-width: 0;
 }
 
 .pt-notif-title {
@@ -62,6 +83,16 @@
   font-size: 13px;
   color: var(--g600);
   line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pt-notif-time {
+  font-size: 11px;
+  color: var(--g400);
+  margin-top: 4px;
+  font-family: var(--mono);
 }
 
 .pt-notif-dot {
@@ -78,10 +109,3 @@
   flex-direction: column;
   gap: 8px;
 }
-
-.pt-notif-icon-mention { background: var(--blue-bg); color: var(--blue); }
-.pt-notif-icon-like { background: var(--red-bg); color: var(--red); }
-.pt-notif-icon-follow { background: var(--green-bg); color: var(--green); }
-.pt-notif-icon-comment { background: var(--blue-bg); color: var(--blue); }
-.pt-notif-icon-review { background: var(--amber-bg); color: var(--amber); }
-.pt-notif-icon-system { background: var(--g100); color: var(--g600); }

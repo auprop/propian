@@ -50,6 +50,20 @@ import Svg, { Path } from "react-native-svg";
 import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import type { Comment } from "@propian/shared/types";
 
+/* ─── Render text with @mentions highlighted in green ─── */
+function renderTextWithMentions(text: string): React.ReactNode {
+  if (!text) return null;
+  const parts = text.split(/(@\w+)/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    /^@\w+$/.test(part) ? (
+      <Text key={i} style={{ color: "#00743c" }}>{part}</Text>
+    ) : (
+      <Text key={i}>{part}</Text>
+    )
+  );
+}
+
 function IconReply({ size = 16, color = "#a3a3a3" }: { size?: number; color?: string }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -281,7 +295,7 @@ export default function PostDetailScreen() {
         </View>
 
         {/* Content */}
-        <Text style={[styles.commentText, isRTLText(comment.content) && { textAlign: "right" }]}>{comment.content}</Text>
+        <Text style={[styles.commentText, isRTLText(comment.content) && { textAlign: "right" }]}>{renderTextWithMentions(comment.content)}</Text>
 
         {/* Action bar */}
         <View style={styles.commentActions}>
@@ -500,7 +514,7 @@ export default function PostDetailScreen() {
 
       {/* Content */}
       {post.content ? (
-        <Text style={[styles.content, isRTLText(post.content) && { textAlign: "right" }]}>{post.content}</Text>
+        <Text style={[styles.content, isRTLText(post.content) && { textAlign: "right" }]}>{renderTextWithMentions(post.content)}</Text>
       ) : null}
 
       {/* Chart embed (for type='chart') */}
@@ -588,7 +602,7 @@ export default function PostDetailScreen() {
           </View>
           {post.quoted_post.content ? (
             <Text style={[styles.quotedContent, isRTLText(post.quoted_post.content) && { textAlign: "right" }]} numberOfLines={4}>
-              {post.quoted_post.content}
+              {renderTextWithMentions(post.quoted_post.content)}
             </Text>
           ) : null}
           {/* Quoted post media */}

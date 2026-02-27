@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   useNotifications,
   useMarkRead,
@@ -8,8 +9,15 @@ import {
 } from "@propian/shared/hooks";
 import type { Notification, NotificationType } from "@propian/shared/types";
 import { timeAgo } from "@propian/shared/utils";
+import {
+  IconHeart,
+  IconComment,
+  IconRepost,
+  IconUser,
+} from "@propian/shared/icons";
 import { createBrowserClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/Button";
+import { Avatar } from "@/components/ui/Avatar";
 import { FilterChip } from "@/components/ui/FilterChip";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -20,47 +28,83 @@ const FILTER_TABS: { label: string; value: FilterTab }[] = [
   { label: "All", value: "all" },
   { label: "Mentions", value: "mention" },
   { label: "Likes", value: "like" },
+  { label: "Comments", value: "comment" },
   { label: "Follows", value: "follow" },
-  { label: "Reviews", value: "review" },
 ];
 
-const NOTIF_ICONS: Record<NotificationType, string> = {
-  mention: "@",
-  like: "\u2665",
-  follow: "\u271A",
-  comment: "\u{1F4AC}",
-  review: "\u2605",
-  system: "\u26A0",
+const TYPE_BADGE_COLORS: Record<NotificationType, string> = {
+  mention: "var(--blue)",
+  like: "var(--red)",
+  follow: "var(--green)",
+  comment: "var(--blue)",
+  repost: "var(--lime)",
+  system: "var(--g600)",
 };
+
+function TypeBadgeIcon({ type }: { type: NotificationType }) {
+  const size = 12;
+  const color = "#fff";
+
+  switch (type) {
+    case "like":
+      return <IconHeart size={size} color={color} />;
+    case "comment":
+      return <IconComment size={size} color={color} />;
+    case "repost":
+      return <IconRepost size={size} color={color} />;
+    case "follow":
+      return <IconUser size={size} color={color} />;
+    case "mention":
+      return <span style={{ fontSize: 10, fontWeight: 700, color }}>@</span>;
+    case "system":
+      return <span style={{ fontSize: 10, color }}>!</span>;
+    default:
+      return null;
+  }
+}
 
 function NotificationItem({
   notification,
-  onMarkRead,
+  onPress,
 }: {
   notification: Notification;
-  onMarkRead: (id: string) => void;
+  onPress: (n: Notification) => void;
 }) {
-  const icon = NOTIF_ICONS[notification.type] ?? "\u2022";
+  const data = notification.data as Record<string, string>;
+  const actorName = data?.actor_display_name || data?.actor_username || "";
+  const actorAvatar = data?.actor_avatar_url || null;
+  const badgeColor = TYPE_BADGE_COLORS[notification.type] || "var(--g400)";
 
   return (
     <div
       className={`pt-notif ${notification.is_read ? "" : "unread"}`}
-      onClick={() => {
-        if (!notification.is_read) {
-          onMarkRead(notification.id);
-        }
-      }}
+      onClick={() => onPress(notification)}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
-        if (e.key === "Enter" && !notification.is_read) {
-          onMarkRead(notification.id);
-        }
+        if (e.key === "Enter") onPress(notification);
       }}
     >
-      <div className={`pt-notif-icon pt-notif-icon-${notification.type}`}>
-        {icon}
+      {/* Avatar with type badge */}
+      <div className="pt-notif-avatar-wrap">
+        {actorAvatar ? (
+          <Avatar src={actorAvatar} name={actorName} size="sm" />
+        ) : (
+          <div className={`pt-notif-icon pt-notif-icon-${notification.type}`}>
+            <TypeBadgeIcon type={notification.type} />
+          </div>
+        )}
+        {actorAvatar && (
+          <div
+            className="pt-notif-type-badge"
+            style={{ background: badgeColor }}
+          >
+            <TypeBadgeIcon type={notification.type} />
+          </div>
+        )}
       </div>
+
+      {/* Content */}
       <div className="pt-notif-content">
         <div className="pt-notif-title">{notification.title}</div>
         {notification.body && (
@@ -68,6 +112,8 @@ function NotificationItem({
         )}
         <div className="pt-notif-time">{timeAgo(notification.created_at)}</div>
       </div>
+
+      {/* Unread dot */}
       {!notification.is_read && <div className="pt-notif-dot" />}
     </div>
   );
@@ -85,6 +131,7 @@ function LoadingSkeleton() {
 
 export default function NotificationsPage() {
   const supabase = createBrowserClient();
+  const router = useRouter();
   const { data: notifications, isLoading } = useNotifications(supabase);
   const markRead = useMarkRead(supabase);
   const markAllRead = useMarkAllRead(supabase);
@@ -96,6 +143,25 @@ export default function NotificationsPage() {
       : notifications?.filter((n: Notification) => n.type === activeTab);
 
   const hasUnread = notifications?.some((n: Notification) => !n.is_read);
+
+  const handleNotificationPress = useCallback(
+    (notification: Notification) => {
+      // Mark as read
+      if (!notification.is_read) {
+        markRead.mutate(notification.id);
+      }
+
+      // Deep-link based on notification data
+      const data = notification.data as Record<string, string>;
+
+      if (data?.post_id) {
+        router.push(`/post/${data.post_id}`);
+      } else if (notification.type === "follow" && data?.actor_username) {
+        router.push(`/profile/${data.actor_username}`);
+      }
+    },
+    [markRead, router]
+  );
 
   return (
     <div className="pt-container">
@@ -143,7 +209,7 @@ export default function NotificationsPage() {
             <NotificationItem
               key={notification.id}
               notification={notification}
-              onMarkRead={(id) => markRead.mutate(id)}
+              onPress={handleNotificationPress}
             />
           ))}
         </div>

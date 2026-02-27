@@ -4,13 +4,14 @@ import { useRouter } from "expo-router";
 import { WebView } from "react-native-webview";
 import { colors } from "@/theme";
 import { triggerHaptic } from "@/hooks/useHaptics";
-import { Avatar, Badge, Card } from "@/components/ui";
+import { Avatar, Badge } from "@/components/ui";
 import { IconHeart } from "@/components/icons/IconHeart";
 import { IconHeartOutline } from "@/components/icons/IconHeartOutline";
 import { IconComment } from "@/components/icons/IconComment";
 import { IconRepost } from "@/components/icons/IconRepost";
 import { IconShare } from "@/components/icons/IconShare";
 import { IconBookmark } from "@/components/icons/IconBookmark";
+import { IconBookmarkFilled } from "@/components/icons/IconBookmarkFilled";
 import { IconVerified } from "@/components/icons/IconVerified";
 import { IconPro } from "@/components/icons/IconPro";
 import { formatCompact } from "@propian/shared/utils";
@@ -19,6 +20,20 @@ import { parseChartRef, buildMiniChartUrl, formatChartLabel } from "@propian/sha
 import { isRTLText } from "@propian/shared/utils";
 import Svg, { Path } from "react-native-svg";
 import type { Post } from "@propian/shared/types";
+
+/* ─── Render text with @mentions highlighted in green ─── */
+function renderTextWithMentions(text: string): React.ReactNode {
+  if (!text) return null;
+  const parts = text.split(/(@\w+)/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    /^@\w+$/.test(part) ? (
+      <Text key={i} style={{ color: "#00743c" }}>{part}</Text>
+    ) : (
+      <Text key={i}>{part}</Text>
+    )
+  );
+}
 
 /* ─── Inline chart icon ─── */
 function IconChartLine({ size = 16, color = "#fff" }: { size?: number; color?: string }) {
@@ -85,8 +100,8 @@ function ImageEmbed({ post, onPress }: { post: Post; onPress: (url: string) => v
   const { width: screenWidth } = useWindowDimensions();
   const [imgHeight, setImgHeight] = useState(IMG_FALLBACK_H);
 
-  // Card has 16px outer padding + 16px inner padding on each side = 64px total
-  const containerWidth = screenWidth - 64;
+  // 16px padding on each side = 32px total
+  const containerWidth = screenWidth - 32;
 
   useEffect(() => {
     if (!imageUrl) return;
@@ -120,6 +135,17 @@ function ImageEmbed({ post, onPress }: { post: Post; onPress: (url: string) => v
   );
 }
 
+/* ─── Inline three-dot icon ─── */
+function IconMoreHorizontal({ size = 20, color = "#a3a3a3" }: { size?: number; color?: string }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <Path d="M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" fill={color} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M19 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" fill={color} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M5 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z" fill={color} stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
+    </Svg>
+  );
+}
+
 interface PostCardProps {
   post: Post;
   onLike: (postId: string, action: "like" | "unlike") => void;
@@ -128,9 +154,10 @@ interface PostCardProps {
   onComment?: (postId: string) => void;
   onShare?: (postId: string) => void;
   onImageExpand?: (url: string) => void;
+  onMenuPress?: (post: Post) => void;
 }
 
-export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShare, onImageExpand }: PostCardProps) {
+export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShare, onImageExpand, onMenuPress }: PostCardProps) {
   const router = useRouter();
 
   const navigateToPost = (postId: string) => {
@@ -144,7 +171,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
     const originalAuthor = original.author;
 
     return (
-      <Card>
+      <View style={styles.postContainer}>
         {/* Reposted by header */}
         <View style={styles.repostHeader}>
           <IconRepost size={14} color={colors.green} />
@@ -187,6 +214,11 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
                 <Text style={styles.timestamp}>{timeAgo(original.created_at)}</Text>
               </View>
             </View>
+            {onMenuPress && (
+              <Pressable style={styles.menuButton} onPress={() => onMenuPress(original)} hitSlop={8}>
+                <IconMoreHorizontal size={20} color={colors.g400} />
+              </Pressable>
+            )}
           </Pressable>
 
           {/* Sentiment tag */}
@@ -206,7 +238,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
           )}
 
           {/* Original content */}
-          <Text style={[styles.content, isRTLText(original.content) && { textAlign: "right" }]}>{original.content}</Text>
+          <Text style={[styles.content, isRTLText(original.content) && { textAlign: "right" }]}>{renderTextWithMentions(original.content)}</Text>
         </Pressable>
 
         {/* Action Bar — actions target the original post */}
@@ -218,14 +250,14 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
           onBookmark={onBookmark}
           onShare={onShare}
         />
-      </Card>
+      </View>
     );
   }
 
   // For simple reposts where original was deleted
   if (post.type === "repost" && !post.quoted_post) {
     return (
-      <Card>
+      <View style={styles.postContainer}>
         <View style={styles.repostHeader}>
           <IconRepost size={14} color={colors.green} />
           <Text style={styles.repostHeaderText}>
@@ -235,7 +267,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
         <View style={styles.quotedEmbedDeleted}>
           <Text style={styles.quotedEmbedDeletedText}>This post is unavailable</Text>
         </View>
-      </Card>
+      </View>
     );
   }
 
@@ -243,7 +275,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
   const author = post.author;
 
   return (
-    <Card>
+    <View style={styles.postContainer}>
       {/* Tappable content area → navigates to post detail */}
       <Pressable onPress={() => navigateToPost(post.id)}>
         {/* Header — avatar taps to profile */}
@@ -278,6 +310,11 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
               <Text style={styles.timestamp}>{timeAgo(post.created_at)}</Text>
             </View>
           </View>
+          {onMenuPress && (
+            <Pressable style={styles.menuButton} onPress={() => onMenuPress(post)} hitSlop={8}>
+              <IconMoreHorizontal size={20} color={colors.g400} />
+            </Pressable>
+          )}
         </Pressable>
 
         {/* Sentiment tag */}
@@ -298,7 +335,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
 
         {/* Content */}
         {post.content ? (
-          <Text style={[styles.content, isRTLText(post.content) && { textAlign: "right" }]}>{post.content}</Text>
+          <Text style={[styles.content, isRTLText(post.content) && { textAlign: "right" }]}>{renderTextWithMentions(post.content)}</Text>
         ) : null}
 
         {/* Chart embed (for type='chart') */}
@@ -340,7 +377,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
             </View>
             {post.quoted_post.content ? (
               <Text style={[styles.quotedEmbedContent, isRTLText(post.quoted_post.content) && { textAlign: "right" }]} numberOfLines={3}>
-                {post.quoted_post.content}
+                {renderTextWithMentions(post.quoted_post.content)}
               </Text>
             ) : null}
             {/* Quoted post media (image or chart) */}
@@ -395,7 +432,7 @@ export function PostCard({ post, onLike, onBookmark, onRepost, onComment, onShar
         onBookmark={onBookmark}
         onShare={onShare}
       />
-    </Card>
+    </View>
   );
 }
 
@@ -480,10 +517,11 @@ function ActionBar({
           onBookmark(post.id, post.is_bookmarked ? "unbookmark" : "bookmark");
         }}
       >
-        <IconBookmark
-          size={17}
-          color={post.is_bookmarked ? colors.lime : colors.g400}
-        />
+        {post.is_bookmarked ? (
+          <IconBookmarkFilled size={17} color={colors.green} />
+        ) : (
+          <IconBookmark size={17} color={colors.g400} />
+        )}
       </Pressable>
 
       {/* Share */}
@@ -501,6 +539,10 @@ function ActionBar({
 }
 
 const styles = StyleSheet.create({
+  postContainer: {
+    padding: 16,
+    backgroundColor: colors.white,
+  },
   repostHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -521,6 +563,10 @@ const styles = StyleSheet.create({
   },
   headerText: {
     flex: 1,
+  },
+  menuButton: {
+    padding: 4,
+    marginLeft: 4,
   },
   nameRow: {
     flexDirection: "row",

@@ -18,3 +18,4 @@ export * from "./useSentiments";
 export * from "./useAcademy";
 export * from "./useReferrals";
 export * from "./useAdmin";
+export * from "./useModeration";

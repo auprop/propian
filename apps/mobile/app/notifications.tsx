@@ -17,28 +17,57 @@ import {
   useMarkRead,
   useMarkAllRead,
 } from "@propian/shared/hooks";
-import { FilterChip, EmptyState, Skeleton } from "@/components/ui";
+import { FilterChip, EmptyState, Skeleton, Avatar } from "@/components/ui";
 import { IconBell } from "@/components/icons/IconBell";
 import { IconHeart } from "@/components/icons/IconHeart";
 import { IconComment } from "@/components/icons/IconComment";
+import { IconRepost } from "@/components/icons/IconRepost";
 import { IconUser } from "@/components/icons/IconUser";
-import { IconStar } from "@/components/icons/IconStar";
 import { IconFlag } from "@/components/icons/IconFlag";
 import { IconChevLeft } from "@/components/icons/IconChevLeft";
 import { timeAgo } from "@propian/shared/utils";
 import type { Notification, NotificationType } from "@propian/shared/types";
 
-type FilterType = "all" | "mention" | "like" | "follow" | "review";
+type FilterType = "all" | "mention" | "like" | "comment" | "follow";
 
 const FILTERS: { key: FilterType; label: string }[] = [
   { key: "all", label: "All" },
   { key: "mention", label: "Mentions" },
   { key: "like", label: "Likes" },
+  { key: "comment", label: "Comments" },
   { key: "follow", label: "Follows" },
-  { key: "review", label: "Reviews" },
 ];
 
-function getNotificationIcon(type: NotificationType) {
+const TYPE_BADGE_COLORS: Record<NotificationType, string> = {
+  mention: colors.blue,
+  like: colors.red,
+  follow: colors.lime,
+  comment: colors.blue,
+  repost: colors.lime,
+  system: colors.g500,
+};
+
+function getNotificationBadgeIcon(type: NotificationType) {
+  const size = 10;
+  const color = "#fff";
+  switch (type) {
+    case "like":
+      return <IconHeart size={size} color={color} />;
+    case "comment":
+    case "mention":
+      return <IconComment size={size} color={color} />;
+    case "follow":
+      return <IconUser size={size} color={color} />;
+    case "repost":
+      return <IconRepost size={size} color={color} />;
+    case "system":
+      return <IconFlag size={size} color={color} />;
+    default:
+      return <IconBell size={size} color={color} />;
+  }
+}
+
+function getFallbackIcon(type: NotificationType) {
   switch (type) {
     case "like":
       return <IconHeart size={18} color={colors.red} />;
@@ -47,8 +76,8 @@ function getNotificationIcon(type: NotificationType) {
       return <IconComment size={18} color={colors.blue} />;
     case "follow":
       return <IconUser size={18} color={colors.lime} />;
-    case "review":
-      return <IconStar size={18} color={colors.amber} />;
+    case "repost":
+      return <IconRepost size={18} color={colors.black} />;
     case "system":
       return <IconFlag size={18} color={colors.g500} />;
     default:
@@ -73,34 +102,70 @@ export default function NotificationsScreen() {
 
   const handleNotificationPress = useCallback(
     (notification: Notification) => {
+      // Mark as read
       if (!notification.is_read) {
         markRead.mutate(notification.id);
       }
+
+      // Deep-link based on notification data
+      const data = notification.data as Record<string, string>;
+
+      if (data?.post_id) {
+        router.push({ pathname: "/post/[id]", params: { id: data.post_id } });
+      } else if (notification.type === "follow" && data?.actor_username) {
+        router.push({
+          pathname: "/profile/[username]",
+          params: { username: data.actor_username },
+        });
+      }
     },
-    [markRead]
+    [markRead, router]
   );
 
   const renderNotification = useCallback(
-    ({ item }: { item: Notification }) => (
-      <Pressable
-        style={[styles.notifItem, !item.is_read && styles.notifUnread]}
-        onPress={() => handleNotificationPress(item)}
-      >
-        <View style={styles.notifIconContainer}>
-          {getNotificationIcon(item.type)}
-        </View>
-        <View style={styles.notifContent}>
-          <Text style={styles.notifTitle}>{item.title}</Text>
-          {item.body && (
-            <Text style={styles.notifBody} numberOfLines={2}>
-              {item.body}
-            </Text>
-          )}
-          <Text style={styles.notifTime}>{timeAgo(item.created_at)}</Text>
-        </View>
-        {!item.is_read && <View style={styles.unreadDot} />}
-      </Pressable>
-    ),
+    ({ item }: { item: Notification }) => {
+      const data = item.data as Record<string, string>;
+      const actorName = data?.actor_display_name || data?.actor_username || "";
+      const actorAvatar = data?.actor_avatar_url || null;
+      const badgeColor = TYPE_BADGE_COLORS[item.type] || colors.g400;
+
+      return (
+        <Pressable
+          style={[styles.notifItem, !item.is_read && styles.notifUnread]}
+          onPress={() => handleNotificationPress(item)}
+        >
+          {/* Avatar with type badge */}
+          <View style={styles.avatarWrap}>
+            {actorAvatar ? (
+              <Avatar src={actorAvatar} name={actorName} size="sm" />
+            ) : (
+              <View style={styles.notifIconContainer}>
+                {getFallbackIcon(item.type)}
+              </View>
+            )}
+            {actorAvatar && (
+              <View style={[styles.typeBadge, { backgroundColor: badgeColor }]}>
+                {getNotificationBadgeIcon(item.type)}
+              </View>
+            )}
+          </View>
+
+          {/* Content */}
+          <View style={styles.notifContent}>
+            <Text style={styles.notifTitle}>{item.title}</Text>
+            {item.body && (
+              <Text style={styles.notifBody} numberOfLines={2}>
+                {item.body}
+              </Text>
+            )}
+            <Text style={styles.notifTime}>{timeAgo(item.created_at)}</Text>
+          </View>
+
+          {/* Unread dot */}
+          {!item.is_read && <View style={styles.unreadDot} />}
+        </Pressable>
+      );
+    },
     [handleNotificationPress]
   );
 
@@ -185,7 +250,11 @@ export default function NotificationsScreen() {
           <EmptyState
             icon={<IconBell size={40} color={colors.g300} />}
             title="No notifications"
-            description="You're all caught up!"
+            description={
+              filterType === "all"
+                ? "You're all caught up!"
+                : `No ${filterType} notifications yet.`
+            }
           />
         }
       />
@@ -260,6 +329,9 @@ const styles = StyleSheet.create({
   notifUnread: {
     backgroundColor: colors.lime10,
   },
+  avatarWrap: {
+    position: "relative",
+  },
   notifIconContainer: {
     width: 36,
     height: 36,
@@ -269,6 +341,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     borderWidth: 1.5,
     borderColor: colors.g200,
+  },
+  typeBadge: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: colors.white,
   },
   notifContent: {
     flex: 1,

@@ -17,3 +17,4 @@ export * from "./sentiments";
 export * from "./academy";
 export * from "./referrals";
 export * from "./admin";
+export * from "./moderation";

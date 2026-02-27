@@ -34,10 +34,25 @@ import { IconComment } from "@/components/icons/IconComment";
 import { IconHeart } from "@/components/icons/IconHeart";
 import { IconHeartOutline } from "@/components/icons/IconHeartOutline";
 import { IconBookmark } from "@/components/icons/IconBookmark";
+import { IconBookmarkFilled } from "@/components/icons/IconBookmarkFilled";
 import { IconShare } from "@/components/icons/IconShare";
 import { timeAgo, formatCompact, isRTLText } from "@propian/shared/utils";
 import Svg, { Path } from "react-native-svg";
 import type { Comment } from "@propian/shared/types";
+
+/* ─── Render text with @mentions highlighted in green ─── */
+function renderTextWithMentions(text: string): React.ReactNode {
+  if (!text) return null;
+  const parts = text.split(/(@\w+)/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    /^@\w+$/.test(part) ? (
+      <Text key={i} style={{ color: "#00743c" }}>{part}</Text>
+    ) : (
+      <Text key={i}>{part}</Text>
+    )
+  );
+}
 
 /* ─── Inline reply icon ─── */
 function IconReply({ size = 16, color = "#a3a3a3" }: { size?: number; color?: string }) {
@@ -195,7 +210,7 @@ export function CommentSheet({ visible, postId, onClose }: CommentSheetProps) {
         </View>
 
         {/* Content */}
-        <Text style={[styles.commentText, isRTLText(comment.content) && { textAlign: "right" }]}>{comment.content}</Text>
+        <Text style={[styles.commentText, isRTLText(comment.content) && { textAlign: "right" }]}>{renderTextWithMentions(comment.content)}</Text>
 
         {/* Action bar */}
         <View style={styles.commentActions}>
@@ -242,10 +257,11 @@ export function CommentSheet({ visible, postId, onClose }: CommentSheetProps) {
             onPress={() => handleCommentBookmark(comment)}
             hitSlop={8}
           >
-            <IconBookmark
-              size={15}
-              color={comment.is_bookmarked ? colors.lime : colors.g400}
-            />
+            {comment.is_bookmarked ? (
+              <IconBookmarkFilled size={15} color={colors.green} />
+            ) : (
+              <IconBookmark size={15} color={colors.g400} />
+            )}
           </Pressable>
 
           {/* Share */}

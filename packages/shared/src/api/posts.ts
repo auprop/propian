@@ -3,27 +3,16 @@ import type { Post, PaginatedResponse } from "../types";
 
 const PAGE_SIZE = 20;
 
-export async function getFeedPosts(
-  supabase: SupabaseClient,
-  cursor?: string
-): Promise<PaginatedResponse<Post>> {
-  let query = supabase
-    .from("posts")
-    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
-    .order("created_at", { ascending: false })
-    .limit(PAGE_SIZE + 1);
+const AUTHOR_SELECT = "*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)";
 
-  if (cursor) {
-    query = query.lt("created_at", cursor);
-  }
+/* ------------------------------------------------------------------ */
+/*  Shared helper: enrich posts with quoted posts + interaction flags  */
+/* ------------------------------------------------------------------ */
 
-  const { data, error } = await query;
-  if (error) throw error;
+async function enrichPosts(supabase: SupabaseClient, posts: any[]): Promise<void> {
+  if (posts.length === 0) return;
 
-  const hasMore = (data?.length ?? 0) > PAGE_SIZE;
-  const posts = hasMore ? data!.slice(0, PAGE_SIZE) : (data ?? []);
-
-  // Collect quoted_post_ids for posts that reference another post (quote or repost)
+  // 1. Fetch quoted posts
   const quotedIds = [
     ...new Set(
       posts
@@ -32,26 +21,25 @@ export async function getFeedPosts(
     ),
   ];
 
-  // Fetch quoted posts separately (avoids buggy self-referential PostgREST join)
   if (quotedIds.length > 0) {
     const { data: quotedPosts } = await supabase
       .from("posts")
-      .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
+      .select(AUTHOR_SELECT)
       .in("id", quotedIds);
 
     if (quotedPosts) {
       const quotedMap = new Map(quotedPosts.map((qp: any) => [qp.id, qp]));
       for (const post of posts) {
-        if ((post as any).quoted_post_id) {
-          (post as any).quoted_post = quotedMap.get((post as any).quoted_post_id) ?? null;
+        if (post.quoted_post_id) {
+          post.quoted_post = quotedMap.get(post.quoted_post_id) ?? null;
         }
       }
     }
   }
 
-  // Populate is_liked, is_bookmarked, is_reposted for the current user
+  // 2. Populate is_liked, is_bookmarked, is_reposted for the current user
   const { data: { user } } = await supabase.auth.getUser();
-  if (user && posts.length > 0) {
+  if (user) {
     const postIds = posts.map((p: any) => p.id);
     const [likedRes, bookmarkedRes, repostedRes] = await Promise.all([
       supabase.from("likes").select("target_id").eq("user_id", user.id).eq("target_type", "post").in("target_id", postIds),
@@ -63,18 +51,67 @@ export async function getFeedPosts(
     const repostedIds = new Set((repostedRes.data ?? []).map((r: any) => r.post_id));
 
     for (const post of posts) {
-      (post as any).is_liked = likedIds.has((post as any).id);
-      (post as any).is_bookmarked = bookmarkedIds.has((post as any).id);
-      (post as any).is_reposted = repostedIds.has((post as any).id);
+      post.is_liked = likedIds.has(post.id);
+      post.is_bookmarked = bookmarkedIds.has(post.id);
+      post.is_reposted = repostedIds.has(post.id);
     }
   }
+}
+
+/* ------------------------------------------------------------------ */
+/*  Shared helper: paginate + enrich                                   */
+/* ------------------------------------------------------------------ */
+
+function paginateResults(data: any[] | null, pageSize: number): { posts: any[]; hasMore: boolean } {
+  const hasMore = (data?.length ?? 0) > pageSize;
+  const posts = hasMore ? data!.slice(0, pageSize) : (data ?? []);
+  return { posts, hasMore };
+}
+
+/* ------------------------------------------------------------------ */
+/*  Feed (uses single-query RPC — 1 round trip instead of 4-5)         */
+/* ------------------------------------------------------------------ */
+
+async function fetchFeed(
+  supabase: SupabaseClient,
+  mode: "for-you" | "following",
+  cursor?: string
+): Promise<PaginatedResponse<Post>> {
+  const { data, error } = await supabase.rpc("get_feed", {
+    p_mode: mode,
+    p_cursor: cursor ?? null,
+    p_limit: PAGE_SIZE,
+  });
+  if (error) throw error;
+
+  const posts = (data ?? []) as Post[];
+  const hasMore = posts.length > PAGE_SIZE;
+  const result = hasMore ? posts.slice(0, PAGE_SIZE) : posts;
 
   return {
-    data: posts as Post[],
-    nextCursor: hasMore ? posts[posts.length - 1].created_at : null,
+    data: result,
+    nextCursor: hasMore ? result[result.length - 1].created_at : null,
     hasMore,
   };
 }
+
+export function getFeedPosts(
+  supabase: SupabaseClient,
+  cursor?: string
+): Promise<PaginatedResponse<Post>> {
+  return fetchFeed(supabase, "for-you", cursor);
+}
+
+export function getFollowingFeedPosts(
+  supabase: SupabaseClient,
+  cursor?: string
+): Promise<PaginatedResponse<Post>> {
+  return fetchFeed(supabase, "following", cursor);
+}
+
+/* ------------------------------------------------------------------ */
+/*  User posts (profile page)                                          */
+/* ------------------------------------------------------------------ */
 
 export async function getUserPosts(
   supabase: SupabaseClient,
@@ -83,7 +120,7 @@ export async function getUserPosts(
 ): Promise<PaginatedResponse<Post>> {
   let query = supabase
     .from("posts")
-    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
+    .select(AUTHOR_SELECT)
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
     .limit(PAGE_SIZE + 1);
@@ -95,54 +132,8 @@ export async function getUserPosts(
   const { data, error } = await query;
   if (error) throw error;
 
-  const hasMore = (data?.length ?? 0) > PAGE_SIZE;
-  const posts = hasMore ? data!.slice(0, PAGE_SIZE) : (data ?? []);
-
-  // Collect quoted_post_ids for posts that reference another post (quote or repost)
-  const quotedIds = [
-    ...new Set(
-      posts
-        .map((p: any) => p.quoted_post_id)
-        .filter((id: any): id is string => !!id)
-    ),
-  ];
-
-  // Fetch quoted posts separately
-  if (quotedIds.length > 0) {
-    const { data: quotedPosts } = await supabase
-      .from("posts")
-      .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
-      .in("id", quotedIds);
-
-    if (quotedPosts) {
-      const quotedMap = new Map(quotedPosts.map((qp: any) => [qp.id, qp]));
-      for (const post of posts) {
-        if ((post as any).quoted_post_id) {
-          (post as any).quoted_post = quotedMap.get((post as any).quoted_post_id) ?? null;
-        }
-      }
-    }
-  }
-
-  // Populate is_liked, is_bookmarked, is_reposted for the current user
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user && posts.length > 0) {
-    const postIds = posts.map((p: any) => p.id);
-    const [likedRes, bookmarkedRes, repostedRes] = await Promise.all([
-      supabase.from("likes").select("target_id").eq("user_id", user.id).eq("target_type", "post").in("target_id", postIds),
-      supabase.from("bookmarks").select("post_id").eq("user_id", user.id).in("post_id", postIds),
-      supabase.from("reposts").select("post_id").eq("user_id", user.id).in("post_id", postIds),
-    ]);
-    const likedIds = new Set((likedRes.data ?? []).map((r: any) => r.target_id));
-    const bookmarkedIds = new Set((bookmarkedRes.data ?? []).map((r: any) => r.post_id));
-    const repostedIds = new Set((repostedRes.data ?? []).map((r: any) => r.post_id));
-
-    for (const post of posts) {
-      (post as any).is_liked = likedIds.has((post as any).id);
-      (post as any).is_bookmarked = bookmarkedIds.has((post as any).id);
-      (post as any).is_reposted = repostedIds.has((post as any).id);
-    }
-  }
+  const { posts, hasMore } = paginateResults(data, PAGE_SIZE);
+  await enrichPosts(supabase, posts);
 
   return {
     data: posts as Post[],
@@ -200,6 +191,26 @@ export async function createPost(
   const { data, error } = await supabase
     .from("posts")
     .insert({ ...post, user_id: user.id })
+    .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
+    .single();
+  if (error) throw error;
+  return data as Post;
+}
+
+export async function deletePost(supabase: SupabaseClient, postId: string) {
+  const { error } = await supabase.from("posts").delete().eq("id", postId);
+  if (error) throw error;
+}
+
+export async function updatePost(
+  supabase: SupabaseClient,
+  postId: string,
+  updates: { content: string; sentiment_tag?: string | null }
+) {
+  const { data, error } = await supabase
+    .from("posts")
+    .update(updates)
+    .eq("id", postId)
     .select("*, author:profiles!user_id(id, username, display_name, avatar_url, is_verified, pro_subscription_status)")
     .single();
   if (error) throw error;

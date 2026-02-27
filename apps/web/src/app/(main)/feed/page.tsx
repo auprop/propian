@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Avatar } from "@/components/ui/Avatar";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { MentionDropdown } from "@/components/ui/MentionDropdown";
 import {
   IconPhoto,
   IconChart,
@@ -17,6 +18,7 @@ import {
   IconRepost,
   IconShare,
   IconBookmark,
+  IconBookmarkFilled,
   IconVerified,
   IconPro,
   IconFire,
@@ -37,7 +39,10 @@ import {
   useCreateComment,
   useLikeComment,
   useBookmarkComment,
+  useMutedIds,
+  useBlockedIds,
 } from "@propian/shared/hooks";
+import type { FeedTab } from "@propian/shared/hooks";
 import { createPostSchema } from "@propian/shared/validation";
 import type { CreatePostInput } from "@propian/shared/validation";
 import type { Post, Comment } from "@propian/shared/types";
@@ -47,6 +52,22 @@ import { formatCompact } from "@propian/shared/utils";
 import { parseChartRef, buildChartRef, buildMiniChartUrl, buildFullChartUrl, formatChartLabel } from "@propian/shared/utils";
 import type { ChartInterval } from "@propian/shared/constants";
 import { ChartPickerWeb } from "@/components/feed/ChartPickerWeb";
+
+/* ------------------------------------------------------------------ */
+/*  Render text with @mentions highlighted                             */
+/* ------------------------------------------------------------------ */
+
+/** Split text into parts, highlighting @mentions in green */
+function renderTextWithMentions(text: string): React.ReactNode {
+  if (!text) return null;
+  const parts = text.split(/(@\w+)/g);
+  if (parts.length === 1) return text; // No mentions found
+  return parts.map((part, i) =>
+    /^@\w+$/.test(part) ? (
+      <span key={i} className="pt-mention-hl">{part}</span>
+    ) : part
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /*  Mock sidebar data                                                  */
@@ -140,7 +161,11 @@ function ActionBar({
         className={`pt-post-action ${post.is_bookmarked ? "bookmarked" : ""}`}
         onClick={() => onBookmark(post.id, !!post.is_bookmarked)}
       >
-        <IconBookmark size={17} style={post.is_bookmarked ? { color: "var(--lime)" } : undefined} />
+        {post.is_bookmarked ? (
+          <IconBookmarkFilled size={17} style={{ color: "var(--green)" }} />
+        ) : (
+          <IconBookmark size={17} />
+        )}
       </button>
 
       <button className="pt-post-action" onClick={() => onShare(post.id)}>
@@ -226,7 +251,7 @@ function PostCard({
           </div>
 
           {/* Original body */}
-          <div className="pt-post-body">{original.content}</div>
+          <div className="pt-post-body">{renderTextWithMentions(original.content)}</div>
         </a>
 
         {/* Actions target the original post */}
@@ -297,7 +322,7 @@ function PostCard({
         </div>
 
         {/* Body */}
-        {post.content && <div className="pt-post-body">{post.content}</div>}
+        {post.content && <div className="pt-post-body">{renderTextWithMentions(post.content)}</div>}
 
         {/* Quoted post embed */}
         {post.type === "quote" && post.quoted_post && (
@@ -329,7 +354,7 @@ function PostCard({
               </span>
             </div>
             {post.quoted_post.content && (
-              <p className="pt-quoted-embed-body">{post.quoted_post.content}</p>
+              <p className="pt-quoted-embed-body">{renderTextWithMentions(post.quoted_post.content)}</p>
             )}
             {/* Quoted post media */}
             {post.quoted_post.type === "image" && post.quoted_post.media_urls?.[0] && (
@@ -555,7 +580,7 @@ function InlineComments({
             )}
             <span className="pt-comment-time">{timeAgo(comment.created_at)}</span>
           </div>
-          <p className="pt-comment-text">{comment.content}</p>
+          <p className="pt-comment-text">{renderTextWithMentions(comment.content)}</p>
 
           <div className="pt-comment-actions">
             <button className="pt-comment-action-btn" onClick={() => handleReply(comment)} title="Reply">
@@ -567,7 +592,7 @@ function InlineComments({
               {comment.like_count > 0 && <span>{formatCompact(comment.like_count)}</span>}
             </button>
             <button className={`pt-comment-action-btn${comment.is_bookmarked ? " pt-comment-action-bookmarked" : ""}`} onClick={() => handleBookmarkComment(comment)} title="Bookmark">
-              <IconBookmark size={14} />
+              {comment.is_bookmarked ? <IconBookmarkFilled size={14} /> : <IconBookmark size={14} />}
             </button>
             <button className="pt-comment-action-btn" onClick={() => handleShareComment(comment)} title="Share">
               <IconShare size={14} />
@@ -702,7 +727,8 @@ export default function FeedPage() {
   const { data: session } = useSession(supabase);
   const { data: profile } = useCurrentProfile(supabase, session?.user?.id);
 
-  /* Feed query */
+  /* Feed tabs + query */
+  const [activeTab, setActiveTab] = useState<FeedTab>("for-you");
   const {
     data: feedData,
     fetchNextPage,
@@ -710,7 +736,11 @@ export default function FeedPage() {
     isFetchingNextPage,
     isLoading,
     isError,
-  } = useFeed(supabase);
+  } = useFeed(supabase, activeTab);
+
+  /* Mute/block filtering */
+  const { data: mutedIds } = useMutedIds(supabase);
+  const { data: blockedData } = useBlockedIds(supabase);
 
   /* Mutations */
   const createPost = useCreatePost(supabase);
@@ -723,11 +753,16 @@ export default function FeedPage() {
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors, isValid },
   } = useForm<CreatePostInput>({
     resolver: zodResolver(createPostSchema),
     defaultValues: { content: "", type: "text", sentiment_tag: null, media_urls: [] },
   });
+  const composerContent = watch("content");
+  const composerTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const { ref: registerRef, ...registerRest } = register("content");
 
   const onSubmitPost = handleSubmit(
     async (data) => {
@@ -914,8 +949,21 @@ export default function FeedPage() {
     return () => observer.disconnect();
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  /* Flatten pages */
-  const posts: Post[] = feedData?.pages.flatMap((page) => page.data ?? []) ?? [];
+  /* Flatten pages + filter muted/blocked */
+  const excludedUserIds = useMemo(() => {
+    const set = new Set<string>();
+    (mutedIds ?? []).forEach((id) => set.add(id));
+    (blockedData?.all ?? []).forEach((id) => set.add(id));
+    return set;
+  }, [mutedIds, blockedData]);
+
+  const posts: Post[] = useMemo(
+    () =>
+      (feedData?.pages.flatMap((page) => page.data ?? []) ?? []).filter(
+        (post) => !excludedUserIds.has(post.user_id)
+      ),
+    [feedData, excludedUserIds]
+  );
 
   /* ---------------------------------------------------------------- */
   /*  Render                                                           */
@@ -925,8 +973,24 @@ export default function FeedPage() {
     <section className="pt-section">
       <div className="pt-feed-layout">
 
-        {/* ============ Left column: Composer + Feed ============ */}
+        {/* ============ Left column: Tabs + Composer + Feed ============ */}
         <div>
+          {/* Feed tabs — above composer, like X/Twitter */}
+          <div className="pt-feed-tabs">
+            <button
+              className={`pt-feed-tab ${activeTab === "for-you" ? "pt-feed-tab--active" : ""}`}
+              onClick={() => setActiveTab("for-you")}
+            >
+              For You
+            </button>
+            <button
+              className={`pt-feed-tab ${activeTab === "following" ? "pt-feed-tab--active" : ""}`}
+              onClick={() => setActiveTab("following")}
+            >
+              Following
+            </button>
+          </div>
+
           {/* Composer */}
           <form className="pt-composer" onSubmit={onSubmitPost}>
             <div className="pt-composer-top">
@@ -935,12 +999,45 @@ export default function FeedPage() {
                 name={profile?.display_name ?? "You"}
                 size="md"
               />
-              <textarea
-                {...register("content")}
-                placeholder="What's your trade thesis today?"
-                rows={2}
-                dir="auto"
-              />
+              <div className="pt-composer-input-wrap">
+                <div
+                  className="pt-composer-highlight"
+                  aria-hidden="true"
+                >
+                  {renderTextWithMentions(composerContent) || "\u00A0"}
+                </div>
+                <textarea
+                  {...registerRest}
+                  ref={(el) => {
+                    registerRef(el);
+                    composerTextareaRef.current = el;
+                  }}
+                  placeholder="What's your trade thesis today?"
+                  rows={2}
+                  dir="auto"
+                  onScroll={(e) => {
+                    const hl = e.currentTarget.previousElementSibling as HTMLElement;
+                    if (hl) hl.scrollTop = e.currentTarget.scrollTop;
+                  }}
+                />
+                <MentionDropdown
+                  supabase={supabase}
+                  textareaRef={composerTextareaRef}
+                  content={composerContent}
+                  onSelect={(username, start, end) => {
+                    const text = composerContent;
+                    const newText =
+                      text.slice(0, start) + "@" + username + " " + text.slice(end);
+                    setValue("content", newText, { shouldValidate: true });
+                    // Restore cursor position after React re-renders
+                    const newCursor = start + username.length + 2; // @ + username + space
+                    requestAnimationFrame(() => {
+                      composerTextareaRef.current?.setSelectionRange(newCursor, newCursor);
+                      composerTextareaRef.current?.focus();
+                    });
+                  }}
+                />
+              </div>
             </div>
 
             {errors.content && (
@@ -1029,55 +1126,65 @@ export default function FeedPage() {
           </form>
 
           {/* Feed list */}
-          {isLoading && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <PostSkeleton />
-              <PostSkeleton />
-              <PostSkeleton />
-            </div>
-          )}
+          <div className="pt-feed-list">
+            {isLoading && (
+              <>
+                <PostSkeleton />
+                <PostSkeleton />
+                <PostSkeleton />
+              </>
+            )}
 
-          {isError && (
-            <EmptyState
-              title="Failed to load feed"
-              description="Something went wrong. Please try again later."
-            />
-          )}
-
-          {!isLoading && !isError && posts.length === 0 && (
-            <EmptyState
-              icon={<IconChart size={32} />}
-              title="Your feed is empty"
-              description="Follow traders or post your first trade thesis to get started."
-            />
-          )}
-
-          {posts.map((post) => (
-            <div key={post.id} style={{ position: "relative" }}>
-              <PostCard
-                post={post}
-                onLike={handleLike}
-                onBookmark={handleBookmark}
-                onRepost={handleRepost}
-                onQuote={handleQuote}
-                onComment={handleComment}
-                onShare={handleShare}
-                onChartExpand={setFullscreenChartUrl}
-                onImageExpand={setFullscreenImageUrl}
-                isCommentsOpen={expandedCommentPostId === post.id}
-                isRepostMenuOpen={repostMenuPostId === post.id}
-                onToggleRepostMenu={handleToggleRepostMenu}
-                supabase={supabase}
+            {isError && (
+              <EmptyState
+                title="Failed to load feed"
+                description="Something went wrong. Please try again later."
               />
-              {copiedPostId === post.id && (
-                <div className="pt-copied-toast">Link copied!</div>
-              )}
-            </div>
-          ))}
+            )}
 
-          {/* Infinite scroll sentinel */}
-          <div ref={sentinelRef} style={{ height: 1 }} />
-          {isFetchingNextPage && <PostSkeleton />}
+            {!isLoading && !isError && posts.length === 0 && (
+              activeTab === "following" ? (
+                <EmptyState
+                  icon={<IconChart size={32} />}
+                  title="Your Following feed is empty"
+                  description="Follow some traders to see their posts here."
+                />
+              ) : (
+                <EmptyState
+                  icon={<IconChart size={32} />}
+                  title="Your feed is empty"
+                  description="Follow traders or post your first trade thesis to get started."
+                />
+              )
+            )}
+
+            {posts.map((post) => (
+              <div key={post.id} style={{ position: "relative" }}>
+                <PostCard
+                  post={post}
+                  onLike={handleLike}
+                  onBookmark={handleBookmark}
+                  onRepost={handleRepost}
+                  onQuote={handleQuote}
+                  onComment={handleComment}
+                  onShare={handleShare}
+                  onChartExpand={setFullscreenChartUrl}
+                  onImageExpand={setFullscreenImageUrl}
+                  isCommentsOpen={expandedCommentPostId === post.id}
+                  isRepostMenuOpen={repostMenuPostId === post.id}
+                  onToggleRepostMenu={handleToggleRepostMenu}
+                  supabase={supabase}
+                />
+                {copiedPostId === post.id && (
+                  <div className="pt-copied-toast">Link copied!</div>
+                )}
+              </div>
+            ))}
+
+            {/* Infinite scroll sentinel */}
+            <div ref={sentinelRef} style={{ height: 1 }} />
+            {isFetchingNextPage && <PostSkeleton />}
+          </div>
         </div>
 
         {/* ============ Right column: Sidebar ============ */}
@@ -1134,14 +1241,23 @@ export default function FeedPage() {
                   name={profile?.display_name ?? "You"}
                   size="md"
                 />
-                <textarea
-                  placeholder="Add your thoughts..."
-                  value={quoteContent}
-                  onChange={(e) => setQuoteContent(e.target.value)}
-                  rows={3}
-                  autoFocus
-                  dir="auto"
-                />
+                <div className="pt-composer-input-wrap">
+                  <div className="pt-composer-highlight" aria-hidden="true">
+                    {renderTextWithMentions(quoteContent) || "\u00A0"}
+                  </div>
+                  <textarea
+                    placeholder="Add your thoughts..."
+                    value={quoteContent}
+                    onChange={(e) => setQuoteContent(e.target.value)}
+                    rows={3}
+                    autoFocus
+                    dir="auto"
+                    onScroll={(e) => {
+                      const hl = e.currentTarget.previousElementSibling as HTMLElement;
+                      if (hl) hl.scrollTop = e.currentTarget.scrollTop;
+                    }}
+                  />
+                </div>
               </div>
               <div className="pt-quoted-embed" style={{ margin: "0 0 16px 0" }}>
                 <div className="pt-quoted-embed-header">
@@ -1163,7 +1279,7 @@ export default function FeedPage() {
                     @{quotedPost.author?.username ?? "user"}
                   </span>
                 </div>
-                <p className="pt-quoted-embed-body">{quotedPost.content}</p>
+                <p className="pt-quoted-embed-body">{renderTextWithMentions(quotedPost.content)}</p>
               </div>
               <div className="pt-composer-actions" style={{ borderTop: "none", paddingTop: 0 }}>
                 <div />

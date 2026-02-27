@@ -13,6 +13,7 @@ import {
   IconRepost,
   IconShare,
   IconBookmark,
+  IconBookmarkFilled,
   IconVerified,
   IconQuote,
   IconReply,
@@ -35,6 +36,21 @@ import { createBrowserClient } from "@/lib/supabase/client";
 import { timeAgo } from "@propian/shared/utils";
 import { formatCompact } from "@propian/shared/utils";
 import { parseChartRef, buildMiniChartUrl, buildFullChartUrl, formatChartLabel } from "@propian/shared/utils";
+
+/* ------------------------------------------------------------------ */
+/*  Render text with @mentions highlighted                             */
+/* ------------------------------------------------------------------ */
+
+function renderTextWithMentions(text: string): React.ReactNode {
+  if (!text) return null;
+  const parts = text.split(/(@\w+)/g);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    /^@\w+$/.test(part) ? (
+      <span key={i} className="pt-mention-hl">{part}</span>
+    ) : part
+  );
+}
 
 /* ------------------------------------------------------------------ */
 /*  Post Detail Page                                                   */
@@ -119,7 +135,7 @@ export default function PostDetailPage() {
           >
             &larr; Back
           </button>
-          <div className="pt-post">
+          <div className="pt-post pt-post-detail">
             <div className="pt-post-header">
               <Skeleton width={48} height={48} borderRadius="50%" />
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -200,7 +216,7 @@ export default function PostDetailPage() {
           {/* Body — larger text for detail view */}
           {post.content && (
             <div className="pt-post-body" style={{ fontSize: 16, lineHeight: 1.7 }}>
-              {post.content}
+              {renderTextWithMentions(post.content)}
             </div>
           )}
 
@@ -224,7 +240,7 @@ export default function PostDetailPage() {
                 </span>
               </div>
               {post.quoted_post.content && (
-                <p className="pt-quoted-embed-body">{post.quoted_post.content}</p>
+                <p className="pt-quoted-embed-body">{renderTextWithMentions(post.quoted_post.content)}</p>
               )}
               {/* Quoted post media */}
               {post.quoted_post.type === "image" && post.quoted_post.media_urls?.[0] && (
@@ -354,7 +370,11 @@ export default function PostDetailPage() {
               className={`pt-post-action ${post.is_bookmarked ? "bookmarked" : ""}`}
               onClick={handleBookmark}
             >
-              <IconBookmark size={17} style={post.is_bookmarked ? { color: "var(--lime)" } : undefined} />
+              {post.is_bookmarked ? (
+                <IconBookmarkFilled size={17} style={{ color: "var(--green)" }} />
+              ) : (
+                <IconBookmark size={17} />
+              )}
             </button>
 
             <button className="pt-post-action" onClick={handleShare}>
@@ -403,7 +423,7 @@ export default function PostDetailPage() {
                   @{post.author?.username ?? "user"}
                 </span>
               </div>
-              <p className="pt-quoted-embed-body">{post.content}</p>
+              <p className="pt-quoted-embed-body">{renderTextWithMentions(post.content)}</p>
             </div>
             <div className="pt-composer-actions" style={{ borderTop: "none", paddingTop: 0 }}>
               <div />
@@ -568,7 +588,7 @@ function InlineComments({
             )}
             <span className="pt-comment-time">{timeAgo(comment.created_at)}</span>
           </div>
-          <p className="pt-comment-text">{comment.content}</p>
+          <p className="pt-comment-text">{renderTextWithMentions(comment.content)}</p>
 
           <div className="pt-comment-actions">
             <button className="pt-comment-action-btn" onClick={() => handleReply(comment)} title="Reply">
@@ -580,7 +600,7 @@ function InlineComments({
               {comment.like_count > 0 && <span>{formatCompact(comment.like_count)}</span>}
             </button>
             <button className={`pt-comment-action-btn${comment.is_bookmarked ? " pt-comment-action-bookmarked" : ""}`} onClick={() => handleBookmarkComment(comment)} title="Bookmark">
-              <IconBookmark size={14} />
+              {comment.is_bookmarked ? <IconBookmarkFilled size={14} /> : <IconBookmark size={14} />}
             </button>
             <button className="pt-comment-action-btn" onClick={() => handleShareComment(comment)} title="Share">
               <IconShare size={14} />

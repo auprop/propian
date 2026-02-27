@@ -17,6 +17,7 @@ import {
   IconHeartOutline,
   IconComment,
   IconBookmark,
+  IconBookmarkFilled,
   IconRepost,
   IconQuote,
 } from "@propian/shared/icons";
@@ -324,9 +325,9 @@ export default function ProfilePage() {
 
           {/* Posts feed */}
           {activeTab === "posts" && (
-            <>
+            <div className="pt-feed-list" style={{ marginTop: 16 }}>
               {postsLoading && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div style={{ display: "flex", flexDirection: "column" }}>
                   <Skeleton width="100%" height={120} />
                   <Skeleton width="100%" height={100} />
                 </div>
@@ -436,7 +437,11 @@ export default function ProfilePage() {
                           });
                         }}
                       >
-                        <IconBookmark size={17} style={post.is_bookmarked ? { color: "var(--lime)" } : undefined} />
+                        {post.is_bookmarked ? (
+                          <IconBookmarkFilled size={17} style={{ color: "var(--green)" }} />
+                        ) : (
+                          <IconBookmark size={17} />
+                        )}
                       </button>
 
                       <button className="pt-post-action" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
@@ -446,7 +451,7 @@ export default function ProfilePage() {
                   </article>
                 </a>
               ))}
-            </>
+            </div>
           )}
 
           {/* Placeholder for other tabs */}

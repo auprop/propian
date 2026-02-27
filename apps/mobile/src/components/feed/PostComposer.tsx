@@ -116,6 +116,8 @@ interface PostComposerProps {
   isUploadingImage?: boolean;
   avatar?: string | null;
   displayName?: string;
+  initialContent?: string;
+  initialSentiment?: string | null;
 }
 
 /* ─── Component ─── */
@@ -127,6 +129,8 @@ export function PostComposer({
   isUploadingImage = false,
   avatar,
   displayName = "",
+  initialContent,
+  initialSentiment,
 }: PostComposerProps) {
   const insets = useSafeAreaInsets();
   const inputRef = useRef<TextInput>(null);
@@ -147,8 +151,8 @@ export function PostComposer({
   // Reset state when modal opens
   useEffect(() => {
     if (visible) {
-      setContent("");
-      setSentiment(null);
+      setContent(initialContent || "");
+      setSentiment((initialSentiment as Sentiment) || null);
       setShowSentiments(false);
       setChartRef(null);
       setShowChartPicker(false);

@@ -4,6 +4,7 @@ export { IconBarChart } from "./BarChart";
 export { IconBell } from "./Bell";
 export { IconBook } from "./Book";
 export { IconBookmark } from "./Bookmark";
+export { IconBookmarkFilled } from "./BookmarkFilled";
 export { IconCertificate } from "./Certificate";
 export { IconChart } from "./Chart";
 export { IconChat } from "./Chat";
