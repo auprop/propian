@@ -21,17 +21,10 @@
   max-width: 600px;
 }
 
-/* ─── Feed List Container (flat edge-to-edge posts) ─── */
+/* ─── Feed List Container ─── */
 
 .pt-feed-list {
-  border: var(--brd-strong);
-  border-radius: var(--r-lg);
-  overflow: hidden;
   margin-top: 16px;
-  background: var(--g100);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 
 /* ─── Feed Tabs ─── */
@@ -230,7 +223,16 @@
 
 .pt-post {
   background: var(--white);
+  border: var(--brd-strong);
+  border-radius: var(--r-lg);
+  margin-bottom: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   overflow: hidden;
+  transition: transform var(--t), box-shadow var(--t);
+}
+
+.pt-post:hover {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 /* Clickable post content link */
@@ -1063,9 +1065,6 @@
 
 .pt-post-detail {
   transform: none !important;
-  border: var(--brd-strong);
-  border-radius: var(--r-lg);
-  box-shadow: var(--sh-xs);
 }
 
 .pt-post-detail .pt-comments {
